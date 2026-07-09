@@ -1,0 +1,56 @@
+<UserControl x:Class="SalaamStreet.Desktop.Views.SettingsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="28">
+        <StackPanel MaxWidth="680" HorizontalAlignment="Left">
+            <TextBlock Text="Settings" Style="{StaticResource H1}" Margin="0,0,0,16" />
+
+            <!-- Reminders -->
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="Reminders &amp; notifications" FontWeight="SemiBold" Foreground="{StaticResource Text}" Margin="0,0,0,10" />
+                    <CheckBox x:Name="RemindersChk" Content="Enable background reminder service (runs only while enabled)" Foreground="{StaticResource Text}" Margin="0,4" />
+                    <CheckBox x:Name="PrayerChk" Content="Prayer time reminders" Foreground="{StaticResource Text}" Margin="20,4,0,4" />
+                    <CheckBox x:Name="QuranChk" Content="Daily Qur'an reminder (9:00)" Foreground="{StaticResource Text}" Margin="20,4,0,4" />
+                    <CheckBox x:Name="ArabicChk" Content="Daily Arabic learning reminder (9:00)" Foreground="{StaticResource Text}" Margin="20,4,0,4" />
+                    <Button Style="{StaticResource GhostButton}" Content="Send a test notification" Click="Test_Click" HorizontalAlignment="Left" Margin="0,10,0,0" />
+                </StackPanel>
+            </Border>
+
+            <!-- Reading -->
+            <Border Style="{StaticResource Card}" Margin="0,16,0,0">
+                <StackPanel>
+                    <TextBlock Text="Qur'an reading" FontWeight="SemiBold" Foreground="{StaticResource Text}" Margin="0,0,0,10" />
+                    <CheckBox x:Name="TranslationChk" Content="Show translation" Foreground="{StaticResource Text}" Margin="0,4" />
+                    <CheckBox x:Name="TranslitChk" Content="Show transliteration" Foreground="{StaticResource Text}" Margin="0,4" />
+                    <DockPanel Margin="0,10,0,0">
+                        <TextBlock Text="Download entire Qur'an for offline use" Foreground="{StaticResource Text}" VerticalAlignment="Center" />
+                        <Button Style="{StaticResource PrimaryButton}" x:Name="DlAllBtn" Content="Download all" Click="DownloadAll_Click" HorizontalAlignment="Right" />
+                    </DockPanel>
+                    <TextBlock x:Name="DlStatus" Style="{StaticResource Muted}" Margin="0,6,0,0" />
+                </StackPanel>
+            </Border>
+
+            <!-- System -->
+            <Border Style="{StaticResource Card}" Margin="0,16,0,0">
+                <StackPanel>
+                    <TextBlock Text="System" FontWeight="SemiBold" Foreground="{StaticResource Text}" Margin="0,0,0,10" />
+                    <CheckBox x:Name="AutoStartChk" Content="Start SalaamStreet when I sign in to Windows (per-user, no admin)" Foreground="{StaticResource Text}" Margin="0,4" />
+                    <CheckBox x:Name="StartTrayChk" Content="Start minimised to the system tray" Foreground="{StaticResource Text}" Margin="0,4" />
+                </StackPanel>
+            </Border>
+
+            <!-- Account (placeholder until Supabase auth is wired in Session 4) -->
+            <Border Style="{StaticResource Card}" Margin="0,16,0,0">
+                <StackPanel>
+                    <TextBlock Text="Account" FontWeight="SemiBold" Foreground="{StaticResource Text}" Margin="0,0,0,6" />
+                    <TextBlock Text="Sign-in that syncs your bookmarks, progress and premium status with the website is coming in a later update. Everything currently works offline on this device."
+                               Style="{StaticResource Muted}" />
+                </StackPanel>
+            </Border>
+
+            <TextBlock Text="Your data is stored locally in %AppData%\SalaamStreet. This app never requests administrator rights and runs no hidden processes."
+                       Style="{StaticResource Muted}" FontSize="11" Margin="0,16,0,0" />
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

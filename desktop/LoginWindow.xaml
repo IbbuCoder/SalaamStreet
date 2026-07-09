@@ -1,0 +1,29 @@
+<Window x:Class="SalaamStreet.Desktop.LoginWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="SalaamStreet — Account" Height="480" Width="420"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
+        Background="{StaticResource Bg}" Foreground="{StaticResource Text}">
+    <Border Padding="28">
+        <StackPanel>
+            <TextBlock FontSize="22" FontWeight="Bold">
+                <Run Text="Salaam" Foreground="{StaticResource EmeraldStrong}" /><Run Text="Street" Foreground="{StaticResource Gold}" />
+            </TextBlock>
+            <TextBlock x:Name="Subtitle" Text="Sign in to sync your bookmarks, progress and premium status." Style="{StaticResource Muted}" Margin="0,4,0,18" />
+
+            <TextBlock Text="Email" Style="{StaticResource Muted}" Margin="0,0,0,4" />
+            <TextBox x:Name="EmailBox" Height="40" />
+
+            <TextBlock Text="Password" Style="{StaticResource Muted}" Margin="0,12,0,4" />
+            <PasswordBox x:Name="PasswordBox" Height="40" />
+
+            <TextBlock x:Name="Status" Style="{StaticResource Tiny}" Foreground="{StaticResource Gold}" Margin="0,12,0,0" />
+
+            <Button x:Name="PrimaryBtn" Style="{StaticResource PrimaryButton}" Content="Sign in" Click="Primary_Click" Margin="0,16,0,0" Height="42" />
+            <Button x:Name="SecondaryBtn" Style="{StaticResource GhostButton}" Content="Create an account instead" Click="Toggle_Click" Margin="0,10,0,0" Height="40" />
+
+            <TextBlock x:Name="ConfigNote" Style="{StaticResource Tiny}" Margin="0,18,0,0"
+                       Text="Accounts aren't configured yet. Add your Supabase URL and anon key in Services/SupabaseConfig.cs (see backend/README-backend.md), then rebuild. Everything works offline in the meantime." />
+        </StackPanel>
+    </Border>
+</Window>

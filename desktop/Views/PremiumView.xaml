@@ -1,0 +1,44 @@
+<UserControl x:Class="SalaamStreet.Desktop.Views.PremiumView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="28">
+        <StackPanel MaxWidth="820" HorizontalAlignment="Left">
+            <TextBlock Text="SalaamStreet Premium" Style="{StaticResource H1}" />
+            <TextBlock Text="Support the project and unlock deeper study tools. Core worship features stay free, always." Style="{StaticResource Muted}" Margin="0,2,0,16" />
+
+            <Border x:Name="ActiveCard" Style="{StaticResource Card}" Background="{StaticResource EmeraldSoft}" Visibility="Collapsed">
+                <TextBlock Text="⭐  Premium is active on your account." Foreground="{StaticResource Gold}" FontWeight="SemiBold" />
+            </Border>
+
+            <Grid Margin="0,4,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="16" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Border Grid.Column="0" Style="{StaticResource Card}">
+                    <StackPanel>
+                        <TextBlock Text="Free forever" Style="{StaticResource H2}" />
+                        <TextBlock Text="Prayer times, Qibla, full Qur'an with audio &amp; tafsir, duas, dhikr, hadith, calendar." Style="{StaticResource Muted}" Margin="0,6,0,0" />
+                    </StackPanel>
+                </Border>
+                <Border Grid.Column="2" Style="{StaticResource Card}">
+                    <StackPanel>
+                        <TextBlock Text="Included in Premium" Style="{StaticResource H2}" Margin="0,0,0,8" />
+                        <StackPanel x:Name="Features" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <TextBlock Text="Choose a plan" Style="{StaticResource H2}" Margin="0,20,0,10" />
+            <WrapPanel x:Name="Plans" />
+
+            <Border Style="{StaticResource Card}" Margin="0,16,0,0">
+                <StackPanel>
+                    <TextBlock Text="How payment works" Style="{StaticResource H2}" />
+                    <TextBlock Text="Payment is via PayPal to @aqmoha. On this device, activation is provisional after you confirm payment; a later update verifies it on the server so it syncs to your account. Sign in first so Premium follows you across the website and app." Style="{StaticResource Muted}" Margin="0,6,0,0" />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

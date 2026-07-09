@@ -1,0 +1,53 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    SalaamStreet for Windows: a REAL native desktop app.
+    WPF on .NET 8. No Edge, no WebView, no Electron, no PWA.
+    Build:  dotnet build -c Release
+    To publish a self-contained single-file exe, see README-desktop.md
+    (the publish command uses the self-contained and PublishSingleFile flags).
+  -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <!-- windows10.0.19041 gives access to Windows toast notification APIs -->
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+
+    <AssemblyName>SalaamStreet</AssemblyName>
+    <RootNamespace>SalaamStreet.Desktop</RootNamespace>
+    <Version>0.1.0</Version>
+    <FileVersion>0.1.0.0</FileVersion>
+    <Company>SalaamStreet</Company>
+    <Product>SalaamStreet</Product>
+    <Authors>SalaamStreet</Authors>
+    <Copyright>© SalaamStreet</Copyright>
+    <Description>Prayer times, Qibla, Qur'an, and Arabic study for Windows.</Description>
+
+    <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+
+    <!-- Deterministic, no telemetry, ready for code signing. -->
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- MVVM helpers (ObservableObject, RelayCommand) -->
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.2" />
+    <!-- Local database cache -->
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.6" />
+    <!-- System tray icon for the background reminder service -->
+    <PackageReference Include="Hardcodet.NotifyIcon.Wpf" Version="1.1.0" />
+    <!-- Windows toast notifications (prayer/study reminders) -->
+    <PackageReference Include="Microsoft.Toolkit.Uwp.Notifications" Version="7.1.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\AppIcon.ico" />
+    <Resource Include="Assets\AppIcon.png" />
+  </ItemGroup>
+
+</Project>

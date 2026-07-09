@@ -1,0 +1,44 @@
+<UserControl x:Class="SalaamStreet.Desktop.Views.LearnView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="28">
+        <StackPanel MaxWidth="680" HorizontalAlignment="Left">
+            <TextBlock Text="Learn Arabic" Style="{StaticResource H1}" />
+            <TextBlock Text="Flashcards to build your Qur'anic Arabic vocabulary. Keyboard: Space = flip, → = next, ← = previous."
+                       Style="{StaticResource Muted}" Margin="0,2,0,16" />
+
+            <!-- Flashcard -->
+            <Border Style="{StaticResource Card}" Height="240" Cursor="Hand" MouseLeftButtonUp="Card_Click">
+                <Grid>
+                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                        <TextBlock x:Name="CardFront" Text="" FontSize="40" FontWeight="Bold"
+                                   Foreground="{StaticResource Text}" HorizontalAlignment="Center"
+                                   FlowDirection="RightToLeft" />
+                        <TextBlock x:Name="CardBack" Text="" FontSize="20" Foreground="{StaticResource Gold}"
+                                   HorizontalAlignment="Center" Margin="0,12,0,0" Visibility="Collapsed" />
+                        <TextBlock x:Name="CardNote" Text="" Style="{StaticResource Muted}"
+                                   HorizontalAlignment="Center" Margin="0,8,0,0" Visibility="Collapsed" />
+                    </StackPanel>
+                    <TextBlock Text="click / space to flip" Style="{StaticResource Muted}" FontSize="11"
+                               HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,6" />
+                </Grid>
+            </Border>
+
+            <DockPanel Margin="0,14,0,0">
+                <TextBlock x:Name="Progress" Style="{StaticResource Muted}" VerticalAlignment="Center" />
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Style="{StaticResource GhostButton}" Content="← Prev" Click="Prev_Click" Margin="0,0,8,0" />
+                    <Button Style="{StaticResource PrimaryButton}" Content="Next →" Click="Next_Click" />
+                </StackPanel>
+            </DockPanel>
+
+            <Border Style="{StaticResource Card}" Margin="0,16,0,0">
+                <StackPanel>
+                    <TextBlock Text="More lessons coming" FontWeight="SemiBold" Foreground="{StaticResource Text}" />
+                    <TextBlock Text="Grammar, quizzes, a memorization planner and progress analytics are planned for the learning module (premium tiers). This foundation ships the flashcard engine and offline vocab."
+                               Style="{StaticResource Muted}" Margin="0,6,0,0" />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
