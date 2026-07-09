@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SalaamStreet — Your Islamic Companion</title>
+  <meta name="description" content="Prayer times, Qibla, Qur'an with audio, authentic duas, and dhikr — in one peaceful place." />
+  <meta name="theme-color" content="#059669" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕌</text></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;600;700;800&family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Scheherazade+New:wght@400;700&family=Amiri:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+  <!-- ═══════════ Side navigation (desktop) ═══════════ -->
+  <nav class="sidenav" aria-label="Main">
+    <div class="brand">Salaam<span class="g">Street</span></div>
+    <a class="navlink" href="#/home" data-nav="home"><span class="ic">🕌</span><span data-i18n="nav.dashboard">Dashboard</span></a>
+    <a class="navlink" href="#/prayer" data-nav="prayer"><span class="ic">🕰️</span><span data-i18n="nav.prayer">Prayer Times</span></a>
+    <a class="navlink" href="#/qibla" data-nav="qibla"><span class="ic">🧭</span><span data-i18n="nav.qibla">Qibla</span></a>
+    <a class="navlink" href="#/quran" data-nav="quran"><span class="ic">📖</span><span data-i18n="nav.quran">Qur'an</span></a>
+    <a class="navlink" href="#/duas" data-nav="duas"><span class="ic">🤲</span><span data-i18n="nav.duas">Duas</span></a>
+    <a class="navlink" href="#/dhikr" data-nav="dhikr"><span class="ic">📿</span><span data-i18n="nav.dhikr">Dhikr</span></a>
+    <a class="navlink" href="#/apps" data-nav="apps"><span class="ic">💻</span><span data-i18n="nav.apps">Apps</span></a>
+    <a class="navlink" href="#/settings" data-nav="settings"><span class="ic">⚙️</span><span data-i18n="nav.settings">Settings</span></a>
+    <div class="foot">Qur'an &amp; duas from verified sources.<br />Your data stays on your device.</div>
+  </nav>
+
+  <!-- ═══════════ Top bar ═══════════ -->
+  <header class="topbar">
+    <span class="brand-sm">Salaam<span class="gold">Street</span></span>
+    <span class="spacer"></span>
+    <button class="chip" id="locale-toggle" type="button" aria-label="Switch language / تغيير اللغة">العربية</button>
+    <button class="icon-btn" id="theme-toggle" type="button" aria-label="Toggle theme">◐</button>
+  </header>
+
+  <main class="main" id="main">
+
+    <!-- ═══════════ HOME ═══════════ -->
+    <section class="view" id="view-home" hidden>
+      <div class="card" id="loc-banner" hidden>
+        <div class="row-between wrap">
+          <p class="muted" data-i18n="dash.setLocation">Set your location for accurate prayer times</p>
+          <button class="btn btn-sm" id="loc-banner-btn" data-i18n="dash.setLocationBtn">Set location</button>
+        </div>
+      </div>
+
+      <div class="card hero mt-2">
+        <div class="row-between wrap">
+          <p class="muted" data-i18n="dash.greeting">As-salamu alaykum</p>
+          <p class="muted tiny" id="np-hijri"></p>
+        </div>
+        <div class="row-between mt-1">
+          <div>
+            <p class="muted" data-i18n="dash.nextPrayer">Next prayer</p>
+            <p class="np-name" id="np-name">—</p>
+          </div>
+          <div class="center">
+            <p class="countdown" id="np-countdown">--:--:--</p>
+          </div>
+        </div>
+        <div class="prayer-strip" id="np-strip"></div>
+        <div class="row wrap mt-2">
+          <button class="chip" id="np-loc" type="button">📍 —</button>
+          <span class="tiny" id="np-locnote" style="color:var(--em-100)"></span>
+        </div>
+      </div>
+
+      <div class="card mt-2">
+        <div class="card-title">
+          <h2 data-i18n="dash.dailyAyah">Ayah of the day</h2>
+          <span class="badge" id="da-ref"></span>
+        </div>
+        <div id="da-body"><div class="skeleton" style="min-block-size:64px"></div></div>
+      </div>
+
+      <div class="grid-2 mt-2">
+        <div class="card">
+          <div class="card-title"><h2 data-i18n="dash.dhikrStreak">Dhikr streak</h2><span aria-hidden="true">📿</span></div>
+          <p><b class="gold" id="ds-count" style="font-size:1.8rem">0</b> <span class="muted" data-i18n="dash.days">days</span></p>
+          <a class="btn btn-outline btn-sm mt-1" href="#/dhikr" data-i18n="dash.continueDhikr">Open counter</a>
+        </div>
+        <div class="card">
+          <div class="card-title"><h2 data-i18n="dash.continueReading">Continue reading</h2><span aria-hidden="true">📖</span></div>
+          <p class="muted" id="cr-pos">—</p>
+          <a class="btn btn-outline btn-sm mt-1" href="#/quran" id="cr-link" data-i18n="dash.startReading">Start reading the Qur'an</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════ PRAYER TIMES ═══════════ -->
+    <section class="view" id="view-prayer" hidden>
+      <div class="page-head">
+        <h1 data-i18n="prayer.title">Prayer Times</h1>
+        <p data-i18n="prayer.sub">Times are calculated for your location using your chosen method.</p>
+      </div>
+
+      <div class="card">
+        <div class="row wrap">
+          <button class="chip" id="pt-loc-chip" type="button">📍 —</button>
+          <span class="spacer"></span>
+          <span class="tiny" id="pt-hijri"></span>
+        </div>
+        <p class="tiny mt-1" id="pt-locnote" hidden></p>
+        <div class="grid-2 mt-2">
+          <div class="field">
+            <label for="pt-method" data-i18n="prayer.method">Calculation method</label>
+            <select class="input" id="pt-method"></select>
+          </div>
+          <div class="field">
+            <label for="pt-school" data-i18n="prayer.asr">Asr method</label>
+            <select class="input" id="pt-school"></select>
+          </div>
+        </div>
+        <p class="tiny mt-1" data-i18n="prayer.methodNote">Scholars differ on calculation parameters — choose the method used by your local mosque or region.</p>
+      </div>
+
+      <div class="row mt-2" role="tablist">
+        <button class="btn btn-sm" id="pt-tab-daily" type="button" role="tab" aria-selected="true" data-i18n="prayer.daily">Today</button>
+        <button class="btn btn-sm btn-ghost" id="pt-tab-monthly" type="button" role="tab" aria-selected="false" data-i18n="prayer.monthly">Monthly view</button>
+      </div>
+
+      <div class="mt-2" id="pt-daily" role="tabpanel">
+        <div class="times-list" id="pt-list">
+          <div class="skeleton" style="min-block-size:54px"></div>
+          <div class="skeleton" style="min-block-size:54px"></div>
+          <div class="skeleton" style="min-block-size:54px"></div>
+        </div>
+        <p class="tiny mt-1" id="pt-cache-note" hidden data-i18n="common.offlineCache">Showing saved data (offline).</p>
+      </div>
+
+      <div class="card mt-2 table-scroll" id="pt-monthly" role="tabpanel" hidden>
+        <table class="month-table" id="pt-month-table"></table>
+      </div>
+    </section>
+
+    <!-- ═══════════ QIBLA ═══════════ -->
+    <section class="view" id="view-qibla" hidden>
+      <div class="page-head">
+        <h1 data-i18n="qibla.title">Qibla Finder</h1>
+        <p data-i18n="qibla.sub">Direction to the Kaaba from your location.</p>
+      </div>
+
+      <div class="card center" id="qibla-card">
+        <button class="chip" id="qb-loc-chip" type="button">📍 —</button>
+        <div class="compass-wrap">
+          <div class="compass" role="img" aria-label="Qibla compass">
+            <span class="cd n">N</span><span class="cd e">E</span><span class="cd s">S</span><span class="cd w">W</span>
+            <div class="needle" id="qb-needle"><span class="k" aria-hidden="true">🕋</span></div>
+          </div>
+        </div>
+        <p class="qibla-deg"><span id="qb-deg">—</span>°</p>
+        <p class="muted" data-i18n="qibla.fromNorth">from North</p>
+        <p class="tiny mt-1 gold" id="qb-aligned" hidden data-i18n="qibla.aligned">You are facing the Qibla</p>
+        <div class="mt-2"><button class="btn" id="qb-enable" type="button" hidden data-i18n="qibla.enableCompass">Enable compass</button></div>
+        <p class="tiny mt-1" id="qb-hint"></p>
+      </div>
+    </section>
+
+    <!-- ═══════════ QURAN INDEX ═══════════ -->
+    <section class="view" id="view-quran" hidden>
+      <div class="page-head">
+        <h1 data-i18n="quran.title">The Noble Qur'an</h1>
+        <p data-i18n="quran.sub">Uthmani script · Saheeh International translation</p>
+      </div>
+
+      <div class="card" id="qi-resume" hidden>
+        <div class="row-between wrap">
+          <p class="muted" id="qi-resume-pos"></p>
+          <a class="btn btn-sm" id="qi-resume-link" href="#/quran" data-i18n="quran.resume">Resume</a>
+        </div>
+      </div>
+
+      <div class="field mt-2">
+        <label class="visually-hidden" for="qi-search" data-i18n="quran.search">Search surahs…</label>
+        <input class="input" id="qi-search" type="search" placeholder="Search surahs…" data-i18n-ph="quran.search" />
+      </div>
+      <div class="surah-grid mt-2" id="qi-grid"></div>
+    </section>
+
+    <!-- ═══════════ SURAH READER ═══════════ -->
+    <section class="view" id="view-surah" hidden>
+      <div class="row-between wrap page-head">
+        <div>
+          <h1 id="sr-title">—</h1>
+          <p class="muted" id="sr-meta"></p>
+        </div>
+        <div class="row wrap">
+          <select class="input" id="sr-reciter" style="max-inline-size:200px" aria-label="Reciter"></select>
+          <button class="btn btn-sm" id="sr-play" type="button" data-i18n="quran.playSurah">Play surah</button>
+        </div>
+      </div>
+
+      <div class="row wrap mb-2">
+        <label class="chip"><input type="checkbox" id="sr-tr" checked style="accent-color:var(--primary)" /> <span data-i18n="quran.translation">Translation</span></label>
+        <label class="chip"><input type="checkbox" id="sr-tl" style="accent-color:var(--primary)" /> <span data-i18n="quran.transliteration">Transliteration</span></label>
+      </div>
+
+      <p class="bismillah" id="sr-bismillah" lang="ar" hidden>بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</p>
+      <div class="stack" id="sr-list"></div>
+      <p class="tiny mt-2 center" data-i18n="quran.source">Text: Tanzil Uthmani via AlQuran Cloud · Translation: Saheeh International</p>
+
+      <nav class="reader-nav">
+        <a class="btn btn-outline" id="sr-prev" href="#/quran" data-i18n="quran.prev">Previous</a>
+        <a class="btn btn-outline" id="sr-next" href="#/quran" data-i18n="quran.next">Next</a>
+      </nav>
+    </section>
+
+    <!-- ═══════════ DUAS ═══════════ -->
+    <section class="view" id="view-duas" hidden>
+      <div class="page-head">
+        <h1 data-i18n="duas.title">Dua Library</h1>
+        <p data-i18n="duas.sub">Authentic supplications with sources — every dua cites the Qur'an or a graded hadith.</p>
+      </div>
+      <div class="grid-cards" id="du-cats"></div>
+      <div id="du-detail" hidden>
+        <button class="btn btn-ghost btn-sm mb-2" id="du-back" type="button">← <span data-i18n="duas.title">Dua Library</span></button>
+        <h2 id="du-cat-title" class="mb-2"></h2>
+        <div class="stack" id="du-list"></div>
+      </div>
+    </section>
+
+    <!-- ═══════════ DHIKR ═══════════ -->
+    <section class="view" id="view-dhikr" hidden>
+      <div class="page-head">
+        <h1 data-i18n="dhikr.title">Dhikr Counter</h1>
+        <p data-i18n="dhikr.sub">Remembrance of Allah — with daily streaks.</p>
+      </div>
+
+      <div class="card">
+        <div class="preset-chips" id="dk-presets" role="radiogroup" aria-label="Dhikr"></div>
+        <div class="dhikr-wrap mt-2">
+          <p class="arabic-dua center" id="dk-text" lang="ar"></p>
+          <p class="tiny" id="dk-source"></p>
+          <div class="ring" id="dk-ring">
+            <svg viewBox="0 0 200 200" aria-hidden="true">
+              <circle class="trk" cx="100" cy="100" r="88" fill="none" stroke-width="10"/>
+              <circle class="prg" id="dk-prog" cx="100" cy="100" r="88" fill="none" stroke-width="10" stroke-dasharray="553" stroke-dashoffset="553"/>
+            </svg>
+            <div class="num" id="dk-count" aria-live="polite">0</div>
+          </div>
+          <button class="tap-btn" id="dk-tap" type="button" data-i18n="dhikr.tap">Tap to count</button>
+          <p class="tiny"><span data-i18n="dhikr.target">Target</span>: <b id="dk-target">33</b></p>
+          <button class="btn btn-ghost btn-sm" id="dk-reset" type="button" data-i18n="dhikr.reset">Reset</button>
+        </div>
+      </div>
+
+      <div class="card mt-2">
+        <div class="streak-stats">
+          <div><b id="dk-streak-cur">0</b><span class="muted" data-i18n="dhikr.currentStreak">Current streak</span></div>
+          <div><b id="dk-streak-max">0</b><span class="muted" data-i18n="dhikr.longestStreak">Longest streak</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════ APPS ═══════════ -->
+    <section class="view" id="view-apps" hidden>
+      <div class="page-head">
+        <h1 data-i18n="apps.title">SalaamStreet Apps</h1>
+        <p data-i18n="apps.sub">Take SalaamStreet beyond the browser.</p>
+      </div>
+
+      <div class="card hero">
+        <h2>💻 <span data-i18n="apps.windows">SalaamStreet for Windows</span></h2>
+        <p class="muted mt-1" data-i18n="apps.windowsDesc">A lightweight desktop launcher (v0.1) that opens SalaamStreet in its own app window — no browser tabs, no clutter.</p>
+        <div class="row wrap mt-2">
+          <a class="btn btn-gold" id="app-download" href="app/SalaamStreet.exe" download="SalaamStreet.exe">⬇ <span data-i18n="apps.download">Download for Windows (.exe)</span></a>
+          <span class="tiny" style="color:var(--em-100)" data-i18n="apps.free">Free · no account needed</span>
+        </div>
+        <p class="tiny mt-2" style="color:var(--em-100)" data-i18n="apps.smartscreen">Note: this is a new unsigned app, so Windows SmartScreen may show a warning. Choose "More info" → "Run anyway".</p>
+      </div>
+
+      <h2 class="mt-3 mb-2" data-i18n="apps.soon">Unlocked in upcoming app updates</h2>
+      <div class="grid-2">
+        <div class="card"><h3>🔔 <span data-i18n="apps.f1">Adhan notifications</span></h3><p class="muted" data-i18n="apps.f1d">Hear the call to prayer at every prayer time, even when the app is closed.</p></div>
+        <div class="card"><h3>📥 <span data-i18n="apps.f2">Full offline mode</span></h3><p class="muted" data-i18n="apps.f2d">Download the complete Qur'an text and your favorite reciter for use without internet.</p></div>
+        <div class="card"><h3>⏱️ <span data-i18n="apps.f3">System-tray countdown</span></h3><p class="muted" data-i18n="apps.f3d">Always-visible countdown to the next prayer in your Windows taskbar.</p></div>
+        <div class="card"><h3>🧭 <span data-i18n="apps.f4">Auto location updates</span></h3><p class="muted" data-i18n="apps.f4d">Prayer times that follow you automatically when you travel.</p></div>
+        <div class="card"><h3>🗓️ <span data-i18n="apps.f5">Ramadan mode</span></h3><p class="muted" data-i18n="apps.f5d">Suhoor and iftar timers, fasting tracker, and Taraweeh reading plans.</p></div>
+        <div class="card"><h3>📊 <span data-i18n="apps.f6">Advanced statistics</span></h3><p class="muted" data-i18n="apps.f6d">Deeper insights into your dhikr streaks, reading progress, and prayer consistency.</p></div>
+      </div>
+      <p class="tiny mt-2" data-i18n="apps.webNote">Everything else you see on this site — prayer times, Qur'an with audio, duas, dhikr — is already free in the web version.</p>
+    </section>
+
+    <!-- ═══════════ SETTINGS ═══════════ -->
+    <section class="view" id="view-settings" hidden>
+      <div class="page-head"><h1 data-i18n="settings.title">Settings</h1></div>
+
+      <div class="card settings-group">
+        <div class="row-between">
+          <label for="st-locale" data-i18n="settings.language">Language</label>
+          <select class="input" id="st-locale" style="max-inline-size:170px">
+            <option value="en">English</option>
+            <option value="ar">العربية</option>
+          </select>
+        </div>
+        <div class="row-between">
+          <label for="st-theme" data-i18n="settings.theme">Theme</label>
+          <select class="input" id="st-theme" style="max-inline-size:170px">
+            <option value="light" data-i18n="settings.themeLight">Light</option>
+            <option value="dark" data-i18n="settings.themeDark">Dark</option>
+            <option value="system" data-i18n="settings.themeSystem">System</option>
+          </select>
+        </div>
+        <div class="row-between">
+          <span data-i18n="settings.transliteration">Show transliteration</span>
+          <label class="switch"><input type="checkbox" id="st-translit" /><span class="trk"></span><span class="th"></span></label>
+        </div>
+      </div>
+
+      <div class="card settings-group mt-2">
+        <div class="row-between wrap">
+          <div><b data-i18n="settings.location">Location</b><p class="tiny" id="st-loc-status"></p></div>
+          <div class="row wrap">
+            <button class="btn btn-outline btn-sm" id="st-loc-set" type="button" data-i18n="settings.useDevice">Use device location</button>
+            <button class="btn btn-ghost btn-sm" id="st-loc-clear" type="button" data-i18n="settings.locationClear">Clear location</button>
+          </div>
+        </div>
+        <div class="row-between">
+          <label for="st-method" data-i18n="prayer.method">Calculation method</label>
+          <select class="input" id="st-method" style="max-inline-size:230px"></select>
+        </div>
+        <div class="row-between">
+          <label for="st-school" data-i18n="prayer.asr">Asr method</label>
+          <select class="input" id="st-school" style="max-inline-size:230px"></select>
+        </div>
+        <div class="row-between">
+          <label for="st-reciter" data-i18n="quran.reciter">Reciter</label>
+          <select class="input" id="st-reciter" style="max-inline-size:230px"></select>
+        </div>
+      </div>
+
+      <div class="card settings-group mt-2">
+        <div class="row-between"><b data-i18n="settings.data">Your data</b><span></span></div>
+        <div class="row-between">
+          <span data-i18n="settings.export">Export my data</span>
+          <button class="btn btn-outline btn-sm" id="st-export" type="button">⬇</button>
+        </div>
+        <div class="row-between">
+          <span class="danger" data-i18n="settings.deleteAll">Delete all my data</span>
+          <button class="btn btn-ghost btn-sm danger" id="st-delete" type="button">🗑</button>
+        </div>
+      </div>
+
+      <p class="tiny mt-2" data-i18n="settings.privacyNote">All your data stays on this device. Your coordinates are sent only to the prayer-times service (AlAdhan) to calculate times, and are never stored on a server by us.</p>
+    </section>
+  </main>
+
+  <!-- ═══════════ Audio bar ═══════════ -->
+  <div class="audio-bar" id="audio-bar" hidden>
+    <div class="inner">
+      <button class="icon-btn" id="ab-play" type="button" aria-label="Play/Pause">▶</button>
+      <span class="now" id="ab-now"></span>
+      <select class="input" id="ab-speed" style="max-inline-size:82px" aria-label="Speed">
+        <option value="0.75">0.75×</option>
+        <option value="1" selected>1×</option>
+        <option value="1.25">1.25×</option>
+        <option value="1.5">1.5×</option>
+      </select>
+      <button class="icon-btn" id="ab-repeat" type="button" aria-label="Repeat ayah">🔁</button>
+      <button class="icon-btn" id="ab-close" type="button" aria-label="Close player">✕</button>
+    </div>
+  </div>
+
+  <!-- ═══════════ Bottom navigation (mobile) ═══════════ -->
+  <nav class="bottomnav" aria-label="Main">
+    <a href="#/home" data-nav="home"><span class="ic">🕌</span><span data-i18n="nav.dashboard">Dashboard</span></a>
+    <a href="#/prayer" data-nav="prayer"><span class="ic">🕰️</span><span data-i18n="nav.prayer">Prayer</span></a>
+    <a href="#/quran" data-nav="quran"><span class="ic">📖</span><span data-i18n="nav.quran">Qur'an</span></a>
+    <a href="#/dhikr" data-nav="dhikr"><span class="ic">📿</span><span data-i18n="nav.dhikr">Dhikr</span></a>
+    <a href="#/apps" data-nav="apps"><span class="ic">💻</span><span data-i18n="nav.apps">Apps</span></a>
+  </nav>
+
+  <!-- ═══════════ Location permission dialog ═══════════ -->
+  <dialog class="modal" id="loc-dialog">
+    <div class="modal-body">
+      <h2 data-i18n="loc.title">Location access</h2>
+      <p class="muted" data-i18n="loc.body">We use your location only to provide accurate prayer times, Qibla direction, nearby mosques, and halal businesses.</p>
+      <div class="modal-actions">
+        <button class="btn" data-act="while" type="button" data-i18n="loc.allowWhile">Allow while using app</button>
+        <button class="btn btn-outline" data-act="once" type="button" data-i18n="loc.allowOnce">Allow once</button>
+        <button class="btn btn-outline" data-act="manual" type="button" data-i18n="loc.manual">Enter location manually</button>
+        <button class="btn btn-ghost" data-act="deny" type="button" data-i18n="loc.deny">Don't allow</button>
+      </div>
+      <form class="mt-2" id="loc-manual-form" hidden>
+        <div class="field">
+          <label for="loc-city" data-i18n="loc.manualTitle">Enter your city</label>
+          <input class="input" id="loc-city" name="city" placeholder="e.g. London, Dubai, Karachi" data-i18n-ph="loc.manualPlaceholder" required />
+        </div>
+        <div class="modal-actions">
+          <button class="btn" type="submit" data-i18n="common.save">Save</button>
+        </div>
+        <p class="tiny mt-1" id="loc-status" aria-live="polite"></p>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- Classic scripts (no ES modules): order matters, `defer` preserves it.
+       This works from file://, any static host, and GitHub Pages. -->
+  <script src="js/surahs.js" defer></script>
+  <script src="js/duas.js" defer></script>
+  <script src="js/i18n.js" defer></script>
+  <script src="js/core.js" defer></script>
+  <script src="js/views.js" defer></script>
+  <script src="js/app.js" defer></script>
+</body>
+</html>
