@@ -172,12 +172,12 @@ const DUAS = [
 
 /** Common dhikr presets with sources (used by the dhikr counter). */
 const DHIKR_PRESETS = [
-  { id: "subhanallah", ar: "سُبْحَانَ اللَّهِ", en: "SubhanAllah", target: 33, source: "Sahih Muslim 596 (after prayer)" },
-  { id: "alhamdulillah", ar: "الْحَمْدُ لِلَّهِ", en: "Alhamdulillah", target: 33, source: "Sahih Muslim 596" },
-  { id: "allahuakbar", ar: "اللَّهُ أَكْبَرُ", en: "Allahu Akbar", target: 34, source: "Sahih Muslim 596" },
-  { id: "istighfar", ar: "أَسْتَغْفِرُ اللَّهَ", en: "Astaghfirullah", target: 100, source: "Sahih Muslim 2702" },
-  { id: "salawat", ar: "اللَّهُمَّ صَلِّ عَلَى مُحَمَّدٍ", en: "Salawat on the Prophet ﷺ", target: 100, source: "cf. Qur'an 33:56" },
-  { id: "tahlil", ar: "لَا إِلَهَ إِلَّا اللَّهُ", en: "La ilaha illallah", target: 100, source: "Sahih al-Bukhari 6403 (virtue of 100×)" },
+  { id: "subhanallah", ar: "سُبْحَانَ اللَّهِ", en: "SubhanAllah", meaning: "Glory be to Allah", target: 33, source: "Sahih Muslim 596 (after prayer)" },
+  { id: "alhamdulillah", ar: "الْحَمْدُ لِلَّهِ", en: "Alhamdulillah", meaning: "All praise is for Allah", target: 33, source: "Sahih Muslim 596" },
+  { id: "allahuakbar", ar: "اللَّهُ أَكْبَرُ", en: "Allahu Akbar", meaning: "Allah is the Greatest", target: 34, source: "Sahih Muslim 596" },
+  { id: "istighfar", ar: "أَسْتَغْفِرُ اللَّهَ", en: "Astaghfirullah", meaning: "I seek Allah's forgiveness", target: 100, source: "Sahih Muslim 2702" },
+  { id: "salawat", ar: "اللَّهُمَّ صَلِّ عَلَى مُحَمَّدٍ", en: "Salawat on the Prophet ﷺ", meaning: "O Allah, send blessings upon Muhammad", target: 100, source: "cf. Qur'an 33:56" },
+  { id: "tahlil", ar: "لَا إِلَهَ إِلَّا اللَّهُ", en: "La ilaha illallah", meaning: "There is no god but Allah", target: 100, source: "Sahih al-Bukhari 6403 (virtue of 100×)" },
 ];
 window.SS = window.SS || {};
 Object.assign(window.SS, { DUA_CATEGORIES: DUA_CATEGORIES, DUAS: DUAS, DHIKR_PRESETS: DHIKR_PRESETS });

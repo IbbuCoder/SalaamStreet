@@ -2,6 +2,8 @@
 
 **Version:** 1.0 · **Date:** 2026-07-08 · **Status:** Awaiting approval
 
+> **Note:** this is the original planning document. The shipped product is a static, web-only app (no accounts or server yet) — see `README.md` and `docs/02-architecture.md` for how it is actually built.
+
 ## 1. Vision
 
 An all-in-one modern Islamic platform helping Muslims strengthen their relationship with Allah through authentic knowledge, worship tools, learning, organization, and community — delivered with a peaceful, premium, modern experience.

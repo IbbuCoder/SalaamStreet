@@ -2,533 +2,661 @@
 <html lang="en" dir="ltr">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>SalaamStreet — Your Islamic Companion</title>
-  <meta name="description" content="Prayer times, Qibla, Qur'an with audio, authentic duas, and dhikr — in one peaceful place." />
-  <meta name="theme-color" content="#059669" />
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕌</text></svg>" />
+  <meta name="description" content="Prayer times, Qibla, the Qur'an with audio and tafsir, authentic hadith and duas, a dhikr counter and the Islamic calendar — free, private, and in one peaceful place." />
+  <meta name="theme-color" content="#f6faf7" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0a100d" media="(prefers-color-scheme: dark)" />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="SalaamStreet" />
+  <meta name="format-detection" content="telephone=no" />
+  <meta property="og:title" content="SalaamStreet — Your Islamic Companion" />
+  <meta property="og:description" content="Prayer times, Qibla, Qur'an with audio, authentic hadith and duas, and a dhikr counter." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://salaamstreet.com/" />
+  <meta property="og:image" content="https://salaamstreet.com/icons/icon-512.png" />
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <link rel="manifest" href="manifest.webmanifest" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;600;700;800&family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Scheherazade+New:wght@400;700&family=Amiri:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="preconnect" href="https://api.aladhan.com" crossorigin />
+  <link rel="preconnect" href="https://api.alquran.cloud" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Scheherazade+New:wght@400;700&family=Amiri:wght@400;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/styles.css" />
+  <script>
+    /* Apply the saved theme before first paint so there is no light→dark flash. */
+    (function () {
+      try {
+        var s = JSON.parse(localStorage.getItem("salaamstreet:settings") || "{}");
+        var t = s.theme || "system";
+        var dark = t === "dark" || (t === "system" && window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches);
+        document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+        if (s.locale === "ar") { document.documentElement.lang = "ar"; document.documentElement.dir = "rtl"; }
+      } catch (e) { /* storage unavailable */ }
+    })();
+  </script>
 </head>
 <body>
 
-  <!-- ═══════════ Side navigation (desktop) ═══════════ -->
+  <!-- ═══════════ Icon sprite (inline so it works from file:// too) ═══════════ -->
+  <svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+    <defs>
+      <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9v11.5h13V9"/><path d="M10 20.5v-6h4v6"/></symbol>
+      <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/></symbol>
+      <symbol id="i-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m15.8 8.2-2.4 5.2-5.2 2.4 2.4-5.2z"/></symbol>
+      <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></symbol>
+      <symbol id="i-scroll" viewBox="0 0 24 24"><path d="M8 21h11a2 2 0 0 0 2-2v-2H10v2a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v3h4"/><path d="M19 17V5a2 2 0 0 0-2-2H4"/><path d="M15 8h-5M15 12h-5"/></symbol>
+      <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.2a4.3 4.3 0 0 1 7.5 2.6C19.5 15.4 12 20 12 20z"/></symbol>
+      <symbol id="i-beads" viewBox="0 0 24 24"><circle cx="12" cy="10.5" r="7" pathLength="24" stroke-dasharray="0 2" stroke-width="3.2"/><path d="M12 17.5V22M10.5 22h3"/></symbol>
+      <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="16.5" rx="2.5"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/></symbol>
+      <symbol id="i-settings" viewBox="0 0 24 24"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></symbol>
+      <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/></symbol>
+      <symbol id="i-play" viewBox="0 0 24 24"><path d="M7.5 4.8v14.4a.8.8 0 0 0 1.2.7l11.3-7.2a.8.8 0 0 0 0-1.4L8.7 4.1a.8.8 0 0 0-1.2.7z" fill="currentColor" stroke="none"/></symbol>
+      <symbol id="i-pause" viewBox="0 0 24 24"><rect x="6" y="4.5" width="4" height="15" rx="1.2" fill="currentColor" stroke="none"/><rect x="14" y="4.5" width="4" height="15" rx="1.2" fill="currentColor" stroke="none"/></symbol>
+      <symbol id="i-prev" viewBox="0 0 24 24"><path d="M18 5.5v13L8.5 12z" fill="currentColor" stroke="none"/><path d="M6 5.5v13"/></symbol>
+      <symbol id="i-next" viewBox="0 0 24 24"><path d="M6 5.5v13l9.5-6.5z" fill="currentColor" stroke="none"/><path d="M18 5.5v13"/></symbol>
+      <symbol id="i-bookmark" viewBox="0 0 24 24"><path d="M6.5 3.5h11v17L12 16.6l-5.5 3.9z"/></symbol>
+      <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3.2 2.7 5.6 6.1.8-4.5 4.3 1.1 6.1L12 17.1 6.6 20l1.1-6.1-4.5-4.3 6.1-.8z"/></symbol>
+      <symbol id="i-repeat" viewBox="0 0 24 24"><path d="m17 2.5 3 3-3 3"/><path d="M4 11V9.5a4 4 0 0 1 4-4h12"/><path d="m7 21.5-3-3 3-3"/><path d="M20 13v1.5a4 4 0 0 1-4 4H4"/></symbol>
+      <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+      <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-7-6.1-7-11.4a7 7 0 0 1 14 0C19 14.9 12 21 12 21z"/><circle cx="12" cy="9.6" r="2.5"/></symbol>
+      <symbol id="i-contrast" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/></symbol>
+      <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"/></symbol>
+      <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></symbol>
+      <symbol id="i-chev-l" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+      <symbol id="i-chev-r" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+      <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3.5v11.5M7 10l5 5 5-5M4.5 20h15"/></symbol>
+      <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13.5h10L18 7M9 7V3.5h6V7"/></symbol>
+      <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.4-5.7"/><path d="M20 4v6h-6"/></symbol>
+      <symbol id="i-wifi-off" viewBox="0 0 24 24"><path d="m3 3 18 18"/><path d="M8.5 16.4a5 5 0 0 1 7 0M5 12.9a10 10 0 0 1 5-2.7M19 12.9a10 10 0 0 0-2.4-1.7M2 8.8a15 15 0 0 1 4.3-2.6M22 8.8A15 15 0 0 0 11 5"/><path d="M12 20h.01"/></symbol>
+      <symbol id="i-open-book" viewBox="0 0 24 24"><path d="M2.5 4.5h6a3.5 3.5 0 0 1 3.5 3.5v12.5a2.6 2.6 0 0 0-2.6-2.6H2.5zM21.5 4.5h-6A3.5 3.5 0 0 0 12 8v12.5a2.6 2.6 0 0 1 2.6-2.6h6.9z"/></symbol>
+      <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8.5" y="8.5" width="12" height="12" rx="2"/><path d="M15.5 8.5V5.5a2 2 0 0 0-2-2h-8a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3"/></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+      <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+      <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></symbol>
+      <symbol id="i-text" viewBox="0 0 24 24"><path d="M4 7V5h11v2M9.5 5v14M7.5 19h4M14 12v-1.5h7V12M17.5 10.5V19M16 19h3"/></symbol>
+      <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6 6 6M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4 6 18M18 6l1.4-1.4"/></symbol>
+      <symbol id="i-kaaba" viewBox="0 0 24 24"><path d="M4.5 7.5 12 4l7.5 3.5v9.5L12 20.5 4.5 17z" fill="#101614" stroke="#101614"/><path d="M4.5 10 12 13.5l7.5-3.5" stroke="#d9b542" stroke-width="1.6"/><path d="M12 13.5v7" stroke="#2a3530" stroke-width="1"/></symbol>
+    </defs>
+  </svg>
+
+  <a class="skip-link" href="#main" data-i18n="common.skip">Skip to content</a>
+
+  <!-- ═══════════ Side navigation (tablet rail / desktop sidebar) ═══════════ -->
   <nav class="sidenav" aria-label="Main">
-    <div class="brand">Salaam<span class="g">Street</span></div>
-    <a class="navlink" href="#/home" data-nav="home"><span class="ic">🕌</span><span data-i18n="nav.dashboard">Dashboard</span></a>
-    <a class="navlink" href="#/prayer" data-nav="prayer"><span class="ic">🕰️</span><span data-i18n="nav.prayer">Prayer Times</span></a>
-    <a class="navlink" href="#/qibla" data-nav="qibla"><span class="ic">🧭</span><span data-i18n="nav.qibla">Qibla</span></a>
-    <a class="navlink" href="#/quran" data-nav="quran"><span class="ic">📖</span><span data-i18n="nav.quran">Qur'an</span></a>
-    <a class="navlink" href="#/hadith" data-nav="hadith"><span class="ic">📜</span><span data-i18n="nav.hadith">Hadith</span></a>
-    <a class="navlink" href="#/duas" data-nav="duas"><span class="ic">🤲</span><span data-i18n="nav.duas">Duas</span></a>
-    <a class="navlink" href="#/dhikr" data-nav="dhikr"><span class="ic">📿</span><span data-i18n="nav.dhikr">Dhikr</span></a>
-    <a class="navlink" href="#/calendar" data-nav="calendar"><span class="ic">🗓️</span><span data-i18n="nav.calendar">Calendar</span></a>
-    <a class="navlink" href="#/premium" data-nav="premium"><span class="ic">⭐</span><span data-i18n="nav.premium">Premium</span></a>
-    <a class="navlink" href="#/apps" data-nav="apps"><span class="ic">💻</span><span data-i18n="nav.apps">Apps</span></a>
-    <a class="navlink" href="#/settings" data-nav="settings"><span class="ic">⚙️</span><span data-i18n="nav.settings">Settings</span></a>
-    <div class="foot">Qur'an &amp; duas from verified sources.<br />Your data stays on your device.</div>
+    <a class="brand" href="#/home" aria-label="SalaamStreet home">
+      <span class="brand-mark" aria-hidden="true"><svg><use href="#i-compass"/></svg></span>
+      <span class="brand-text">Salaam<span class="g">Street</span></span>
+    </a>
+    <div class="nav-group">
+      <a class="navlink" href="#/home" data-nav="home"><svg class="ic" aria-hidden="true"><use href="#i-home"/></svg><span data-i18n="nav.dashboard">Home</span></a>
+      <a class="navlink" href="#/prayer" data-nav="prayer"><svg class="ic" aria-hidden="true"><use href="#i-clock"/></svg><span data-i18n="nav.prayer">Prayer Times</span></a>
+      <a class="navlink" href="#/qibla" data-nav="qibla"><svg class="ic" aria-hidden="true"><use href="#i-compass"/></svg><span data-i18n="nav.qibla">Qibla</span></a>
+      <a class="navlink" href="#/quran" data-nav="quran"><svg class="ic" aria-hidden="true"><use href="#i-book"/></svg><span data-i18n="nav.quran">Qur'an</span></a>
+      <a class="navlink" href="#/hadith" data-nav="hadith"><svg class="ic" aria-hidden="true"><use href="#i-scroll"/></svg><span data-i18n="nav.hadith">Hadith</span></a>
+      <a class="navlink" href="#/duas" data-nav="duas"><svg class="ic" aria-hidden="true"><use href="#i-heart"/></svg><span data-i18n="nav.duas">Duas</span></a>
+      <a class="navlink" href="#/dhikr" data-nav="dhikr"><svg class="ic" aria-hidden="true"><use href="#i-beads"/></svg><span data-i18n="nav.dhikr">Dhikr</span></a>
+      <a class="navlink" href="#/calendar" data-nav="calendar"><svg class="ic" aria-hidden="true"><use href="#i-calendar"/></svg><span data-i18n="nav.calendar">Calendar</span></a>
+    </div>
+    <div class="nav-group nav-bottom">
+      <a class="navlink" href="#/settings" data-nav="settings"><svg class="ic" aria-hidden="true"><use href="#i-settings"/></svg><span data-i18n="nav.settings">Settings</span></a>
+      <p class="foot" data-i18n="nav.foot">Verified sources. Your data stays on your device.</p>
+    </div>
   </nav>
 
   <!-- ═══════════ Top bar ═══════════ -->
   <header class="topbar">
-    <span class="brand-sm">Salaam<span class="gold">Street</span></span>
+    <a class="brand-sm" href="#/home" aria-label="SalaamStreet home">
+      <span class="brand-mark" aria-hidden="true"><svg><use href="#i-compass"/></svg></span>
+      <span>Salaam<span class="g">Street</span></span>
+    </a>
+    <span class="tb-title" id="tb-title" aria-hidden="true"></span>
     <span class="spacer"></span>
-    <button class="chip" id="locale-toggle" type="button" aria-label="Switch language / تغيير اللغة">العربية</button>
-    <button class="icon-btn" id="theme-toggle" type="button" aria-label="Toggle theme">◐</button>
+    <button class="tb-btn" id="locale-toggle" type="button" aria-label="Switch language / تغيير اللغة">
+      <svg class="ic" aria-hidden="true"><use href="#i-globe"/></svg><span id="locale-label">العربية</span>
+    </button>
+    <button class="tb-btn icon-only" id="theme-toggle" type="button" aria-label="Change theme">
+      <svg class="ic" aria-hidden="true"><use href="#i-contrast"/></svg>
+    </button>
   </header>
 
-  <main class="main" id="main">
+  <div class="net-banner" id="net-banner" role="status" hidden>
+    <svg class="ic" aria-hidden="true"><use href="#i-wifi-off"/></svg>
+    <span data-i18n="common.offline">You're offline — showing saved content where available.</span>
+  </div>
+
+  <main class="main" id="main" tabindex="-1">
 
     <!-- ═══════════ HOME ═══════════ -->
-    <section class="view" id="view-home" hidden>
-      <div class="card" id="loc-banner" hidden>
-        <div class="row-between wrap">
-          <p class="muted" data-i18n="dash.setLocation">Set your location for accurate prayer times</p>
-          <button class="btn btn-sm" id="loc-banner-btn" data-i18n="dash.setLocationBtn">Set location</button>
-        </div>
-      </div>
+    <section class="view" id="view-home" hidden aria-labelledby="home-h">
+      <h1 class="visually-hidden" id="home-h" data-i18n="nav.dashboard">Home</h1>
 
-      <div class="card hero mt-2">
-        <div class="row-between wrap">
-          <p class="muted" data-i18n="dash.greeting">As-salamu alaykum</p>
-          <p class="muted tiny" id="np-hijri"></p>
-        </div>
-        <div class="row-between mt-1">
-          <div>
-            <p class="muted" data-i18n="dash.nextPrayer">Next prayer</p>
-            <p class="np-name" id="np-name">—</p>
+      <div class="home-grid">
+        <div class="home-main">
+          <div class="banner" id="loc-banner" hidden>
+            <svg class="ic" aria-hidden="true"><use href="#i-pin"/></svg>
+            <p data-i18n="dash.setLocation">Set your location for accurate prayer times</p>
+            <button class="btn btn-sm" id="loc-banner-btn" type="button" data-i18n="dash.setLocationBtn">Set location</button>
           </div>
-          <div class="center">
-            <p class="countdown" id="np-countdown">--:--:--</p>
-          </div>
-        </div>
-        <div class="prayer-strip" id="np-strip"></div>
-        <div class="row wrap mt-2">
-          <button class="chip" id="np-loc" type="button">📍 —</button>
-          <span class="tiny" id="np-locnote" style="color:var(--em-100)"></span>
-        </div>
-      </div>
 
-      <div class="card mt-2">
-        <div class="card-title">
-          <h2 data-i18n="dash.dailyAyah">Ayah of the day</h2>
-          <span class="badge" id="da-ref"></span>
-        </div>
-        <div id="da-body"><div class="skeleton" style="min-block-size:64px"></div></div>
-      </div>
+          <article class="card hero" aria-labelledby="np-label">
+            <div class="hero-top">
+              <p class="hero-greet" data-i18n="dash.greeting">As-salamu alaykum</p>
+              <p class="hero-hijri" id="np-hijri"></p>
+            </div>
+            <div class="hero-main">
+              <div>
+                <p class="hero-label" id="np-label" data-i18n="dash.nextPrayer">Next prayer</p>
+                <p class="np-name" id="np-name"><span class="sk-text" style="inline-size:7ch"></span></p>
+                <p class="np-at" id="np-at"></p>
+              </div>
+              <p class="countdown" id="np-countdown" aria-label="">--:--:--</p>
+            </div>
+            <div class="prayer-strip" id="np-strip" aria-label="Today's prayer times"></div>
+            <div class="hero-foot">
+              <button class="chip chip-on-dark" id="np-loc" type="button">
+                <svg class="ic" aria-hidden="true"><use href="#i-pin"/></svg><span id="np-loc-label">—</span>
+              </button>
+              <span class="hero-note" id="np-locnote"></span>
+            </div>
+          </article>
 
-      <div class="grid-2 mt-2">
-        <div class="card">
-          <div class="card-title"><h2 data-i18n="dash.dhikrStreak">Dhikr streak</h2><span aria-hidden="true">📿</span></div>
-          <p><b class="gold" id="ds-count" style="font-size:1.8rem">0</b> <span class="muted" data-i18n="dash.days">days</span></p>
-          <a class="btn btn-outline btn-sm mt-1" href="#/dhikr" data-i18n="dash.continueDhikr">Open counter</a>
+          <article class="card" aria-labelledby="da-h">
+            <div class="card-title">
+              <h2 id="da-h" data-i18n="dash.dailyAyah">Ayah of the day</h2>
+              <a class="badge" id="da-ref" href="#/quran"></a>
+            </div>
+            <div id="da-body" aria-busy="true">
+              <div class="skeleton" style="block-size:56px"></div>
+              <div class="skeleton mt-1" style="block-size:18px;inline-size:80%"></div>
+            </div>
+          </article>
         </div>
-        <div class="card">
-          <div class="card-title"><h2 data-i18n="dash.continueReading">Continue reading</h2><span aria-hidden="true">📖</span></div>
-          <p class="muted" id="cr-pos">—</p>
-          <a class="btn btn-outline btn-sm mt-1" href="#/quran" id="cr-link" data-i18n="dash.startReading">Start reading the Qur'an</a>
-        </div>
+
+        <aside class="home-side">
+          <nav class="quick-grid" aria-label="Quick links">
+            <a class="quick" href="#/qibla"><span class="q-ic"><svg aria-hidden="true"><use href="#i-compass"/></svg></span><span data-i18n="nav.qibla">Qibla</span></a>
+            <a class="quick" href="#/quran"><span class="q-ic"><svg aria-hidden="true"><use href="#i-book"/></svg></span><span data-i18n="nav.quran">Qur'an</span></a>
+            <a class="quick" href="#/duas"><span class="q-ic"><svg aria-hidden="true"><use href="#i-heart"/></svg></span><span data-i18n="nav.duas">Duas</span></a>
+            <a class="quick" href="#/hadith"><span class="q-ic"><svg aria-hidden="true"><use href="#i-scroll"/></svg></span><span data-i18n="nav.hadith">Hadith</span></a>
+            <a class="quick" href="#/dhikr"><span class="q-ic"><svg aria-hidden="true"><use href="#i-beads"/></svg></span><span data-i18n="nav.dhikr">Dhikr</span></a>
+            <a class="quick" href="#/calendar"><span class="q-ic"><svg aria-hidden="true"><use href="#i-calendar"/></svg></span><span data-i18n="nav.calendar">Calendar</span></a>
+          </nav>
+
+          <a class="card widget" href="#/quran" id="cr-link">
+            <span class="w-ic"><svg aria-hidden="true"><use href="#i-book"/></svg></span>
+            <span class="w-body">
+              <span class="w-title" id="cr-title" data-i18n="dash.startReading">Start reading the Qur'an</span>
+              <span class="w-sub" id="cr-pos" data-i18n="dash.startReadingSub">114 surahs with audio and tafsir</span>
+            </span>
+            <svg class="ic chev" aria-hidden="true"><use href="#i-chev-r"/></svg>
+          </a>
+
+          <a class="card widget" href="#/dhikr">
+            <span class="w-ic gold"><svg aria-hidden="true"><use href="#i-beads"/></svg></span>
+            <span class="w-body">
+              <span class="w-title" data-i18n="dash.dhikrStreak">Dhikr streak</span>
+              <span class="w-sub"><b class="gold" id="ds-count">0</b> <span id="ds-days" data-i18n="dash.days">days</span></span>
+            </span>
+            <svg class="ic chev" aria-hidden="true"><use href="#i-chev-r"/></svg>
+          </a>
+        </aside>
       </div>
     </section>
 
     <!-- ═══════════ PRAYER TIMES ═══════════ -->
-    <section class="view" id="view-prayer" hidden>
-      <div class="page-head">
-        <h1 data-i18n="prayer.title">Prayer Times</h1>
+    <section class="view" id="view-prayer" hidden aria-labelledby="pt-h">
+      <header class="page-head">
+        <h1 id="pt-h" tabindex="-1" data-i18n="prayer.title">Prayer Times</h1>
         <p data-i18n="prayer.sub">Times are calculated for your location using your chosen method.</p>
-      </div>
+      </header>
 
-      <div class="card">
-        <div class="row wrap">
-          <button class="chip" id="pt-loc-chip" type="button">📍 —</button>
-          <span class="spacer"></span>
-          <span class="tiny" id="pt-hijri"></span>
+      <div class="prayer-layout">
+        <div class="prayer-main">
+          <div class="toolbar">
+            <button class="chip" id="pt-loc-chip" type="button"><svg class="ic" aria-hidden="true"><use href="#i-pin"/></svg><span id="pt-loc-label">—</span></button>
+            <span class="spacer"></span>
+            <span class="tiny" id="pt-hijri"></span>
+          </div>
+          <p class="note mt-1" id="pt-locnote" hidden></p>
+
+          <div class="segmented mt-2" role="tablist" aria-label="View">
+            <button id="pt-tab-daily" type="button" role="tab" aria-selected="true" aria-controls="pt-daily" data-i18n="prayer.daily">Today</button>
+            <button id="pt-tab-monthly" type="button" role="tab" aria-selected="false" aria-controls="pt-monthly" data-i18n="prayer.monthly">This month</button>
+          </div>
+
+          <div class="mt-2" id="pt-daily" role="tabpanel" aria-labelledby="pt-tab-daily">
+            <div class="times-list" id="pt-list" aria-busy="true">
+              <div class="skeleton row-sk"></div><div class="skeleton row-sk"></div><div class="skeleton row-sk"></div>
+              <div class="skeleton row-sk"></div><div class="skeleton row-sk"></div><div class="skeleton row-sk"></div>
+            </div>
+            <p class="note mt-1" id="pt-cache-note" hidden data-i18n="common.offlineCache">Showing saved data (offline).</p>
+          </div>
+
+          <div class="mt-2" id="pt-monthly" role="tabpanel" aria-labelledby="pt-tab-monthly" hidden>
+            <p class="tiny mb-1" id="pt-month-title"></p>
+            <div class="card table-card">
+              <div class="table-scroll" tabindex="0" aria-label="Monthly prayer times">
+                <table class="month-table" id="pt-month-table"></table>
+              </div>
+            </div>
+          </div>
         </div>
-        <p class="tiny mt-1" id="pt-locnote" hidden></p>
-        <div class="grid-2 mt-2">
-          <div class="field">
+
+        <aside class="card prayer-side">
+          <h2 class="h-sm" data-i18n="prayer.settings">Calculation</h2>
+          <div class="field mt-2">
             <label for="pt-method" data-i18n="prayer.method">Calculation method</label>
             <select class="input" id="pt-method"></select>
           </div>
-          <div class="field">
+          <div class="field mt-2">
             <label for="pt-school" data-i18n="prayer.asr">Asr method</label>
             <select class="input" id="pt-school"></select>
           </div>
-        </div>
-        <p class="tiny mt-1" data-i18n="prayer.methodNote">Scholars differ on calculation parameters — choose the method used by your local mosque or region.</p>
-      </div>
-
-      <div class="row mt-2" role="tablist">
-        <button class="btn btn-sm" id="pt-tab-daily" type="button" role="tab" aria-selected="true" data-i18n="prayer.daily">Today</button>
-        <button class="btn btn-sm btn-ghost" id="pt-tab-monthly" type="button" role="tab" aria-selected="false" data-i18n="prayer.monthly">Monthly view</button>
-      </div>
-
-      <div class="mt-2" id="pt-daily" role="tabpanel">
-        <div class="times-list" id="pt-list">
-          <div class="skeleton" style="min-block-size:54px"></div>
-          <div class="skeleton" style="min-block-size:54px"></div>
-          <div class="skeleton" style="min-block-size:54px"></div>
-        </div>
-        <p class="tiny mt-1" id="pt-cache-note" hidden data-i18n="common.offlineCache">Showing saved data (offline).</p>
-      </div>
-
-      <div class="card mt-2 table-scroll" id="pt-monthly" role="tabpanel" hidden>
-        <table class="month-table" id="pt-month-table"></table>
+          <p class="tiny mt-2" data-i18n="prayer.methodNote">Scholars differ on calculation parameters — choose the method used by your local mosque or region.</p>
+        </aside>
       </div>
     </section>
 
     <!-- ═══════════ QIBLA ═══════════ -->
-    <section class="view" id="view-qibla" hidden>
-      <div class="page-head">
-        <h1 data-i18n="qibla.title">Qibla Finder</h1>
+    <section class="view" id="view-qibla" hidden aria-labelledby="qb-h">
+      <header class="page-head">
+        <h1 id="qb-h" tabindex="-1" data-i18n="qibla.title">Qibla Finder</h1>
         <p data-i18n="qibla.sub">Direction to the Kaaba from your location.</p>
-      </div>
+      </header>
 
-      <div class="card center" id="qibla-card">
-        <button class="chip" id="qb-loc-chip" type="button">📍 —</button>
-        <div class="compass-wrap">
-          <div class="compass" role="img" aria-label="Qibla compass">
-            <span class="cd n">N</span><span class="cd e">E</span><span class="cd s">S</span><span class="cd w">W</span>
-            <div class="needle" id="qb-needle"><span class="k" aria-hidden="true">🕋</span></div>
+      <div class="qibla-layout">
+        <div class="card qibla-card" id="qibla-card">
+          <button class="chip" id="qb-loc-chip" type="button"><svg class="ic" aria-hidden="true"><use href="#i-pin"/></svg><span id="qb-loc-label">—</span></button>
+          <div class="compass-wrap">
+            <div class="compass" id="qb-compass" role="img" aria-label="Qibla compass">
+              <div class="dial" id="qb-dial">
+                <span class="cd n" data-i18n="qibla.n">N</span><span class="cd e" data-i18n="qibla.e">E</span>
+                <span class="cd s" data-i18n="qibla.s">S</span><span class="cd w" data-i18n="qibla.w">W</span>
+                <div class="needle" id="qb-needle"><span class="k"><svg aria-hidden="true"><use href="#i-kaaba"/></svg></span></div>
+              </div>
+              <span class="heading-mark" aria-hidden="true"></span>
+            </div>
           </div>
+          <p class="qibla-deg"><span id="qb-deg">—</span>°</p>
+          <p class="muted" data-i18n="qibla.fromNorth">clockwise from true North</p>
+          <p class="aligned-pill mt-1" id="qb-aligned" hidden><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg><span data-i18n="qibla.aligned">You are facing the Qibla</span></p>
+          <button class="btn mt-2" id="qb-enable" type="button" hidden data-i18n="qibla.enableCompass">Enable compass</button>
+          <p class="note mt-1" id="qb-hint" aria-live="polite"></p>
         </div>
-        <p class="qibla-deg"><span id="qb-deg">—</span>°</p>
-        <p class="muted" data-i18n="qibla.fromNorth">from North</p>
-        <p class="tiny mt-1 gold" id="qb-aligned" hidden data-i18n="qibla.aligned">You are facing the Qibla</p>
-        <div class="mt-2"><button class="btn" id="qb-enable" type="button" hidden data-i18n="qibla.enableCompass">Enable compass</button></div>
-        <p class="tiny mt-1" id="qb-hint"></p>
+
+        <aside class="card qibla-info">
+          <h2 class="h-sm" data-i18n="qibla.howTitle">How to use</h2>
+          <ol class="steps mt-1">
+            <li data-i18n="qibla.how1">On a phone, hold it flat and tap “Enable compass” if asked.</li>
+            <li data-i18n="qibla.how2">Turn slowly until the Kaaba marker points to the top — the ring turns gold when you are aligned.</li>
+            <li data-i18n="qibla.how3">On a laptop or desktop, use the bearing in degrees with a map or a physical compass.</li>
+          </ol>
+          <dl class="facts mt-2">
+            <div><dt data-i18n="qibla.distance">Distance to Makkah</dt><dd id="qb-dist">—</dd></div>
+            <div><dt data-i18n="qibla.yourLoc">Your location</dt><dd id="qb-coords">—</dd></div>
+          </dl>
+          <p class="tiny mt-2" data-i18n="qibla.privacy">Calculated entirely on your device (great-circle bearing).</p>
+        </aside>
       </div>
     </section>
 
     <!-- ═══════════ QURAN INDEX ═══════════ -->
-    <section class="view" id="view-quran" hidden>
-      <div class="page-head">
-        <h1 data-i18n="quran.title">The Noble Qur'an</h1>
+    <section class="view" id="view-quran" hidden aria-labelledby="qi-h">
+      <header class="page-head">
+        <h1 id="qi-h" tabindex="-1" data-i18n="quran.title">The Noble Qur'an</h1>
         <p data-i18n="quran.sub">Uthmani script · Saheeh International translation</p>
-      </div>
+      </header>
 
-      <div class="card" id="qi-resume" hidden>
-        <div class="row-between wrap">
-          <p class="muted" id="qi-resume-pos"></p>
-          <a class="btn btn-sm" id="qi-resume-link" href="#/quran" data-i18n="quran.resume">Resume</a>
+      <a class="card widget mb-2" id="qi-resume" href="#/quran" hidden>
+        <span class="w-ic"><svg aria-hidden="true"><use href="#i-book"/></svg></span>
+        <span class="w-body">
+          <span class="w-title" data-i18n="dash.continueReading">Continue reading</span>
+          <span class="w-sub" id="qi-resume-pos"></span>
+        </span>
+        <span class="btn btn-sm" data-i18n="quran.resume">Resume</span>
+      </a>
+
+      <div class="index-bar">
+        <div class="segmented" role="tablist" aria-label="Qur'an">
+          <button id="qi-tab-all" type="button" role="tab" aria-selected="true" aria-controls="qi-grid" data-i18n="quran.surahs">Surahs</button>
+          <button id="qi-tab-bm" type="button" role="tab" aria-selected="false" aria-controls="qi-bms" data-i18n="quran.bookmarks">Bookmarks</button>
+        </div>
+        <div class="search" id="qi-search-wrap">
+          <svg class="ic" aria-hidden="true"><use href="#i-search"/></svg>
+          <label class="visually-hidden" for="qi-search" data-i18n="quran.search">Search surahs…</label>
+          <input class="input" id="qi-search" type="search" placeholder="Search by name, meaning or number" data-i18n-ph="quran.searchPh" autocomplete="off" enterkeyhint="search" />
         </div>
       </div>
-
-      <div class="field mt-2">
-        <label class="visually-hidden" for="qi-search" data-i18n="quran.search">Search surahs…</label>
-        <input class="input" id="qi-search" type="search" placeholder="Search surahs…" data-i18n-ph="quran.search" />
-      </div>
-      <div class="surah-grid mt-2" id="qi-grid"></div>
+      <p class="tiny mt-1" id="qi-count" aria-live="polite"></p>
+      <div class="surah-grid mt-1" id="qi-grid" role="tabpanel" aria-labelledby="qi-tab-all"></div>
+      <div class="stack mt-1" id="qi-bms" role="tabpanel" aria-labelledby="qi-tab-bm" hidden></div>
     </section>
 
     <!-- ═══════════ SURAH READER ═══════════ -->
-    <section class="view" id="view-surah" hidden>
-      <div class="row-between wrap page-head">
-        <div>
-          <h1 id="sr-title">—</h1>
-          <p class="muted" id="sr-meta"></p>
-        </div>
-        <div class="row wrap">
-          <select class="input" id="sr-reciter" style="max-inline-size:200px" aria-label="Reciter"></select>
-          <button class="btn btn-sm" id="sr-play" type="button" data-i18n="quran.playSurah">Play surah</button>
-        </div>
-      </div>
+    <section class="view view-narrow" id="view-surah" hidden aria-labelledby="sr-title">
+      <a class="back-link" href="#/quran"><svg class="ic flip" aria-hidden="true"><use href="#i-chev-l"/></svg><span data-i18n="quran.allSurahs">All surahs</span></a>
+      <header class="surah-head">
+        <p class="surah-ar" id="sr-ar" lang="ar" dir="rtl"></p>
+        <h1 id="sr-title" tabindex="-1">—</h1>
+        <p class="muted" id="sr-meta"></p>
+      </header>
 
-      <div class="row wrap mb-2">
-        <label class="chip"><input type="checkbox" id="sr-tr" checked style="accent-color:var(--primary)" /> <span data-i18n="quran.translation">Translation</span></label>
-        <label class="chip"><input type="checkbox" id="sr-tl" style="accent-color:var(--primary)" /> <span data-i18n="quran.transliteration">Transliteration</span></label>
+      <div class="reader-toolbar" id="sr-toolbar">
+        <button class="btn btn-sm" id="sr-play" type="button"><svg class="ic" aria-hidden="true"><use href="#i-play"/></svg><span data-i18n="quran.playSurah">Play surah</span></button>
+        <div class="select-wrap">
+          <label class="visually-hidden" for="sr-reciter" data-i18n="quran.reciter">Reciter</label>
+          <select class="input input-sm" id="sr-reciter"></select>
+        </div>
+        <span class="spacer"></span>
+        <button class="toggle" id="sr-tr" type="button" aria-pressed="true" data-i18n="quran.translation">Translation</button>
+        <button class="toggle" id="sr-tl" type="button" aria-pressed="false" data-i18n="quran.transliteration">Transliteration</button>
+        <div class="stepper" role="group" aria-label="Arabic text size">
+          <button type="button" id="sr-font-down" aria-label="Smaller Arabic text"><svg class="ic" aria-hidden="true"><use href="#i-minus"/></svg></button>
+          <span aria-hidden="true">ع</span>
+          <button type="button" id="sr-font-up" aria-label="Larger Arabic text"><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg></button>
+        </div>
       </div>
 
       <p class="bismillah" id="sr-bismillah" lang="ar" hidden>بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</p>
-      <div class="stack" id="sr-list"></div>
+      <div class="ayah-list" id="sr-list" aria-busy="true"></div>
       <p class="tiny mt-2 center" data-i18n="quran.source">Text: Tanzil Uthmani via AlQuran Cloud · Translation: Saheeh International</p>
 
-      <nav class="reader-nav">
-        <a class="btn btn-outline" id="sr-prev" href="#/quran" data-i18n="quran.prev">Previous</a>
-        <a class="btn btn-outline" id="sr-next" href="#/quran" data-i18n="quran.next">Next</a>
+      <nav class="reader-nav" aria-label="Surah navigation">
+        <a class="pager prev" id="sr-prev" href="#/quran">
+          <svg class="ic flip" aria-hidden="true"><use href="#i-chev-l"/></svg>
+          <span><small data-i18n="quran.prev">Previous</small><b id="sr-prev-name"></b></span>
+        </a>
+        <a class="pager next" id="sr-next" href="#/quran">
+          <span><small data-i18n="quran.next">Next</small><b id="sr-next-name"></b></span>
+          <svg class="ic flip" aria-hidden="true"><use href="#i-chev-r"/></svg>
+        </a>
       </nav>
     </section>
 
     <!-- ═══════════ DUAS ═══════════ -->
-    <section class="view" id="view-duas" hidden>
-      <div class="page-head">
-        <h1 data-i18n="duas.title">Dua Library</h1>
-        <p data-i18n="duas.sub">Authentic supplications with sources — every dua cites the Qur'an or a graded hadith.</p>
+    <section class="view" id="view-duas" hidden aria-labelledby="du-h">
+      <div id="du-home">
+        <header class="page-head">
+          <h1 id="du-h" tabindex="-1" data-i18n="duas.title">Dua Library</h1>
+          <p data-i18n="duas.sub">Authentic supplications with sources — every dua cites the Qur'an or a graded hadith.</p>
+        </header>
+        <div class="cat-grid" id="du-cats"></div>
       </div>
-      <div class="grid-cards" id="du-cats"></div>
-      <div id="du-detail" hidden>
-        <button class="btn btn-ghost btn-sm mb-2" id="du-back" type="button">← <span data-i18n="duas.title">Dua Library</span></button>
-        <h2 id="du-cat-title" class="mb-2"></h2>
+      <div class="view-narrow" id="du-detail" hidden>
+        <a class="back-link" href="#/duas"><svg class="ic flip" aria-hidden="true"><use href="#i-chev-l"/></svg><span data-i18n="duas.title">Dua Library</span></a>
+        <h1 id="du-cat-title" class="mb-2" tabindex="-1"></h1>
         <div class="stack" id="du-list"></div>
       </div>
     </section>
 
     <!-- ═══════════ DHIKR ═══════════ -->
-    <section class="view" id="view-dhikr" hidden>
-      <div class="page-head">
-        <h1 data-i18n="dhikr.title">Dhikr Counter</h1>
+    <section class="view" id="view-dhikr" hidden aria-labelledby="dk-h">
+      <header class="page-head">
+        <h1 id="dk-h" tabindex="-1" data-i18n="dhikr.title">Dhikr Counter</h1>
         <p data-i18n="dhikr.sub">Remembrance of Allah — with daily streaks.</p>
-      </div>
+      </header>
 
-      <div class="card">
-        <div class="preset-chips" id="dk-presets" role="radiogroup" aria-label="Dhikr"></div>
-        <div class="dhikr-wrap mt-2">
-          <p class="arabic-dua center" id="dk-text" lang="ar"></p>
-          <p class="tiny" id="dk-source"></p>
-          <div class="ring" id="dk-ring">
-            <svg viewBox="0 0 200 200" aria-hidden="true">
-              <circle class="trk" cx="100" cy="100" r="88" fill="none" stroke-width="10"/>
-              <circle class="prg" id="dk-prog" cx="100" cy="100" r="88" fill="none" stroke-width="10" stroke-dasharray="553" stroke-dashoffset="553"/>
-            </svg>
-            <div class="num" id="dk-count" aria-live="polite">0</div>
+      <div class="dhikr-layout">
+        <div class="card dhikr-card">
+          <div class="preset-scroll" id="dk-presets" role="radiogroup" aria-label="Dhikr"></div>
+          <div class="dhikr-wrap">
+            <p class="arabic-dua center" id="dk-text" lang="ar"></p>
+            <p class="dk-meaning" id="dk-meaning"></p>
+            <p class="tiny" id="dk-source"></p>
+            <button class="ring" id="dk-ring" type="button" aria-describedby="dk-target-line">
+              <svg viewBox="0 0 200 200" aria-hidden="true">
+                <circle class="trk" cx="100" cy="100" r="88" fill="none" stroke-width="10"/>
+                <circle class="prg" id="dk-prog" cx="100" cy="100" r="88" fill="none" stroke-width="10" stroke-dasharray="553" stroke-dashoffset="553"/>
+              </svg>
+              <span class="num"><span id="dk-count" aria-live="polite">0</span><small id="dk-of">/ 33</small></span>
+              <span class="visually-hidden" data-i18n="dhikr.tap">Tap to count</span>
+            </button>
+            <p class="tiny" id="dk-target-line"><span data-i18n="dhikr.tapHint">Tap the circle, or press Space</span> · <span data-i18n="dhikr.target">Target</span> <b id="dk-target">33</b></p>
+            <div class="row center-row">
+              <button class="btn btn-ghost btn-sm" id="dk-undo" type="button"><svg class="ic" aria-hidden="true"><use href="#i-undo"/></svg><span data-i18n="dhikr.undo">Undo</span></button>
+              <button class="btn btn-ghost btn-sm" id="dk-reset" type="button"><svg class="ic" aria-hidden="true"><use href="#i-refresh"/></svg><span data-i18n="dhikr.reset">Reset</span></button>
+            </div>
           </div>
-          <button class="tap-btn" id="dk-tap" type="button" data-i18n="dhikr.tap">Tap to count</button>
-          <p class="tiny"><span data-i18n="dhikr.target">Target</span>: <b id="dk-target">33</b></p>
-          <button class="btn btn-ghost btn-sm" id="dk-reset" type="button" data-i18n="dhikr.reset">Reset</button>
         </div>
-      </div>
 
-      <div class="card mt-2">
-        <div class="streak-stats">
-          <div><b id="dk-streak-cur">0</b><span class="muted" data-i18n="dhikr.currentStreak">Current streak</span></div>
-          <div><b id="dk-streak-max">0</b><span class="muted" data-i18n="dhikr.longestStreak">Longest streak</span></div>
-        </div>
+        <aside class="dhikr-side">
+          <div class="card">
+            <div class="streak-stats">
+              <div><b id="dk-streak-cur">0</b><span class="muted" data-i18n="dhikr.currentStreak">Current streak</span></div>
+              <div><b id="dk-streak-max">0</b><span class="muted" data-i18n="dhikr.longestStreak">Longest streak</span></div>
+            </div>
+          </div>
+          <div class="card">
+            <h2 class="h-sm" data-i18n="dhikr.today">Today</h2>
+            <ul class="today-list mt-1" id="dk-today"></ul>
+          </div>
+          <p class="tiny" data-i18n="dhikr.streakNote">Your streak grows each day you complete at least one dhikr target.</p>
+        </aside>
       </div>
     </section>
 
     <!-- ═══════════ HADITH ═══════════ -->
-    <section class="view" id="view-hadith" hidden>
-      <div class="page-head">
-        <h1 data-i18n="hadith.title">Hadith Library</h1>
-        <p data-i18n="hadith.sub">Authentic collections with Arabic, English, grading, and reference on every hadith.</p>
+    <section class="view" id="view-hadith" hidden aria-labelledby="hd-h">
+      <div id="hd-home">
+        <header class="page-head">
+          <h1 id="hd-h" tabindex="-1" data-i18n="hadith.title">Hadith Library</h1>
+          <p data-i18n="hadith.sub">Authentic collections with Arabic, English, grading, and reference on every hadith.</p>
+        </header>
+        <div class="cat-grid cat-grid-wide" id="hd-cats"></div>
       </div>
-      <div class="grid-cards" id="hd-cats"></div>
-      <div id="hd-detail" hidden>
-        <button class="btn btn-ghost btn-sm mb-2" id="hd-back" type="button">← <span data-i18n="hadith.title">Hadith Library</span></button>
-        <h2 id="hd-title" class="mb-2"></h2>
-        <div class="row wrap mb-2" id="hd-browse" hidden>
+      <div class="view-narrow" id="hd-detail" hidden>
+        <a class="back-link" href="#/hadith"><svg class="ic flip" aria-hidden="true"><use href="#i-chev-l"/></svg><span data-i18n="hadith.title">Hadith Library</span></a>
+        <h1 id="hd-title" class="mb-2" tabindex="-1"></h1>
+        <form class="hd-browse mb-2" id="hd-browse" hidden>
+          <button class="icon-btn bordered" id="hd-prev" type="button" aria-label="Previous hadith"><svg class="ic flip" aria-hidden="true"><use href="#i-chev-l"/></svg></button>
           <label class="visually-hidden" for="hd-num" data-i18n="hadith.number">Hadith number</label>
-          <input class="input" id="hd-num" type="number" min="1" style="max-inline-size:130px" placeholder="#" />
-          <button class="btn btn-sm" id="hd-go" type="button" data-i18n="hadith.go">Go</button>
-        </div>
-        <div class="stack" id="hd-list"></div>
+          <input class="input" id="hd-num" type="number" inputmode="numeric" min="1" placeholder="#" />
+          <button class="btn btn-sm" id="hd-go" type="submit" data-i18n="hadith.go">Go</button>
+          <button class="icon-btn bordered" id="hd-next" type="button" aria-label="Next hadith"><svg class="ic flip" aria-hidden="true"><use href="#i-chev-r"/></svg></button>
+        </form>
+        <div class="stack" id="hd-list" aria-live="polite"></div>
         <p class="tiny mt-2" data-i18n="hadith.disclaimer">Text served from the open hadith-api. Always verify important rulings with qualified scholars.</p>
       </div>
     </section>
 
     <!-- ═══════════ ISLAMIC CALENDAR ═══════════ -->
-    <section class="view" id="view-calendar" hidden>
-      <div class="page-head">
-        <h1 data-i18n="cal.title">Islamic Calendar</h1>
+    <section class="view" id="view-calendar" hidden aria-labelledby="cal-h">
+      <header class="page-head">
+        <h1 id="cal-h" tabindex="-1" data-i18n="cal.title">Islamic Calendar</h1>
         <p data-i18n="cal.sub">Today's Hijri date and key Islamic dates.</p>
-      </div>
-      <div class="card hero">
-        <p class="muted" data-i18n="cal.today">Today</p>
-        <p class="np-name" id="cal-hijri">—</p>
-        <p class="muted" id="cal-greg"></p>
-      </div>
-      <h2 class="mt-3 mb-2" data-i18n="cal.keyDates">Key Islamic dates</h2>
-      <div class="stack" id="cal-events"></div>
-      <p class="tiny mt-2" data-i18n="cal.note">Gregorian dates depend on moon-sighting and calculation method, and some observances differ among scholars.</p>
-    </section>
-
-    <!-- ═══════════ PREMIUM ═══════════ -->
-    <section class="view" id="view-premium" hidden>
-      <div class="page-head">
-        <h1 data-i18n="premium.title">SalaamStreet Premium</h1>
-        <p data-i18n="premium.sub">Support the project and unlock deeper study tools. Core worship features stay free, always.</p>
-      </div>
-
-      <div class="card" id="pr-status" hidden>
-        <div class="row-between wrap">
-          <b class="gold">⭐ <span data-i18n="premium.active">Premium active</span></b>
-          <a class="btn btn-outline btn-sm" href="#/membership" data-i18n="premium.manage">Manage membership</a>
+      </header>
+      <div class="cal-layout">
+        <div class="card hero cal-hero">
+          <p class="hero-label" data-i18n="cal.today">Today</p>
+          <p class="np-name" id="cal-hijri"><span class="sk-text" style="inline-size:12ch"></span></p>
+          <p class="hero-greet" id="cal-greg"></p>
+          <p class="hero-note mt-1" id="cal-next"></p>
+        </div>
+        <div>
+          <h2 class="mb-1" data-i18n="cal.keyDates">Key Islamic dates</h2>
+          <div class="event-list" id="cal-events"></div>
+          <p class="tiny mt-2" data-i18n="cal.note">Gregorian dates depend on moon-sighting and calculation method, and some observances differ among scholars.</p>
         </div>
       </div>
-
-      <!-- success / cancel banners (shown for #/premium/success and /cancel) -->
-      <div class="card" id="pr-success" hidden>
-        <h2 class="gold" data-i18n="premium.successTitle">Welcome to Premium 🎉</h2>
-        <p class="muted mt-1" data-i18n="premium.successBody">Premium is now active on this device. JazakAllahu khayran for supporting SalaamStreet.</p>
-      </div>
-      <div class="card" id="pr-cancel" hidden>
-        <h2 data-i18n="premium.cancelTitle">Checkout cancelled</h2>
-        <p class="muted mt-1" data-i18n="premium.cancelBody">No payment was made. You can upgrade any time.</p>
-      </div>
-
-      <div class="grid-2 mt-2">
-        <div class="card">
-          <div class="card-title"><h3 data-i18n="premium.free">Free forever</h3><span class="badge" data-i18n="premium.live">Available now</span></div>
-          <p class="muted" data-i18n="premium.freeList">Prayer times, Qibla, full Qur'an with audio, duas, dhikr, hadith, tafsir, calendar.</p>
-        </div>
-        <div class="card">
-          <div class="card-title"><h3 data-i18n="premium.included">Included in Premium</h3><span aria-hidden="true">⭐</span></div>
-          <div id="pr-features"></div>
-        </div>
-      </div>
-
-      <h2 class="mt-3 mb-2" data-i18n="premium.choosePlan">Choose a plan</h2>
-      <div class="grid-cards" id="pr-plans"></div>
-    </section>
-
-    <!-- ═══════════ CHECKOUT ═══════════ -->
-    <section class="view" id="view-checkout" hidden>
-      <div class="page-head"><h1 data-i18n="checkout.title">Checkout</h1></div>
-      <div class="card">
-        <div class="row-between"><span data-i18n="checkout.plan">Plan</span><b id="co-plan">—</b></div>
-        <div class="row-between mt-1"><span data-i18n="checkout.total">Total</span><b id="co-total">—</b></div>
-        <a class="btn btn-gold mt-2" id="co-pay" href="#" target="_blank" rel="noopener">💳 <span data-i18n="checkout.payWith">Pay with PayPal</span></a>
-        <p class="tiny mt-1" data-i18n="checkout.payNote">You'll pay securely via PayPal to @aqmoha, then return here to activate.</p>
-      </div>
-
-      <div class="card mt-2">
-        <h3 data-i18n="checkout.confirm">I've completed payment</h3>
-        <p class="tiny mt-1" data-i18n="checkout.confirmNote">Enter your PayPal transaction ID or the email you paid with, then activate. (Provisional activation on this device until server verification is added.)</p>
-        <div class="field mt-2">
-          <label for="co-ref" data-i18n="checkout.reference">PayPal transaction ID or email</label>
-          <input class="input" id="co-ref" type="text" />
-        </div>
-        <div class="row wrap mt-2">
-          <button class="btn" id="co-activate" type="button" data-i18n="checkout.activate">Activate Premium</button>
-          <a class="btn btn-ghost" href="#/premium" data-i18n="checkout.back">Back to plans</a>
-        </div>
-      </div>
-    </section>
-
-    <!-- ═══════════ MEMBERSHIP ═══════════ -->
-    <section class="view" id="view-membership" hidden>
-      <div class="page-head"><h1 data-i18n="membership.title">Membership</h1></div>
-      <div class="card settings-group">
-        <div class="row-between"><span data-i18n="membership.status">Status</span><b id="mb-status">—</b></div>
-        <div class="row-between"><span data-i18n="membership.plan">Plan</span><b id="mb-plan">—</b></div>
-        <div class="row-between"><span data-i18n="membership.since">Member since</span><b id="mb-since">—</b></div>
-        <div class="row-between"><span data-i18n="membership.renews">Renews / expires</span><b id="mb-renews">—</b></div>
-      </div>
-      <div class="row wrap mt-2">
-        <a class="btn" href="#/premium" id="mb-upgrade" data-i18n="premium.upgrade">Upgrade</a>
-        <button class="btn btn-outline" id="mb-restore" type="button" data-i18n="membership.restore">I already paid — activate</button>
-        <button class="btn btn-ghost danger" id="mb-cancel" type="button" data-i18n="membership.cancelMembership">Deactivate on this device</button>
-      </div>
-      <p class="tiny mt-2" data-i18n="membership.note">Membership is stored on this device. On a static site there is no server to verify payments yet — this is provisional and designed to move to server-side PayPal verification later.</p>
-    </section>
-
-    <!-- ═══════════ APPS ═══════════ -->
-    <section class="view" id="view-apps" hidden>
-      <div class="page-head">
-        <h1 data-i18n="apps.title">SalaamStreet Apps</h1>
-        <p data-i18n="apps.sub">Take SalaamStreet beyond the browser.</p>
-      </div>
-
-      <div class="card hero">
-        <h2>💻 <span data-i18n="apps.windows">SalaamStreet for Windows</span></h2>
-        <p class="muted mt-1" data-i18n="apps.windowsDesc">A real native Windows app (C# / .NET 8) — not a browser window. Offline Qur'an, prayer reminders, tray notifications, a full-screen study mode, Arabic flashcards, and account sync.</p>
-        <div class="row wrap mt-2">
-          <a class="btn btn-gold" id="app-download" href="https://github.com/IbbuCoder/SalaamStreet/releases/latest/download/SalaamStreet-Windows.zip" target="_blank" rel="noopener">⬇ <span data-i18n="apps.download">Download for Windows</span></a>
-          <span class="tiny" style="color:var(--em-100)" data-i18n="apps.free">Free · no account needed</span>
-        </div>
-        <p class="tiny mt-2" style="color:var(--em-100)" data-i18n="apps.smartscreen">Note: this is a new unsigned app, so Windows SmartScreen may show a warning. Choose "More info" → "Run anyway".</p>
-      </div>
-
-      <h2 class="mt-3 mb-2" data-i18n="apps.soon">Unlocked in upcoming app updates</h2>
-      <div class="grid-2">
-        <div class="card"><h3>🔔 <span data-i18n="apps.f1">Adhan notifications</span></h3><p class="muted" data-i18n="apps.f1d">Hear the call to prayer at every prayer time, even when the app is closed.</p></div>
-        <div class="card"><h3>📥 <span data-i18n="apps.f2">Full offline mode</span></h3><p class="muted" data-i18n="apps.f2d">Download the complete Qur'an text and your favorite reciter for use without internet.</p></div>
-        <div class="card"><h3>⏱️ <span data-i18n="apps.f3">System-tray countdown</span></h3><p class="muted" data-i18n="apps.f3d">Always-visible countdown to the next prayer in your Windows taskbar.</p></div>
-        <div class="card"><h3>🧭 <span data-i18n="apps.f4">Auto location updates</span></h3><p class="muted" data-i18n="apps.f4d">Prayer times that follow you automatically when you travel.</p></div>
-        <div class="card"><h3>🗓️ <span data-i18n="apps.f5">Ramadan mode</span></h3><p class="muted" data-i18n="apps.f5d">Suhoor and iftar timers, fasting tracker, and Taraweeh reading plans.</p></div>
-        <div class="card"><h3>📊 <span data-i18n="apps.f6">Advanced statistics</span></h3><p class="muted" data-i18n="apps.f6d">Deeper insights into your dhikr streaks, reading progress, and prayer consistency.</p></div>
-      </div>
-      <p class="tiny mt-2" data-i18n="apps.webNote">Everything else you see on this site — prayer times, Qur'an with audio, duas, dhikr — is already free in the web version.</p>
     </section>
 
     <!-- ═══════════ SETTINGS ═══════════ -->
-    <section class="view" id="view-settings" hidden>
-      <div class="page-head"><h1 data-i18n="settings.title">Settings</h1></div>
+    <section class="view view-narrow" id="view-settings" hidden aria-labelledby="st-h">
+      <header class="page-head"><h1 id="st-h" tabindex="-1" data-i18n="settings.title">Settings</h1></header>
 
+      <h2 class="group-label" data-i18n="settings.appearance">Appearance</h2>
       <div class="card settings-group">
-        <div class="row-between">
+        <div class="set-row">
           <label for="st-locale" data-i18n="settings.language">Language</label>
-          <select class="input" id="st-locale" style="max-inline-size:170px">
+          <select class="input" id="st-locale">
             <option value="en">English</option>
             <option value="ar">العربية</option>
           </select>
         </div>
-        <div class="row-between">
+        <div class="set-row">
           <label for="st-theme" data-i18n="settings.theme">Theme</label>
-          <select class="input" id="st-theme" style="max-inline-size:170px">
+          <select class="input" id="st-theme">
+            <option value="system" data-i18n="settings.themeSystem">System</option>
             <option value="light" data-i18n="settings.themeLight">Light</option>
             <option value="dark" data-i18n="settings.themeDark">Dark</option>
-            <option value="system" data-i18n="settings.themeSystem">System</option>
           </select>
-        </div>
-        <div class="row-between">
-          <span data-i18n="settings.transliteration">Show transliteration</span>
-          <label class="switch"><input type="checkbox" id="st-translit" /><span class="trk"></span><span class="th"></span></label>
         </div>
       </div>
 
-      <div class="card settings-group mt-2">
-        <div class="row-between wrap">
+      <h2 class="group-label" data-i18n="settings.reading">Qur'an reading</h2>
+      <div class="card settings-group">
+        <div class="set-row">
+          <label for="st-reciter" data-i18n="quran.reciter">Reciter</label>
+          <select class="input" id="st-reciter"></select>
+        </div>
+        <div class="set-row">
+          <span id="st-translation-l" data-i18n="settings.translation">Show translation</span>
+          <label class="switch"><input type="checkbox" id="st-translation" aria-labelledby="st-translation-l" /><span class="trk"></span><span class="th"></span></label>
+        </div>
+        <div class="set-row">
+          <span id="st-translit-l" data-i18n="settings.transliteration">Show transliteration</span>
+          <label class="switch"><input type="checkbox" id="st-translit" aria-labelledby="st-translit-l" /><span class="trk"></span><span class="th"></span></label>
+        </div>
+      </div>
+
+      <h2 class="group-label" data-i18n="settings.prayer">Prayer &amp; location</h2>
+      <div class="card settings-group">
+        <div class="set-row set-row-stack">
           <div><b data-i18n="settings.location">Location</b><p class="tiny" id="st-loc-status"></p></div>
           <div class="row wrap">
-            <button class="btn btn-outline btn-sm" id="st-loc-set" type="button" data-i18n="settings.useDevice">Use device location</button>
+            <button class="btn btn-outline btn-sm" id="st-loc-set" type="button"><svg class="ic" aria-hidden="true"><use href="#i-pin"/></svg><span data-i18n="settings.changeLocation">Change location</span></button>
             <button class="btn btn-ghost btn-sm" id="st-loc-clear" type="button" data-i18n="settings.locationClear">Clear location</button>
           </div>
         </div>
-        <div class="row-between">
+        <div class="set-row">
           <label for="st-method" data-i18n="prayer.method">Calculation method</label>
-          <select class="input" id="st-method" style="max-inline-size:230px"></select>
+          <select class="input" id="st-method"></select>
         </div>
-        <div class="row-between">
+        <div class="set-row">
           <label for="st-school" data-i18n="prayer.asr">Asr method</label>
-          <select class="input" id="st-school" style="max-inline-size:230px"></select>
-        </div>
-        <div class="row-between">
-          <label for="st-reciter" data-i18n="quran.reciter">Reciter</label>
-          <select class="input" id="st-reciter" style="max-inline-size:230px"></select>
+          <select class="input" id="st-school"></select>
         </div>
       </div>
 
-      <div class="card settings-group mt-2">
-        <div class="row-between"><b data-i18n="settings.data">Your data</b><span></span></div>
-        <div class="row-between">
+      <h2 class="group-label" data-i18n="settings.data">Your data</h2>
+      <div class="card settings-group">
+        <div class="set-row">
           <span data-i18n="settings.export">Export my data</span>
-          <button class="btn btn-outline btn-sm" id="st-export" type="button">⬇</button>
+          <button class="btn btn-outline btn-sm" id="st-export" type="button"><svg class="ic" aria-hidden="true"><use href="#i-download"/></svg><span data-i18n="settings.exportBtn">Download</span></button>
         </div>
-        <div class="row-between">
-          <span class="danger" data-i18n="settings.deleteAll">Delete all my data</span>
-          <button class="btn btn-ghost btn-sm danger" id="st-delete" type="button">🗑</button>
+        <div class="set-row">
+          <span data-i18n="settings.deleteAll">Delete all my data</span>
+          <button class="btn btn-danger btn-sm" id="st-delete" type="button"><svg class="ic" aria-hidden="true"><use href="#i-trash"/></svg><span data-i18n="settings.deleteBtn">Delete</span></button>
         </div>
       </div>
 
       <p class="tiny mt-2" data-i18n="settings.privacyNote">All your data stays on this device. Your coordinates are sent only to the prayer-times service (AlAdhan) to calculate times, and are never stored on a server by us.</p>
+      <p class="tiny mt-1" data-i18n="settings.credits">Sources: AlAdhan (prayer times), AlQuran Cloud &amp; Tanzil (Qur'an), Islamic Network (audio), tafsir_api (Ibn Kathir), hadith-api (hadith).</p>
     </section>
   </main>
 
   <!-- ═══════════ Audio bar ═══════════ -->
-  <div class="audio-bar" id="audio-bar" hidden>
+  <div class="audio-bar" id="audio-bar" role="region" aria-label="Audio player" hidden>
     <div class="inner">
-      <button class="icon-btn" id="ab-play" type="button" aria-label="Play/Pause">▶</button>
-      <span class="now" id="ab-now"></span>
-      <select class="input" id="ab-speed" style="max-inline-size:82px" aria-label="Speed">
+      <button class="icon-btn" id="ab-prev" type="button" aria-label="Previous ayah"><svg class="ic" aria-hidden="true"><use href="#i-prev"/></svg></button>
+      <button class="icon-btn play" id="ab-play" type="button" aria-label="Pause"><svg class="ic" aria-hidden="true"><use href="#i-pause"/></svg></button>
+      <button class="icon-btn" id="ab-next" type="button" aria-label="Next ayah"><svg class="ic" aria-hidden="true"><use href="#i-next"/></svg></button>
+      <a class="now" id="ab-now" href="#/quran"></a>
+      <label class="visually-hidden" for="ab-speed">Speed</label>
+      <select class="input input-sm speed" id="ab-speed">
         <option value="0.75">0.75×</option>
         <option value="1" selected>1×</option>
         <option value="1.25">1.25×</option>
         <option value="1.5">1.5×</option>
       </select>
-      <button class="icon-btn" id="ab-repeat" type="button" aria-label="Repeat ayah">🔁</button>
-      <button class="icon-btn" id="ab-close" type="button" aria-label="Close player">✕</button>
+      <button class="icon-btn" id="ab-repeat" type="button" aria-pressed="false" aria-label="Repeat ayah"><svg class="ic" aria-hidden="true"><use href="#i-repeat"/></svg></button>
+      <button class="icon-btn" id="ab-close" type="button" aria-label="Close player"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
     </div>
+    <div class="ab-progress" aria-hidden="true"><span id="ab-progress"></span></div>
   </div>
 
-  <!-- ═══════════ Bottom navigation (mobile) ═══════════ -->
+  <!-- ═══════════ Bottom navigation (phones) ═══════════ -->
   <nav class="bottomnav" aria-label="Main">
-    <a href="#/home" data-nav="home"><span class="ic">🕌</span><span data-i18n="nav.dashboard">Dashboard</span></a>
-    <a href="#/prayer" data-nav="prayer"><span class="ic">🕰️</span><span data-i18n="nav.prayer">Prayer</span></a>
-    <a href="#/quran" data-nav="quran"><span class="ic">📖</span><span data-i18n="nav.quran">Qur'an</span></a>
-    <a href="#/dhikr" data-nav="dhikr"><span class="ic">📿</span><span data-i18n="nav.dhikr">Dhikr</span></a>
-    <a href="#/apps" data-nav="apps"><span class="ic">💻</span><span data-i18n="nav.apps">Apps</span></a>
+    <a href="#/home" data-nav="home"><svg class="ic" aria-hidden="true"><use href="#i-home"/></svg><span data-i18n="nav.dashboard">Home</span></a>
+    <a href="#/prayer" data-nav="prayer"><svg class="ic" aria-hidden="true"><use href="#i-clock"/></svg><span data-i18n="nav.prayerShort">Prayer</span></a>
+    <a href="#/quran" data-nav="quran"><svg class="ic" aria-hidden="true"><use href="#i-book"/></svg><span data-i18n="nav.quran">Qur'an</span></a>
+    <a href="#/qibla" data-nav="qibla"><svg class="ic" aria-hidden="true"><use href="#i-compass"/></svg><span data-i18n="nav.qibla">Qibla</span></a>
+    <button type="button" id="more-btn" data-nav="more" aria-haspopup="dialog" aria-controls="more-sheet"><svg class="ic" aria-hidden="true"><use href="#i-grid"/></svg><span data-i18n="nav.more">More</span></button>
   </nav>
 
-  <!-- ═══════════ Tafsir dialog ═══════════ -->
-  <dialog class="modal" id="tafsir-dialog">
+  <!-- ═══════════ "More" sheet (phones) ═══════════ -->
+  <dialog class="modal sheet" id="more-sheet" aria-labelledby="more-h">
     <div class="modal-body">
-      <div class="row-between">
-        <h2 data-i18n="tafsir.title">Tafsir</h2>
-        <button class="icon-btn" id="tafsir-close" type="button" aria-label="Close">✕</button>
+      <div class="sheet-handle" aria-hidden="true"></div>
+      <div class="modal-head">
+        <h2 id="more-h" data-i18n="nav.more">More</h2>
+        <button class="icon-btn" data-close type="button" aria-label="Close"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
       </div>
-      <p class="tiny" id="tafsir-ref"></p>
-      <p class="muted tiny" data-i18n="tafsir.ibnkathir">Tafsir Ibn Kathir (abridged, English)</p>
-      <div id="tafsir-body" class="mt-2"><div class="skeleton" style="min-block-size:80px"></div></div>
-      <p class="tiny mt-2" data-i18n="tafsir.source">Source: Tafsir Ibn Kathir via the open tafsir_api.</p>
+      <nav class="more-grid" aria-label="More">
+        <a href="#/duas" data-nav="duas"><span class="q-ic"><svg aria-hidden="true"><use href="#i-heart"/></svg></span><span data-i18n="nav.duas">Duas</span></a>
+        <a href="#/dhikr" data-nav="dhikr"><span class="q-ic"><svg aria-hidden="true"><use href="#i-beads"/></svg></span><span data-i18n="nav.dhikr">Dhikr</span></a>
+        <a href="#/hadith" data-nav="hadith"><span class="q-ic"><svg aria-hidden="true"><use href="#i-scroll"/></svg></span><span data-i18n="nav.hadith">Hadith</span></a>
+        <a href="#/calendar" data-nav="calendar"><span class="q-ic"><svg aria-hidden="true"><use href="#i-calendar"/></svg></span><span data-i18n="nav.calendar">Calendar</span></a>
+        <a href="#/settings" data-nav="settings"><span class="q-ic"><svg aria-hidden="true"><use href="#i-settings"/></svg></span><span data-i18n="nav.settings">Settings</span></a>
+      </nav>
+    </div>
+  </dialog>
+
+  <!-- ═══════════ Tafsir dialog ═══════════ -->
+  <dialog class="modal sheet tall" id="tafsir-dialog" aria-labelledby="tafsir-h">
+    <div class="modal-body">
+      <div class="sheet-handle" aria-hidden="true"></div>
+      <div class="modal-head">
+        <div>
+          <h2 id="tafsir-h"><span data-i18n="tafsir.title">Tafsir</span> <span class="badge" id="tafsir-ref"></span></h2>
+          <p class="tiny" data-i18n="tafsir.ibnkathir">Tafsir Ibn Kathir (abridged, English)</p>
+        </div>
+        <button class="icon-btn" data-close type="button" aria-label="Close"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
+      </div>
+      <div class="modal-scroll">
+        <div id="tafsir-body" class="tafsir-text" aria-live="polite"></div>
+        <p class="tiny mt-2" data-i18n="tafsir.source">Source: Tafsir Ibn Kathir via the open tafsir_api.</p>
+      </div>
     </div>
   </dialog>
 
   <!-- ═══════════ Location permission dialog ═══════════ -->
-  <dialog class="modal" id="loc-dialog">
+  <dialog class="modal sheet" id="loc-dialog" aria-labelledby="loc-h">
     <div class="modal-body">
-      <h2 data-i18n="loc.title">Location access</h2>
-      <p class="muted" data-i18n="loc.body">We use your location only to provide accurate prayer times, Qibla direction, nearby mosques, and halal businesses.</p>
+      <div class="sheet-handle" aria-hidden="true"></div>
+      <div class="modal-head">
+        <h2 id="loc-h" data-i18n="loc.title">Location access</h2>
+        <button class="icon-btn" id="loc-close" type="button" aria-label="Close"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
+      </div>
+      <p class="muted" data-i18n="loc.body">We use your location only to calculate accurate prayer times and the Qibla direction. It is rounded to about 1 km and never stored on our servers.</p>
       <div class="modal-actions">
-        <button class="btn" data-act="while" type="button" data-i18n="loc.allowWhile">Allow while using app</button>
-        <button class="btn btn-outline" data-act="once" type="button" data-i18n="loc.allowOnce">Allow once</button>
-        <button class="btn btn-outline" data-act="manual" type="button" data-i18n="loc.manual">Enter location manually</button>
-        <button class="btn btn-ghost" data-act="deny" type="button" data-i18n="loc.deny">Don't allow</button>
+        <button class="btn" data-act="while" type="button" data-i18n="loc.allowWhile">Use my location</button>
+        <button class="btn btn-outline" data-act="once" type="button" data-i18n="loc.allowOnce">Use it just this once</button>
+        <button class="btn btn-outline" data-act="manual" type="button" data-i18n="loc.manual">Enter a city instead</button>
+        <button class="btn btn-ghost" data-act="deny" type="button" data-i18n="loc.deny">Not now</button>
       </div>
       <form class="mt-2" id="loc-manual-form" hidden>
         <div class="field">
           <label for="loc-city" data-i18n="loc.manualTitle">Enter your city</label>
-          <input class="input" id="loc-city" name="city" placeholder="e.g. London, Dubai, Karachi" data-i18n-ph="loc.manualPlaceholder" required />
+          <div class="row">
+            <input class="input" id="loc-city" name="city" placeholder="e.g. London, Dubai, Karachi" data-i18n-ph="loc.manualPlaceholder" required autocomplete="address-level2" enterkeyhint="search" />
+            <button class="btn" type="submit" data-i18n="common.save">Save</button>
+          </div>
         </div>
-        <div class="modal-actions">
-          <button class="btn" type="submit" data-i18n="common.save">Save</button>
-        </div>
-        <p class="tiny mt-1" id="loc-status" aria-live="polite"></p>
+        <p class="note mt-1" id="loc-status" aria-live="polite"></p>
       </form>
     </div>
   </dialog>
+
+  <noscript>
+    <div class="noscript">SalaamStreet needs JavaScript enabled to show prayer times, the Qur'an and the other tools.</div>
+  </noscript>
 
   <!-- Classic scripts (no ES modules): order matters, `defer` preserves it.
        This works from file://, any static host, and GitHub Pages. -->

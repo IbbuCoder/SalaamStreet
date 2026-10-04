@@ -1,0 +1,30 @@
+# SalaamStreet — Roadmap
+
+The web app is the product — one responsive site for phones, tablets,
+laptops and large monitors. Core worship features are, and will stay, free.
+
+## Shipped
+
+- Prayer times (7 methods, Standard/Hanafi Asr, today + monthly timetable)
+- Qibla compass with device orientation, bearing and distance
+- Qur'an reader: 114 surahs, translation, transliteration, adjustable Arabic size,
+  4 reciters with continuous play, speed and repeat, bookmarks, resume, tafsir
+- Hadith library (Nawawi 40, Qudsi 40, Bukhari, Muslim)
+- Dua library with favourites and copy
+- Dhikr counter with presets, undo, daily totals and streaks
+- Islamic calendar with approximate countdowns to key dates
+- English/Arabic with full RTL, light/dark/system themes
+- Installable (PWA) with offline app shell
+
+## Next
+
+- Optional account sync (Supabase schema in `backend/`) for bookmarks, streaks and settings
+- Prayer-time reminders via web notifications (opt-in)
+- Juz / page navigation and Qur'an text search
+- More translations and UI languages (ur, fr, tr, id)
+
+## Principles
+
+Qur'an, hadith and tafsir always come from established sources with citations
+shown; nothing is generated. Scholarly differences (calculation method, Asr)
+are user choices. Personal data stays on the device unless the user opts in.

@@ -2,6 +2,8 @@
 
 **Version:** 1.0 · **Status:** Awaiting approval
 
+> **Note:** this is the original planning document. The shipped product is a static, web-only app (no accounts or server yet) — see `README.md` and `docs/02-architecture.md` for how it is actually built.
+
 ## 1. Design Language
 
 - **Palette:** Emerald `#059669` (primary, scale 50–950) · White/near-white surfaces · Rich black `#0A0F0D` (dark mode base) · Gold `#C9A227` accents (used sparingly: streaks, achievements, active states).
@@ -11,8 +13,9 @@
 
 ## 2. Navigation
 
-- **Desktop:** slim left sidebar — Dashboard, Prayer Times, Qibla, Quran, Duas, Dhikr, Settings. Top bar: location chip, locale switcher (EN/عربي), theme toggle, avatar/sign-in.
-- **Mobile:** bottom tab bar — Dashboard · Prayer · Quran · Dhikr · More (sheet with Qibla, Duas, Settings).
+- **Desktop (≥1100px):** left sidebar — Home, Prayer Times, Qibla, Qur'an, Hadith, Duas, Dhikr, Calendar, Settings. Top bar: page title, locale switcher (EN/عربي), theme toggle.
+- **Tablet (768–1099px):** the same destinations as a compact icon rail.
+- **Phone (<768px):** bottom tab bar — Home · Prayer · Qur'an · Qibla · More (bottom sheet with Duas, Dhikr, Hadith, Calendar, Settings).
 - **RTL:** entire layout mirrors for Arabic.
 
 ## 3. Page Map (v1)

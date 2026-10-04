@@ -1,6 +1,5 @@
 /* SalaamStreet — extras.js (classic script)
-   Static reference data: Islamic calendar events, hadith collections, and the
-   premium feature list. Exposed on window.SS. */
+   Static reference data: Islamic calendar events and hadith collections. Exposed on window.SS. */
 (function () {
   "use strict";
   window.SS = window.SS || {};
@@ -32,21 +31,4 @@
     { id: "muslim", en: "Sahih Muslim", ar: "صحيح مسلم", eng: "eng-muslim", ara: "ara-muslim", bounded: false, cite: "Sahih Muslim" },
   ];
 
-  /* Premium feature list (for the pricing/upgrade pages). `live` marks what is
-     actually unlockable today; the rest are clearly labeled as planned so we
-     never overpromise. */
-  SS.PREMIUM_FEATURES = [
-    { icon: "🎨", en: "Premium themes", ar: "ثيمات مميزة", live: true },
-    { icon: "🗂️", en: "Collections (organize bookmarks)", ar: "المجموعات (تنظيم الإشارات)", live: true },
-    { icon: "📝", en: "Unlimited notes on ayat", ar: "ملاحظات غير محدودة على الآيات", live: true },
-    { icon: "📊", en: "Premium dashboard & analytics", ar: "لوحة تحكم وتحليلات مميزة", live: true },
-    { icon: "🅰️", en: "Quranic Arabic course", ar: "دورة العربية القرآنية", live: false },
-    { icon: "🗣️", en: "Modern Standard Arabic course", ar: "دورة العربية الفصحى الحديثة", live: false },
-    { icon: "🤖", en: "AI Arabic tutor", ar: "مدرّس عربية بالذكاء الاصطناعي", live: false },
-    { icon: "🧠", en: "Memorization planner", ar: "مخطط الحفظ", live: false },
-    { icon: "📐", en: "Grammar lessons", ar: "دروس النحو", live: false },
-    { icon: "🃏", en: "Flashcards", ar: "بطاقات تعليمية", live: false },
-    { icon: "❓", en: "Quizzes", ar: "اختبارات", live: false },
-    { icon: "📅", en: "Study planner", ar: "مخطط الدراسة", live: false },
-  ];
 })();

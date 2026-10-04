@@ -1,80 +1,91 @@
 # SalaamStreet 🕌
 
-A modern, peaceful Islamic web platform — prayer times, Qibla finder, Qur'an reader with audio, authentic duas, and a dhikr counter. Built as a fully static single-page app (HTML/CSS/vanilla JS, no build step, no modules) that runs anywhere: double-clicked locally, GitHub Pages, or any static host.
+A modern, peaceful Islamic web app — prayer times, Qibla, the Qur'an with audio and tafsir, authentic hadith and duas, a dhikr counter and the Islamic calendar. Free, private, and built to feel at home on every screen: iPhone, Android, iPad and Android tablets, Chromebooks, Windows and Mac laptops, and large desktop monitors.
+
+Live at **[salaamstreet.com](https://salaamstreet.com)**.
 
 ## Features
 
-- **Prayer times** — device location or manual city, 7 calculation methods, Standard/Hanafi Asr, daily + monthly views (AlAdhan API, cached for offline)
-- **Qibla finder** — live compass on supported phones; computed great-circle bearing everywhere (fully on-device)
-- **Qur'an reader** — all 114 surahs, Uthmani script, Saheeh International translation, transliteration toggle, bookmarks, last-read resume, per-ayah and continuous audio with 4 reciters, speed and repeat controls
-- **Tafsir** — Ibn Kathir (English) opens per ayah inside the Qur'an reader (open tafsir_api)
-- **Hadith library** — 40 Hadith Nawawi & Qudsi (bounded, shown in full) plus browse-by-number for Sahih al-Bukhari and Muslim, with Arabic, English, grading, and reference on each (open hadith-api)
-- **Dua library** — authentic supplications with Arabic, transliteration, translation, and a source citation on every dua
-- **Dhikr counter** — presets with sourced targets, progress ring, daily streaks
-- **Islamic calendar** — today's Hijri date (AlAdhan) and key Islamic dates, with a note that Gregorian dates depend on moon-sighting
-- **Premium** — pricing / checkout / success / cancel / membership pages with PayPal (@aqmoha). Core worship features stay free forever; premium adds study tools (see the Premium page). Gating is client-side and provisional, designed to move to server-side PayPal verification later.
-- **English + Arabic** UI with full RTL · **Dark mode** · Responsive · Accessible
+- **Prayer times** — device location or a city you type in, 7 calculation methods, Standard/Hanafi Asr, today's times and a monthly timetable (AlAdhan API, cached for offline)
+- **Qibla finder** — live compass on phones and tablets that have one; bearing and distance to Makkah everywhere (computed on your device)
+- **Qur'an reader** — all 114 surahs in Uthmani script with Saheeh International translation, optional transliteration, adjustable Arabic text size, bookmarks, resume where you left off, copy an ayah
+- **Recitation** — 4 reciters, per-ayah or continuous playback, speed and repeat controls, lock-screen/media-key controls
+- **Tafsir** — Ibn Kathir (English) for any ayah, in a bottom sheet on phones
+- **Hadith library** — 40 Hadith Nawawi & Qudsi in full, plus browse-by-number for Sahih al-Bukhari and Muslim, with Arabic, English, grading and reference
+- **Dua library** — authentic supplications with Arabic, transliteration, translation and a source on every dua; favourites and copy
+- **Dhikr counter** — big tap target (or Space bar on desktop), presets with sourced targets, undo, today's totals, daily streaks, haptic feedback
+- **Islamic calendar** — today's Hijri date and approximate countdowns to key dates
+- **English + Arabic** with full right-to-left layout · **Light / dark / system theme** · **Installable** (add to home screen) · **Works offline** for anything you've already opened
 
 ## Principles
 
-- **Authenticity:** Qur'an text comes from the Tanzil Uthmani text via AlQuran Cloud; every dua and dhikr preset carries its source (Qur'an reference or hadith collection + number). Nothing is invented.
-- **Privacy-first:** all personal data stays in your browser's localStorage. Location is used only after you choose an option in the permission dialog, is rounded to ~1 km, and is sent only to the prayer-times API. "Allow once" lasts the session only. Export or delete everything in Settings.
-- **Respect for scholarly difference:** calculation method and Asr madhhab are user choices, never presented as the single correct view.
+- **Authenticity:** Qur'an text comes from Tanzil (Uthmani) via AlQuran Cloud; every dua and dhikr preset carries its source. Nothing is invented or generated.
+- **Privacy-first:** everything personal stays in your browser's localStorage. Location is used only after you choose an option, is rounded to ~1 km, and is sent only to the prayer-times API. Export or delete everything in Settings.
+- **Respect for scholarly difference:** calculation method and Asr madhhab are your choice, never presented as the single correct view.
+- **Free:** no accounts, no ads, no paywalls.
+
+## Built for every screen
+
+| Screen | Navigation | Layout |
+|---|---|---|
+| Phones (< 768px) | Bottom tab bar within thumb reach + "More" sheet | Single column, 44px+ touch targets, bottom-sheet dialogs, no horizontal scrolling |
+| Tablets (768–1099px) | Compact icon rail | Wider cards, two-column lists |
+| Laptops & desktops (≥ 1100px) | Full sidebar | Multi-column dashboards, sticky reading toolbar, keyboard support |
+| Large monitors (≥ 1440px) | Full sidebar | Wider content area while reading text keeps a comfortable line length |
+
+Safe-area insets (iPhone notch / home indicator), 16px form inputs (no iOS zoom), reduced-motion support, visible keyboard focus, screen-reader labels and `lang`/`dir` on all Arabic text are built in.
 
 ## Project structure
 
 ```
-├── index.html        The entire app shell (all views; hash routing: #/home, #/quran, #/surah/2 …)
-├── css/styles.css    Design system: tokens, light/dark themes, RTL, all components
+├── index.html            App shell (all views; hash routing: #/home, #/quran, #/surah/2 …)
+├── css/styles.css        Design system: tokens, light/dark themes, RTL, responsive layout
 ├── js/
-│   ├── surahs.js     114-surah metadata + ayah numbering (self-hosted data)
-│   ├── duas.js       Dua library + dhikr presets, all with sources (self-hosted data)
-│   ├── i18n.js       English/Arabic strings + RTL switching
-│   ├── core.js       Config, storage, API clients with caching, location flow, qibla math
-│   ├── views.js      One controller per view
-│   └── app.js        Router, theme, audio player, boot
-├── .nojekyll         Tells GitHub Pages to serve files as-is
-└── docs/             Planning documents (PRD, architecture, sitemap)
+│   ├── surahs.js         114-surah metadata + ayah numbering
+│   ├── duas.js           Dua library + dhikr presets, all with sources
+│   ├── extras.js         Calendar events + hadith collections
+│   ├── i18n.js           English/Arabic strings + RTL switching
+│   ├── core.js           Config, storage, API clients with caching, location flow, Qibla math
+│   ├── views.js          One controller per view
+│   └── app.js            Router, theme, dialogs, audio player, boot
+├── sw.js                 Service worker (offline app shell)
+├── manifest.webmanifest  PWA manifest · icons/ app icons
+├── 404.html · CNAME · .nojekyll   GitHub Pages
+├── backend/              Optional future account-sync schema (not connected)
+└── docs/                 Product, architecture and design notes
 ```
 
-Plain `<script defer>` tags — no ES modules — so the site works even when `index.html` is opened directly from disk (file://), which module-based sites cannot do.
+Plain `<script defer>` tags — no ES modules and no build step — so the site works on any static host and even when `index.html` is opened directly from disk.
 
 ## Run locally
-
-Just double-click `index.html`, or serve it:
 
 ```bash
 python -m http.server 8000   # then open http://localhost:8000
 ```
 
-## Deploy to GitHub Pages
+(Opening `index.html` directly also works; the offline service worker and device location need `http://localhost` or HTTPS.)
 
-1. Create a repository on GitHub.
-2. Upload **all files and folders** (`index.html`, `css/`, `js/`, `.nojekyll`). If you drag-and-drop, make sure the `css` and `js` folders are included and fully uploaded — if your files live in OneDrive, right-click the folder and choose **"Always keep on this device"** first, so you're uploading real files rather than cloud placeholders.
-3. Repo **Settings → Pages → Source**: *Deploy from a branch* → `main` / `/ (root)` → Save.
-4. Wait ~1 minute; the site goes live at `https://<username>.github.io/<repo>/`.
+## Deploy (GitHub Pages)
 
-All asset paths are relative, so the repo subpath works with no configuration.
+The repo is deployed from the `main` branch root:
 
-> **Note:** GitHub Pages serves static files only — Python/Node/databases don't run there. This app is fully client-side for that reason.
+1. **Settings → Pages → Source:** *Deploy from a branch* → `main` / `/ (root)`.
+2. `CNAME` points the site at `salaamstreet.com`; `.nojekyll` makes Pages serve files as-is.
+3. All asset paths are relative, so the site also works from a `username.github.io/repo/` subpath.
 
 ## External services (all free, no keys)
 
 | Service | Used for |
 |---|---|
-| [AlAdhan API](https://aladhan.com/prayer-times-api) | Prayer times, Hijri date, city geocoding |
+| [AlAdhan API](https://aladhan.com/prayer-times-api) | Prayer times, Hijri date, city lookup |
 | [AlQuran Cloud API](https://alquran.cloud/api) | Qur'an text, translation, transliteration |
 | [Islamic Network CDN](https://cdn.islamic.network) | Per-ayah recitation audio |
 | [tafsir_api (spa5k)](https://github.com/spa5k/tafsir_api) via jsDelivr | Tafsir Ibn Kathir |
 | [hadith-api (fawazahmed0)](https://github.com/fawazahmed0/hadith-api) via jsDelivr | Hadith collections |
 | Google Fonts | Figtree, IBM Plex Sans Arabic, Scheherazade New, Amiri |
 
-## Payments (PayPal)
-
-Premium uses a [PayPal.me](https://www.paypal.com/paypalme/aqmoha) link (handle **@aqmoha**) for the actual payment, configured in `js/core.js` (`SS.PAYPAL_ME` / `SS.PAYPAL_HANDLE`). Because this is a static site there is no server to verify payments, so activation is **provisional and stored on the device** after the user confirms payment. This is intentionally designed to migrate to server-side PayPal REST API verification later — those secrets (client ID/secret, webhook) belong in environment variables on a server, **never** in this client code. No secrets are stored in the repo.
-
-Responses are cached in localStorage, so previously viewed surahs and today's prayer times keep working offline.
+Responses are cached in localStorage, so surahs you've read and today's prayer times keep working offline.
 
 ## Roadmap
 
-v2: Hadith library, tafsir, Islamic calendar, learning academy · v3: AI assistant (retrieval-grounded, always cites sources), mosque & halal finders, community. See `docs/01-prd.md`.
+See [`docs/05-roadmap.md`](docs/05-roadmap.md).

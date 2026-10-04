@@ -1,6 +1,7 @@
 -- ════════════════════════════════════════════════════════════════════════
 --  SalaamStreet — Supabase schema
---  One account system for the website (JS) and the Windows app (C#).
+--  Optional account sync for the SalaamStreet web app (not wired up yet —
+--  the site works fully without it, storing everything on the device).
 --  Run this in the Supabase SQL editor after creating a project.
 --  Auth is handled by Supabase Auth (auth.users); these tables hang off it.
 --  Row-Level Security ensures each user can only read/write their own rows.
@@ -11,10 +12,6 @@ create table if not exists public.profiles (
     id           uuid primary key references auth.users(id) on delete cascade,
     display_name text,
     locale       text default 'en',
-    is_premium   boolean not null default false,
-    premium_plan text,                       -- 'monthly' | 'yearly' | 'lifetime' | null
-    premium_since timestamptz,
-    premium_expires timestamptz,
     created_at   timestamptz not null default now(),
     updated_at   timestamptz not null default now()
 );
@@ -44,10 +41,10 @@ create table if not exists public.bookmarks (
     primary key (user_id, surah, ayah)
 );
 
--- ── Progress: Qur'an reading + Arabic learning ────────────────────────────
+-- ── Progress: Qur'an reading, dhikr streaks ─────────────────────────────────
 create table if not exists public.progress (
     user_id    uuid not null references auth.users(id) on delete cascade,
-    kind       text not null,               -- 'quran' | 'arabic'
+    kind       text not null,               -- 'quran' | 'dhikr'
     key        text not null,               -- e.g. surah number, lesson id
     value      jsonb not null,              -- { lastAyah, percent, streak, … }
     updated_at timestamptz not null default now(),
@@ -114,8 +111,3 @@ create policy "own progress all" on public.progress
 -- favorites
 create policy "own favorites all" on public.favorites
     for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
-
--- Note: is_premium must only ever be set by a trusted server (Supabase Edge
--- Function verifying PayPal), never by the client. RLS above allows a user to
--- update their profile row; in Session 5 we lock premium columns down with a
--- column-level policy / trigger so only the service role can flip is_premium.

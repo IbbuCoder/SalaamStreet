@@ -1,84 +1,61 @@
-# SalaamStreet — Software Architecture
+# SalaamStreet — Architecture
 
-**Version:** 1.0 · **Status:** Awaiting approval
+SalaamStreet is a **static, client-side web application**. There is no build
+step, no server and no database: GitHub Pages serves the files as-is, and all
+personal data stays in the visitor's browser.
 
 ## 1. Stack
 
-| Layer | Choice | Notes |
+| Layer | Choice | Why |
 |---|---|---|
-| Framework | Next.js 15 (App Router) + React 19 + TypeScript (strict) | RSC-first; client components only where interactive |
-| Styling | Tailwind CSS v4 | Design tokens for emerald/white/black/gold; logical properties for RTL |
-| ORM / DB | Prisma + PostgreSQL | Vercel-compatible (Neon/Vercel Postgres); pooled connections |
-| Auth | NextAuth (Auth.js v5) | Email magic link + Google OAuth; Prisma adapter; JWT sessions |
-| Hosting | Vercel | Edge for read-heavy routes, Node for auth/DB |
-| Repo | GitHub | PR-based flow, CI via GitHub Actions |
+| Markup | One `index.html` app shell with every view as a `<section>` | Instant view switches, works from `file://` |
+| Styling | Hand-written CSS with design tokens (`css/styles.css`) | Mobile-first, light/dark themes, full RTL via logical properties |
+| Logic | Vanilla JS as classic `<script defer>` files (no modules) | No tooling, runs anywhere, including directly from disk |
+| Routing | Hash router (`#/quran`, `#/surah/2/255`, …) | Deep links work on static hosting with no rewrites |
+| Storage | `localStorage` (settings, bookmarks, favourites, streaks, API cache) | Privacy-first; export/delete in Settings |
+| Offline | Service worker (`sw.js`) for the app shell + localStorage API cache | Previously viewed content keeps working offline |
+| Hosting | GitHub Pages from `main` (`CNAME` → salaamstreet.com) | Free, static |
 
-## 2. High-Level Design
+## 2. Script load order
 
 ```
-Browser (RSC + islands of client interactivity)
-   │
-Next.js App Router
-   ├─ Server Components ── read Quran/Dua content (self-hosted, static)
-   ├─ Route Handlers /api/* ─┬─ Prisma ──► PostgreSQL (users, bookmarks, streaks)
-   │                         ├─ AlAdhan API (prayer times, Hijri) [server-side, cached]
-   │                         └─ (v2) Sunnah.com / tafsir sources
-   └─ NextAuth handlers
+surahs.js   114-surah metadata, global ayah numbering
+duas.js     dua library + dhikr presets (all with sources)
+extras.js   Islamic calendar events, hadith collection list
+i18n.js     English/Arabic strings, RTL switching
+core.js     config, storage, cached fetch, API clients, location flow, Qibla math
+views.js    one controller per view (+ optional "leave" hooks)
+app.js      router, theme, locale, dialogs, audio player, offline banner, boot
 ```
 
-## 3. Data Sourcing Strategy (hybrid — reliability first)
+Each file attaches to a single `window.SS` namespace.
 
-| Content | Source | Why |
+## 3. Data sources (all free, no keys)
+
+| Service | Used for | Cache |
 |---|---|---|
-| Quran text (Uthmani, Saheeh Intl translation, transliteration) | **Self-hosted**: seeded into Postgres from the Tanzil/Quran.com public datasets at build time | Scripture must never depend on third-party uptime; enables static generation and zero-latency reads |
-| Prayer times & Hijri dates | **AlAdhan API** (free, no key) via our own `/api/prayer-times` proxy with server-side caching (per location+date, 24h TTL) | Battle-tested calculation engine, all methods supported; caching removes downtime/rate-limit risk |
-| Audio recitations | **EveryAyah / Quran.com CDN URLs** (per-ayah mp3), streamed directly by the client | Audio files are huge; stream from established CDNs, keep qari + URL template in our DB |
-| Duas | **Self-hosted**: Hisnul Muslim dataset seeded into Postgres with source citations | Small, stable dataset; full control over citation accuracy |
-| Hadith (v2) | Sunnah.com API, cached in our DB with grading + citation | Canonical grading data |
-| Qibla | **Client-side computation** (great-circle formula) | No network needed; privacy-preserving |
+| AlAdhan API | prayer times, monthly timetable, Hijri date, city lookup | 1–30 days |
+| AlQuran Cloud | Qur'an text (Tanzil Uthmani), Saheeh International, transliteration | 30 days |
+| Islamic Network CDN | per-ayah recitation audio | browser cache |
+| tafsir_api (jsDelivr) | Tafsir Ibn Kathir (English) | 30 days |
+| hadith-api (jsDelivr) | Nawawi 40, Qudsi 40, Bukhari, Muslim | 30 days |
 
-Every content row stores `source` + `sourceRef` (e.g., "Hisnul Muslim #27", "Tanzil Uthmani v1.1") — authenticity is auditable.
+Requests time out after 15 seconds; if the network fails, the last cached copy
+is shown and every view offers a "Try again" action.
 
-## 4. Key Architectural Decisions
+## 4. Responsive layout
 
-1. **Server-side API proxying** — the browser never calls AlAdhan directly. Our route handlers proxy + cache, so we can swap providers, add fallbacks, and avoid leaking user coordinates to third parties beyond what's needed.
-2. **Coordinates privacy** — geolocation is read client-side; coordinates are sent only to our prayer-times endpoint (rounded to 2 decimals ≈ 1km, sufficient for prayer times) and are **not persisted** unless the user explicitly saves a location.
-3. **Static-first Quran** — surah pages are SSG'd (114 pages + juz routes); user data (bookmarks, last-read) hydrates client-side after load.
-4. **Guest-first UX** — prayer times, Quran, Qibla, duas work without an account (localStorage state); an account adds sync, streaks, notifications.
-5. **i18n** — `next-intl`, locale segment `/(en|ar)/…`, `dir` set at the html level, Tailwind logical props (`ms-*`, `pe-*`) so RTL needs no overrides.
-6. **State** — server state via RSC + fetch cache; client state kept minimal (Zustand for audio player + dhikr counter; localStorage persistence for guests).
+| Width | Navigation | Content |
+|---|---|---|
+| < 768px (phones) | bottom tab bar + "More" bottom sheet | single column, bottom-sheet dialogs |
+| 768–1099px (tablets) | icon rail | single/two columns |
+| ≥ 1100px (laptops, desktops) | full sidebar | multi-column dashboards, max width 1120px (1240px ≥ 1440px) |
 
-## 5. Security (OWASP-aligned)
+Reading views (Qur'an, duas, hadith, settings) cap at 800px for comfortable line length.
 
-- All secrets in env vars (`.env.local` locally, Vercel env in prod); `.env.example` committed, never real values.
-- NextAuth CSRF protection; `httpOnly` `secure` `sameSite=lax` cookies.
-- Zod validation on every route-handler input; Prisma (parameterized) prevents SQLi.
-- Rate limiting on auth + API routes (Upstash Ratelimit or in-memory fallback).
-- Security headers via `middleware.ts` / `next.config`: CSP, HSTS, X-Frame-Options DENY, Referrer-Policy, Permissions-Policy (geolocation self only).
-- Dependency scanning (Dependabot) + `npm audit` in CI.
+## 5. Privacy
 
-## 6. Performance
-
-- RSC + SSG for content; `next/font` self-hosted fonts (incl. Uthmanic Hafs, Amiri) with `font-display: swap`.
-- Route-level code splitting; audio player lazy-loaded; images via `next/image`.
-- DB indexes on all lookup paths (see schema doc); connection pooling for serverless.
-- Edge caching: prayer times cached per (lat2dp, lng2dp, date, method).
-
-## 7. Environments & CI/CD
-
-- `main` → production (Vercel), PR branches → preview deployments.
-- GitHub Actions: typecheck, lint, test (Vitest + Playwright smoke), `prisma validate` on every PR.
-- Migrations: `prisma migrate` — applied via CI step against production DB on deploy.
-
-## 8. Environment Variables (v1)
-
-```
-DATABASE_URL=            # Postgres (pooled)
-DIRECT_URL=              # Postgres (direct, for migrations)
-AUTH_SECRET=             # NextAuth
-AUTH_GOOGLE_ID=
-AUTH_GOOGLE_SECRET=
-EMAIL_SERVER=            # magic-link SMTP
-EMAIL_FROM=
-NEXT_PUBLIC_APP_URL=
-```
+- Location is only requested after the user picks an option in the in-app dialog.
+- Coordinates are rounded to 2 decimals (~1 km) and sent only to AlAdhan.
+- The Qibla bearing and distance are computed on the device.
+- No analytics, no cookies, no accounts.

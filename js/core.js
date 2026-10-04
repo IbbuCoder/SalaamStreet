@@ -21,16 +21,6 @@
   /* Hadith — fawazahmed0 hadith-api (CORS via jsDelivr). */
   SS.HADITH_BASE = "https://cdn.jsdelivr.net/gh/fawazahmed0/hadith-api@1/editions";
 
-  /* Payments — PayPal.me handle (real money link); server-side PayPal API is a
-     future upgrade wired through env vars (see README). No secrets in this file. */
-  SS.PAYPAL_HANDLE = "aqmoha";
-  SS.PAYPAL_ME = "https://www.paypal.com/paypalme/aqmoha";
-  SS.PLANS = [
-    { id: "monthly", en: "Monthly", ar: "شهري", price: 4.99, per: "mo", perEn: "month", perAr: "شهر" },
-    { id: "yearly", en: "Yearly", ar: "سنوي", price: 39.99, per: "yr", perEn: "year", perAr: "سنة", best: true },
-    { id: "lifetime", en: "Lifetime", ar: "مدى الحياة", price: 99.0, per: "once", perEn: "one-time", perAr: "مرة واحدة" },
-  ];
-
   SS.CALC_METHODS = [
     { id: 3, en: "Muslim World League", ar: "رابطة العالم الإسلامي" },
     { id: 2, en: "ISNA (North America)", ar: "الجمعية الإسلامية لأمريكا الشمالية" },
@@ -56,7 +46,7 @@
   ];
   SS.DEFAULTS = {
     locale: "en", theme: "system", method: 3, school: 0,
-    reciter: "ar.alafasy", showTransliteration: false, location: null,
+    reciter: "ar.alafasy", showTranslation: true, showTransliteration: false, location: null,
   };
   SS.FALLBACK_LOC = { lat: 21.4225, lng: 39.8262, label: "Makkah (default)", isFallback: true };
 
@@ -71,6 +61,9 @@
     },
     set: function (key, val) {
       try { localStorage.setItem(PREFIX + key, JSON.stringify(val)); } catch (e) { /* full/unavailable */ }
+    },
+    remove: function (key) {
+      try { localStorage.removeItem(PREFIX + key); } catch (e) { /* unavailable */ }
     },
     settings: function () {
       var s = store.get("settings", {});
@@ -123,26 +116,46 @@
       return d.toLocaleTimeString(SS.i18n.isAr() ? "ar" : undefined, { hour: "numeric", minute: "2-digit" });
     } catch (e) { return String(hhmm).slice(0, 5); }
   };
+  /** YYYY-MM-DD in the device's local time zone (toISOString would use UTC). */
+  SS.localDate = function (d) {
+    d = d || new Date();
+    return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
+  };
+  /** "12 Ramadan 1447 AH" from an AlAdhan hijri object, localised. */
+  SS.hijriLabel = function (h) {
+    if (!h) return "";
+    var ar = SS.i18n.isAr();
+    return h.day + " " + (ar ? h.month.ar : h.month.en) + " " + h.year + (ar ? " هـ" : " AH");
+  };
   var toastTimer = null;
   SS.toast = function (msg) {
     var el = document.getElementById("toast");
     if (!el) {
       el = document.createElement("div");
       el.id = "toast"; el.className = "toast"; el.setAttribute("role", "status");
+      el.setAttribute("aria-live", "polite");
       document.body.appendChild(el);
     }
-    el.textContent = msg; el.hidden = false;
+    el.textContent = msg;
+    el.classList.remove("show");
+    void el.offsetWidth; // restart the enter animation
+    el.classList.add("show");
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(function () { el.hidden = true; }, 2600);
+    toastTimer = setTimeout(function () { el.classList.remove("show"); }, 2800);
   };
 
   /* ── Cached fetch ───────────────────────────────────────────── */
   var DAY = 86400000;
+  /** fetch → JSON with a timeout, so a stalled network never leaves a spinner forever. */
   function fetchJson(url) {
-    return fetch(url, { headers: { Accept: "application/json" } }).then(function (res) {
-      if (!res.ok) throw new Error("HTTP " + res.status);
-      return res.json();
-    });
+    var ctrl = typeof AbortController === "function" ? new AbortController() : null;
+    var timer = ctrl ? setTimeout(function () { ctrl.abort(); }, 15000) : null;
+    return fetch(url, { headers: { Accept: "application/json" }, signal: ctrl ? ctrl.signal : undefined })
+      .then(function (res) {
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        return res.json();
+      })
+      .finally(function () { if (timer) clearTimeout(timer); });
   }
   function cachedFetch(key, url, ttl) {
     var cached = store.get("cache:" + key);
@@ -234,24 +247,6 @@
     },
   };
 
-  /* ── Premium (client-side gating; provisional until server verification) ─── */
-  SS.premium = {
-    isActive: function () {
-      var p = store.get("premium", null);
-      if (!p || !p.active) return false;
-      if (p.plan === "lifetime") return true;
-      // monthly/yearly: honor an expiry timestamp if present.
-      return !p.expires || Date.now() < p.expires;
-    },
-    plan: function () { var p = store.get("premium", null); return p && p.active ? p.plan : null; },
-    activate: function (plan, reference) {
-      var now = Date.now();
-      var expires = plan === "monthly" ? now + 31 * DAY : plan === "yearly" ? now + 366 * DAY : null;
-      store.set("premium", { active: true, plan: plan, reference: reference || "", since: now, expires: expires });
-    },
-    deactivate: function () { store.set("premium", { active: false }); },
-  };
-
   /* ── Location flow ──────────────────────────────────────────── */
   SS.geo = {
     stored: function () { return store.settings().location || null; },
@@ -336,6 +331,7 @@
         var form = document.getElementById("loc-manual-form");
         var status = document.getElementById("loc-status");
         form.hidden = true; status.textContent = "";
+        document.getElementById("loc-city").value = "";
 
         // Geolocation is blocked on http:// and file:// (insecure context) — in
         // that case only manual entry can work, so hide the device options.
@@ -346,10 +342,19 @@
         if (onceBtn) onceBtn.hidden = !deviceOk;
         if (!deviceOk) form.hidden = false;
 
+        var settled = false;
         function finish(loc) {
+          if (settled) return;
+          settled = true;
+          dlg.removeEventListener("close", onClose);
           try { dlg.close(); } catch (e) { /* already closed */ }
           done(loc);
         }
+        // Esc, the close button, or a backdrop tap dismiss without choosing.
+        function onClose() { finish(null); }
+        dlg.addEventListener("close", onClose);
+        var x = document.getElementById("loc-close");
+        if (x) x.onclick = function () { finish(null); };
 
         var btns = dlg.querySelectorAll("[data-act]");
         Array.prototype.forEach.call(btns, function (btn) {
@@ -370,6 +375,7 @@
             }).catch(function () {
               status.textContent = SS.i18n.t("loc.error");
               form.hidden = false;
+              document.getElementById("loc-city").focus();
             }).finally(function () { btn.disabled = false; });
           };
         });
@@ -378,12 +384,15 @@
           e.preventDefault();
           var city = document.getElementById("loc-city").value.trim();
           if (!city) return;
+          var submit = form.querySelector('[type="submit"]');
           status.textContent = SS.i18n.t("loc.searching");
+          if (submit) submit.disabled = true;
           SS.api.geocodeCity(city).then(function (loc) {
             loc.consent = "manual";
             store.saveSettings({ location: loc });
             finish(loc);
-          }).catch(function () { status.textContent = SS.i18n.t("loc.notFound"); });
+          }).catch(function () { status.textContent = SS.i18n.t("loc.notFound"); })
+            .finally(function () { if (submit) submit.disabled = false; });
         };
 
         dlg.showModal();
