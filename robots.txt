@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /widget/embed.html
+
+Sitemap: https://salaamstreet.com/sitemap.xml

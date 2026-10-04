@@ -26,6 +26,8 @@ Live at **[salaamstreet.com](https://salaamstreet.com)**.
 - **99 Names of Allah** — with a Name of the day on the home screen
 - **Mosque finder** — nearby mosques from OpenStreetMap with one-tap directions
 - **Learn to read Arabic** — the 28 letters and their shapes, the vowel marks, and a quick quiz
+- **Prayer-times widget for mosques** — a free embed builder at [`/widget/`](https://salaamstreet.com/widget/): pick a location, method and style, copy one line of code
+- **Search-friendly pages** — every surah, the dua library, the 99 Names and prayer times for 60 major cities have their own indexable page, plus `sitemap.xml`
 - **English + Arabic** with full right-to-left layout · **Light / dark / system theme** · **Installable** (add to home screen) · **Works offline** for anything you've already opened
 
 ## Principles
@@ -64,11 +66,22 @@ Safe-area insets (iPhone notch / home indicator), 16px form inputs (no iOS zoom)
 ├── sw.js                 Service worker (offline app shell)
 ├── manifest.webmanifest  PWA manifest · icons/ app icons
 ├── 404.html · CNAME · .nojekyll   GitHub Pages
+├── widget/               Prayer-times widget: builder (index.html) + iframe (embed.html)
+├── surah/ duas/ names-of-allah/ prayer-times/   Generated SEO pages (see below)
+├── tools/build-pages.js  Generator for the SEO pages + sitemap.xml
 ├── backend/              Optional future account-sync schema (not connected)
 └── docs/                 Product, architecture and design notes
 ```
 
 Plain `<script defer>` tags — no ES modules and no build step — so the site works on any static host and even when `index.html` is opened directly from disk.
+
+## Generated pages
+
+The pages under `surah/`, `duas/`, `names-of-allah/` and `prayer-times/`, plus `sitemap.xml` and `robots.txt`, are generated from the app's data files. After changing `js/surahs.js`, `js/duas.js` or `js/content.js`, regenerate and commit them:
+
+```bash
+node tools/build-pages.js
+```
 
 ## Run locally
 

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex" />
+  <title>Prayer times — SalaamStreet</title>
+  <style>
+    :root{--bg:#ffffff;--card:#f6faf7;--text:#0b1210;--muted:#55645b;--line:#dbe6df;--accent:#047857;--accent-soft:#ecfdf5;--gold:#a8841a;
+      font-family:system-ui,-apple-system,"Segoe UI",Roboto,"IBM Plex Sans Arabic",Tahoma,sans-serif}
+    .dark{--bg:#0f1713;--card:#16211b;--text:#edf5f0;--muted:#a5b8ae;--line:#24362e;--accent:#34d399;--accent-soft:rgba(16,185,129,.14);--gold:#e3c25a}
+    .emerald{--bg:#064e3b;--card:rgba(255,255,255,.08);--text:#fff;--muted:#d1fae5;--line:rgba(255,255,255,.16);--accent:#e3c25a;--accent-soft:rgba(227,194,90,.16);--gold:#e3c25a}
+    *{box-sizing:border-box;margin:0}
+    html,body{background:transparent}
+    .w{background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:16px;padding:16px;max-width:640px;margin:0 auto;line-height:1.4}
+    .head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap}
+    h1{font-size:1.05rem;font-weight:800}
+    .sub{color:var(--muted);font-size:.8rem;margin-top:2px}
+    .next{text-align:end}
+    .next b{display:block;font-size:1.35rem;font-variant-numeric:tabular-nums;direction:ltr}
+    .next span{color:var(--muted);font-size:.78rem}
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
+    @media (min-width:430px){.grid{grid-template-columns:repeat(6,1fr)}}
+    .slot{background:var(--card);border-radius:12px;padding:9px 4px;text-align:center;border:1px solid transparent}
+    .slot span{display:block;font-size:.72rem;color:var(--muted)}
+    .slot b{display:block;font-size:.98rem;font-variant-numeric:tabular-nums;white-space:nowrap}
+    .slot.on{background:var(--accent-soft);border-color:var(--accent)}
+    .slot.on span{color:var(--accent);font-weight:700}
+    .past{opacity:.55}
+    .foot{display:flex;justify-content:space-between;gap:8px;margin-top:12px;font-size:.72rem;color:var(--muted);flex-wrap:wrap}
+    .foot a{color:var(--accent);text-decoration:none;font-weight:700}
+    .err{color:var(--muted);text-align:center;padding:18px 0;font-size:.9rem}
+    [dir="rtl"] .next{text-align:start}
+  </style>
+</head>
+<body>
+  <div class="w" id="w" aria-live="polite"><p class="err">Loading prayer times…</p></div>
+  <script>
+  (function () {
+    "use strict";
+    var q = new URLSearchParams(location.search);
+    var lat = parseFloat(q.get("lat")), lng = parseFloat(q.get("lng"));
+    var method = parseInt(q.get("method") || "3", 10), school = parseInt(q.get("school") || "0", 10);
+    var name = (q.get("name") || "").slice(0, 80);
+    var theme = q.get("theme") || "light", lang = q.get("lang") === "ar" ? "ar" : "en";
+    var T = {
+      en: { Fajr: "Fajr", Sunrise: "Sunrise", Dhuhr: "Dhuhr", Asr: "Asr", Maghrib: "Maghrib", Isha: "Isha", next: "Next: {p} in", title: "Prayer times", err: "Prayer times are unavailable right now.", bad: "Widget is missing a location (lat & lng).", by: "Prayer times by", ah: "AH" },
+      ar: { Fajr: "الفجر", Sunrise: "الشروق", Dhuhr: "الظهر", Asr: "العصر", Maghrib: "المغرب", Isha: "العشاء", next: "{p} بعد", title: "مواقيت الصلاة", err: "المواقيت غير متاحة الآن.", bad: "ينقص الأداة الموقع (lat و lng).", by: "المواقيت من", ah: "هـ" },
+    }[lang];
+    var KEYS = ["Fajr", "Sunrise", "Dhuhr", "Asr", "Maghrib", "Isha"];
+    var w = document.getElementById("w");
+    document.documentElement.lang = lang;
+    document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
+    if (theme === "dark" || (theme === "auto" && window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches)) w.classList.add("dark");
+    if (theme === "emerald") w.classList.add("emerald");
+    function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+    function at(hhmm, base) { var p = String(hhmm).slice(0, 5).split(":"), d = base ? new Date(base) : new Date(); d.setHours(+p[0], +p[1], 0, 0); return d; }
+    function fmt(hhmm) {
+      try { return at(hhmm).toLocaleTimeString(lang === "ar" ? "ar" : undefined, { hour: "numeric", minute: "2-digit" }); }
+      catch (e) { return String(hhmm).slice(0, 5); }
+    }
+    if (isNaN(lat) || isNaN(lng)) { w.innerHTML = '<p class="err">' + esc(T.bad) + "</p>"; return; }
+    var timer = null;
+    function load() {
+      var d = new Date();
+      var dd = ("0" + d.getDate()).slice(-2) + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + d.getFullYear();
+      var url = "https://api.aladhan.com/v1/timings/" + dd + "?latitude=" + lat.toFixed(4) + "&longitude=" + lng.toFixed(4) + "&method=" + method + "&school=" + school;
+      fetch(url).then(function (r) { if (!r.ok) throw 0; return r.json(); }).then(function (j) {
+        render(j.data.timings, j.data.date.hijri);
+      }).catch(function () { w.innerHTML = '<p class="err">' + esc(T.err) + "</p>"; setTimeout(load, 60000); });
+    }
+    function render(tm, h) {
+      var now = new Date(), next = null;
+      for (var i = 0; i < KEYS.length; i++) if (KEYS[i] !== "Sunrise" && at(tm[KEYS[i]]) > now) { next = KEYS[i]; break; }
+      var date;
+      try { date = now.toLocaleDateString(lang === "ar" ? "ar" : undefined, { weekday: "long", day: "numeric", month: "long" }); } catch (e) { date = now.toDateString(); }
+      var hijri = h ? h.day + " " + (lang === "ar" ? h.month.ar : h.month.en) + " " + h.year + " " + T.ah : "";
+      var html = '<div class="head"><div><h1>' + esc(name || T.title) + '</h1><p class="sub">' + esc(date) + (hijri ? " · " + esc(hijri) : "") + "</p></div>" +
+        '<div class="next" ' + (next ? "" : "hidden") + '><span id="nl">' + esc(T.next.replace("{p}", next ? T[next] : "")) + '</span><b id="cd">--:--</b></div></div><div class="grid">';
+      KEYS.forEach(function (k) {
+        var cls = k === next ? "on" : at(tm[k]) < now ? "past" : "";
+        html += '<div class="slot ' + cls + '"><span>' + esc(T[k]) + "</span><b>" + esc(fmt(tm[k])) + "</b></div>";
+      });
+      html += '</div><div class="foot"><span>' + esc(T.by) + ' <a href="https://salaamstreet.com/" target="_blank" rel="noopener">SalaamStreet</a></span></div>';
+      w.innerHTML = html;
+      clearInterval(timer);
+      var target = next ? at(tm[next]) : null;
+      var midnight = new Date(); midnight.setHours(24, 0, 30, 0);
+      function tick() {
+        var n = Date.now();
+        if (n >= midnight) { clearInterval(timer); load(); return; }
+        if (!target) return;
+        var ms = target - n;
+        if (ms <= 0) { render(tm, h); return; }
+        var hh = Math.floor(ms / 3600000), mm = Math.floor(ms / 60000) % 60, ss = Math.floor(ms / 1000) % 60;
+        var el = document.getElementById("cd");
+        if (el) el.textContent = (hh ? hh + ":" + ("0" + mm).slice(-2) : mm) + ":" + ("0" + ss).slice(-2);
+      }
+      tick();
+      timer = setInterval(tick, 1000);
+    }
+    load();
+  })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Free Prayer Times Widget for Mosques — SalaamStreet</title>
+  <meta name="description" content="Add accurate daily prayer times to your mosque or community website for free. Choose your location, calculation method and style, then copy one line of code." />
+  <meta name="theme-color" content="#f6faf7" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0a100d" media="(prefers-color-scheme: dark)" />
+  <link rel="canonical" href="https://salaamstreet.com/widget/" />
+  <link rel="icon" href="../icons/icon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/styles.css" />
+  <script>
+    try {
+      var s = JSON.parse(localStorage.getItem("salaamstreet:settings") || "{}"), t = s.theme || "system";
+      var dark = t === "dark" || (t === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
+      document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+    } catch (e) { /* noop */ }
+  </script>
+  <style>
+    .wb-top{display:flex;align-items:center;gap:10px;margin-block-end:24px}
+    .wb-top a{font-weight:800;font-size:1.08rem;color:var(--primary-strong);display:inline-flex;align-items:center;gap:8px}
+    .wb-layout{display:grid;gap:20px}
+    @media (min-width:960px){.wb-layout{grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);align-items:start}.wb-preview{position:sticky;top:20px}}
+    .wb-form{display:grid;gap:14px}
+    .wb-preview iframe{inline-size:100%;block-size:220px;border:0;border-radius:16px;background:transparent}
+    .code{inline-size:100%;min-block-size:96px;font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;padding:12px;border-radius:12px;border:1px solid var(--border);background:var(--surface-2);color:var(--text);resize:vertical}
+  </style>
+</head>
+<body class="standalone">
+  <main class="main" id="main">
+    <div class="view">
+      <div class="wb-top">
+        <a href="../#/home"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m15.8 8.2-2.4 5.2-5.2 2.4 2.4-5.2z"/></svg></span><span>Salaam<span class="gold">Street</span></span></a>
+      </div>
+      <header class="page-head">
+        <h1>Prayer times widget for your mosque</h1>
+        <p>Free, ad-free daily prayer times for your website. Set it up below and paste one line of code — it updates itself every day.</p>
+      </header>
+
+      <div class="wb-layout">
+        <form class="card wb-form" id="wb-form" onsubmit="return false">
+          <div class="field">
+            <label for="wb-name">Mosque or organisation name</label>
+            <input class="input" id="wb-name" maxlength="80" placeholder="e.g. East London Mosque" />
+          </div>
+          <div class="field">
+            <label for="wb-city">Location</label>
+            <div class="row">
+              <input class="input" id="wb-city" placeholder="City or address" autocomplete="address-level2" />
+              <button class="btn btn-outline" id="wb-find" type="button">Find</button>
+            </div>
+            <p class="tiny" id="wb-loc">No location yet.</p>
+          </div>
+          <div class="field">
+            <label for="wb-method">Calculation method</label>
+            <select class="input" id="wb-method">
+              <option value="3">Muslim World League</option>
+              <option value="2">ISNA (North America)</option>
+              <option value="5">Egyptian General Authority</option>
+              <option value="4">Umm al-Qura (Makkah)</option>
+              <option value="1">University of Karachi</option>
+              <option value="12">UOIF (France)</option>
+              <option value="13">Diyanet (Türkiye)</option>
+              <option value="15">Moonsighting Committee</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="wb-school">Asr method</label>
+            <select class="input" id="wb-school">
+              <option value="0">Standard (majority)</option>
+              <option value="1">Hanafi</option>
+            </select>
+          </div>
+          <div class="row wrap">
+            <div class="field" style="flex:1 1 140px">
+              <label for="wb-theme">Style</label>
+              <select class="input" id="wb-theme">
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+                <option value="emerald">Emerald</option>
+                <option value="auto">Match visitor's device</option>
+              </select>
+            </div>
+            <div class="field" style="flex:1 1 140px">
+              <label for="wb-lang">Language</label>
+              <select class="input" id="wb-lang">
+                <option value="en">English</option>
+                <option value="ar">العربية</option>
+              </select>
+            </div>
+          </div>
+        </form>
+
+        <div class="wb-preview">
+          <h2 class="h-sm mb-1">Preview</h2>
+          <iframe id="wb-frame" title="Prayer times widget preview" loading="lazy"></iframe>
+          <h2 class="h-sm mt-2 mb-1">Embed code</h2>
+          <textarea class="code" id="wb-code" readonly aria-label="Embed code"></textarea>
+          <div class="row wrap mt-1">
+            <button class="btn" id="wb-copy" type="button">Copy code</button>
+            <span class="tiny" id="wb-copied" aria-live="polite"></span>
+          </div>
+          <p class="tiny mt-2">Prayer times are calculated by the free AlAdhan service. Scholars differ on calculation methods — choose the one your mosque follows. The widget makes no tracking requests.</p>
+        </div>
+      </div>
+    </div>
+  </main>
+  <script>
+  (function () {
+    "use strict";
+    var $ = function (id) { return document.getElementById(id); };
+    var loc = null;
+    var base = location.href.replace(/[^/]*([?#].*)?$/, "") + "embed.html";
+    if (location.protocol === "file:") base = "embed.html";
+    function src() {
+      var p = new URLSearchParams();
+      p.set("lat", loc.lat.toFixed(4)); p.set("lng", loc.lng.toFixed(4));
+      p.set("method", $("wb-method").value); p.set("school", $("wb-school").value);
+      p.set("theme", $("wb-theme").value); p.set("lang", $("wb-lang").value);
+      if ($("wb-name").value.trim()) p.set("name", $("wb-name").value.trim());
+      return base + "?" + p.toString();
+    }
+    function update() {
+      if (!loc) { $("wb-code").value = "Choose a location first."; $("wb-frame").removeAttribute("src"); return; }
+      var s = src();
+      $("wb-frame").src = s;
+      $("wb-code").value = '<iframe src="' + s.replace(/&/g, "&amp;") + '" title="Prayer times" style="width:100%;max-width:640px;height:220px;border:0" loading="lazy"></iframe>';
+    }
+    function find() {
+      var city = $("wb-city").value.trim();
+      if (!city) return;
+      $("wb-loc").textContent = "Searching…";
+      fetch("https://api.aladhan.com/v1/timingsByAddress?address=" + encodeURIComponent(city))
+        .then(function (r) { if (!r.ok) throw 0; return r.json(); })
+        .then(function (j) {
+          var m = j.data.meta;
+          loc = { lat: +m.latitude, lng: +m.longitude };
+          $("wb-loc").textContent = city + " (" + loc.lat.toFixed(3) + ", " + loc.lng.toFixed(3) + ")";
+          if (!$("wb-name").value.trim()) $("wb-name").placeholder = "e.g. Masjid in " + city;
+          update();
+        })
+        .catch(function () { $("wb-loc").textContent = "Couldn't find that place — try a different spelling."; });
+    }
+    $("wb-find").onclick = find;
+    $("wb-city").onkeydown = function (e) { if (e.key === "Enter") { e.preventDefault(); find(); } };
+    ["wb-method", "wb-school", "wb-theme", "wb-lang"].forEach(function (id) { $(id).onchange = update; });
+    var tmr = null;
+    $("wb-name").oninput = function () { clearTimeout(tmr); tmr = setTimeout(update, 400); };
+    $("wb-copy").onclick = function () {
+      var ta = $("wb-code");
+      ta.select();
+      var done = function () { $("wb-copied").textContent = "Copied — paste it into your website's HTML."; };
+      if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(ta.value).then(done, function () { document.execCommand("copy"); done(); });
+      else { document.execCommand("copy"); done(); }
+    };
+    // Start from the visitor's saved SalaamStreet location, if any.
+    try {
+      var s = JSON.parse(localStorage.getItem("salaamstreet:settings") || "{}");
+      if (s.location && typeof s.location.lat === "number") {
+        loc = { lat: s.location.lat, lng: s.location.lng };
+        $("wb-city").value = s.location.label || "";
+        $("wb-loc").textContent = (s.location.label || "Saved location") + " (" + loc.lat.toFixed(2) + ", " + loc.lng.toFixed(2) + ")";
+        if (typeof s.method === "number") $("wb-method").value = String(s.method);
+        if (typeof s.school === "number") $("wb-school").value = String(s.school);
+      }
+    } catch (e) { /* noop */ }
+    update();
+  })();
+  </script>
+</body>
+</html>

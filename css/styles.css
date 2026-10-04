@@ -933,6 +933,22 @@ mark{background:color-mix(in srgb,var(--gold-bright) 35%,transparent);color:inhe
 .modal-actions.two{grid-template-columns:1fr 1fr}
 .modal-actions.two > [hidden] + .btn,.modal-actions.two > .btn:only-child{grid-column:1/-1}
 
+/* ── Standalone pages (SEO pages, widget builder) ──────────────── */
+.standalone .main{margin-inline-start:0;padding-block:20px 48px;min-block-size:auto}
+.site-head{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  max-inline-size:var(--reading-max);margin-inline:auto;padding:calc(12px + var(--safe-t)) var(--gutter) 0;
+}
+.site-head .brand-sm{display:inline-flex}
+.site-links{display:flex;align-items:center;gap:4px 14px;flex-wrap:wrap;font-weight:600;font-size:.92rem}
+.site-links a:not(.btn){color:var(--text-2);min-block-size:40px;display:inline-flex;align-items:center}
+.site-foot{max-inline-size:var(--reading-max);margin:0 auto;padding:24px var(--gutter) calc(32px + var(--safe-b));border-block-start:1px solid var(--border);color:var(--text-3);font-size:.85rem;display:grid;gap:6px}
+.seo .surah-ar{text-align:center}
+.seo-hero .facts{margin-block-start:10px}
+.city-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.city-grid .chip{flex-direction:column;align-items:flex-start;gap:0;border-radius:14px;padding:10px 14px;max-inline-size:none}
+.city-links{line-height:2;color:var(--text-3)}
+
 /* ── Print: reading-friendly ──────────────────────────────────── */
 @media print{
   .sidenav,.topbar,.bottomnav,.audio-bar,.reader-toolbar,.ayah-tools,.reader-nav,.net-banner,.toast,.back-link{display:none!important}

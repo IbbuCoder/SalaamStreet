@@ -20,13 +20,13 @@ laptops and large monitors. Core worship features are, and will stay, free.
 - Qur'an reading plans, juz navigation, memorize mode with ayah looping, translation search,
   9 translation languages, share-as-image cards
 - 99 Names of Allah, mosque finder (OpenStreetMap), Arabic alphabet lessons and quiz
+- Prayer-times widget for mosque websites; generated SEO pages and sitemap
 
 ## Next
 
 - Optional account sync (Supabase schema in `backend/`) for bookmarks, streaks and settings
 - Push reminders that arrive even when the site is closed (needs a small push server)
 - More interface languages (ur, bn, id, tr, fr) — reviewed by native speakers
-- Search-engine-friendly pages (surahs, city prayer times) and an embeddable prayer-times widget for mosques
 
 ## Principles
 
