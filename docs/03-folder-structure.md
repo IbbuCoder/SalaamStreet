@@ -13,9 +13,11 @@
 │   ├── surahs.js         Surah metadata
 │   ├── duas.js           Duas + dhikr presets
 │   ├── extras.js         Calendar events, hadith collections
+│   ├── content.js        Names of Allah, juz, adhkar, Arabic letters, translations
 │   ├── i18n.js           English / Arabic strings
 │   ├── core.js           Storage, API clients, location, Qibla math
 │   ├── views.js          View controllers
+│   ├── features.js       Tracker, reminders, adhkar, Names, mosques, Arabic, plans, sharing
 │   └── app.js            Router, shell, audio player, boot
 ├── icons/                App icons (SVG source + PNG sizes)
 ├── backend/              Optional future account-sync schema (not connected)

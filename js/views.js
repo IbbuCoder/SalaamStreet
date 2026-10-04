@@ -80,6 +80,17 @@
 
   var leave = {};
   SS.leave = leave;
+  SS.hooks = SS.hooks || {};
+  function hook(name) {
+    var fn = SS.hooks[name];
+    if (!fn) return;
+    try { fn.apply(null, Array.prototype.slice.call(arguments, 1)); } catch (e) { if (window.console) console.error(e); }
+  }
+  /** lang/dir attributes for translation text in the chosen language. */
+  function trAttrs() {
+    var tr = SS.translation();
+    return ' lang="' + tr.lang + '" dir="' + tr.dir + '"';
+  }
 
   /* ═══════════ HOME ═══════════ */
   var homeTimer = null, homeGen = 0;
@@ -99,6 +110,7 @@
     homeRefresh();
     homeLoadAyah();
     homeWidgets();
+    hook("homeInit");
   }
   leave.home = function () { clearInterval(homeTimer); homeGen++; };
 
@@ -131,11 +143,12 @@
         for (var i = 0; i < SS.PRAYERS.length; i++) {
           var p = SS.PRAYERS[i];
           var cls = p.key === nk ? "next" : (parseTime(r.timings[p.key]) < now ? "past" : "");
-          html += '<div class="slot ' + cls + '"><span>' + esc(t("prayer." + p.key)) + "</span><b>" +
+          html += '<div class="slot ' + cls + '" data-key="' + p.key + '"><span>' + esc(t("prayer." + p.key)) + "</span><b>" +
             esc(SS.formatTime(r.timings[p.key])) + "</b></div>";
         }
         $("np-strip").innerHTML = html;
         $("np-strip").removeAttribute("aria-busy");
+        hook("homeTimes", r, loc);
 
         if (nk) {
           $("np-name").textContent = t("prayer." + nk);
@@ -195,8 +208,12 @@
       body.className = "daily-ayah";
       body.innerHTML =
         '<p class="arabic" lang="ar">' + esc(a.arabic) + "</p>" +
-        '<p class="translation mt-1">' + esc(a.translation) + "</p>";
+        '<p class="translation mt-1"' + trAttrs() + ">" + esc(a.translation) + "</p>" +
+        '<div class="card-foot"><span class="spacer"></span><button class="btn btn-ghost btn-sm" type="button" id="da-share">' + icon("share") + "<span>" + esc(t("common.share")) + "</span></button></div>";
       body.removeAttribute("aria-busy");
+      $("da-share").onclick = function () {
+        if (SS.share) SS.share.open({ arabic: a.arabic, text: a.translation, ref: "Qur'an " + a.surah.number + ":" + a.numberInSurah + " · " + a.surah.englishName, dir: SS.translation().dir });
+      };
     }).catch(function () {
       renderState(body, { kind: "error", inline: true, retry: homeLoadAyah });
     });
@@ -297,7 +314,12 @@
         for (var i = 0; i < SS.PRAYERS.length; i++) {
           var p = SS.PRAYERS[i];
           var past = p.key !== nk && parseTime(r.timings[p.key]) < now;
-          html += '<div class="time-row' + (p.key === nk ? " next" : past ? " past" : "") + '">' +
+          var due = parseTime(r.timings[p.key]) <= now;
+          var done = SS.tracker && SS.tracker.isDone(SS.localDate(), p.key);
+          var check = p.key === "Sunrise" || !SS.tracker ? '<span class="pray-check-spacer" aria-hidden="true"></span>' :
+            '<button class="pray-check' + (done ? " on" : "") + '" type="button" data-pray="' + p.key + '" aria-pressed="' + !!done + '"' +
+            (due || done ? "" : " disabled") + ' aria-label="' + esc(f("track.markPrayed", { p: t("prayer." + p.key) })) + '">' + icon("check") + "</button>";
+          html += '<div class="time-row' + (p.key === nk ? " next" : past ? " past" : "") + (done ? " prayed" : "") + '">' + check +
             '<span class="name">' + esc(t("prayer." + p.key)) +
             (SS.i18n.isAr() ? "" : '<span class="ar" lang="ar">' + esc(p.ar) + "</span>") +
             (p.key === nk ? ' <span class="badge">' + esc(t("prayer.next")) + "</span>" : "") +
@@ -305,6 +327,17 @@
         }
         list.innerHTML = html;
         list.removeAttribute("aria-busy");
+        list.onclick = function (e) {
+          var b = e.target.closest("[data-pray]");
+          if (!b || b.disabled || !SS.tracker) return;
+          var on = SS.tracker.toggle(SS.localDate(), b.getAttribute("data-pray"));
+          b.classList.toggle("on", on);
+          b.setAttribute("aria-pressed", String(on));
+          b.closest(".time-row").classList.toggle("prayed", on);
+          if (on) vibrate(15);
+          hook("trackerChanged");
+        };
+        hook("prayerTimes", r);
       })
       .catch(function () {
         if (gen !== ptGen) return;
@@ -483,18 +516,36 @@
     $("qi-count").textContent = q ? f("quran.count", { n: list.length }) : "";
   }
 
+  var QI_TABS = { all: "qi-tab-all", juz: "qi-tab-juz", bm: "qi-tab-bm" };
   function quranTab(tab) {
     qiTab = tab;
     var all = tab === "all";
-    $("qi-tab-all").setAttribute("aria-selected", String(all));
-    $("qi-tab-bm").setAttribute("aria-selected", String(!all));
-    $("qi-tab-all").tabIndex = all ? 0 : -1;
-    $("qi-tab-bm").tabIndex = all ? -1 : 0;
+    for (var k in QI_TABS) {
+      $(QI_TABS[k]).setAttribute("aria-selected", String(k === tab));
+      $(QI_TABS[k]).tabIndex = k === tab ? 0 : -1;
+    }
     $("qi-grid").hidden = !all;
     $("qi-search-wrap").hidden = !all;
-    $("qi-bms").hidden = all;
     $("qi-count").hidden = !all;
-    if (!all) quranBookmarks();
+    $("qi-search-tr").hidden = !all || $("qi-search").value.trim().length < 3;
+    if (!all) $("qi-results").hidden = true;
+    $("qi-bms").hidden = tab !== "bm";
+    $("qi-juz").hidden = tab !== "juz";
+    if (tab === "bm") quranBookmarks();
+    if (tab === "juz") quranJuz();
+  }
+
+  function quranJuz() {
+    var html = "";
+    for (var i = 0; i < SS.JUZ.length; i++) {
+      var j = SS.JUZ[i], s = SS.SURAHS[j[0] - 1];
+      html += '<a class="surah-card" href="#/surah/' + j[0] + "/" + j[1] + '">' +
+        '<span class="surah-num" aria-hidden="true"><span>' + (i + 1) + "</span></span>" +
+        '<span class="names"><span class="en">' + esc(f("quran.juzN", { n: i + 1 })) + "</span>" +
+        '<span class="meta">' + esc(f("quran.startsAt", { s: surahName(s), ref: j[0] + ":" + j[1] })) + "</span></span>" +
+        '<span class="arname" lang="ar" aria-hidden="true">' + arDigits(i + 1) + "</span></a>";
+    }
+    $("qi-juz").innerHTML = html;
   }
 
   function quranBookmarks() {
@@ -532,23 +583,33 @@
   }
 
   function quranInit() {
-    $("qi-search").oninput = function () { quranRender(this.value); };
+    $("qi-search").oninput = function () {
+      quranRender(this.value);
+      $("qi-search-tr").hidden = this.value.trim().length < 3;
+      $("qi-search-tr-label").textContent = f("quran.searchTranslation", { q: this.value.trim() });
+      $("qi-results").hidden = true;
+    };
     $("qi-search").onkeydown = function (e) {
       if (e.key === "Enter") {
         var first = $("qi-grid").querySelector("a.surah-card");
         if (first) location.hash = first.getAttribute("href");
       }
     };
-    $("qi-tab-all").onclick = function () { quranTab("all"); };
-    $("qi-tab-bm").onclick = function () { quranTab("bm"); };
-    $("qi-tab-all").onkeydown = $("qi-tab-bm").onkeydown = function (e) {
-      if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
-        var other = this.id === "qi-tab-all" ? $("qi-tab-bm") : $("qi-tab-all");
-        other.focus(); other.click();
-      }
-    };
+    var order = ["all", "juz", "bm"];
+    order.forEach(function (k) {
+      var b = $(QI_TABS[k]);
+      b.onclick = function () { quranTab(k); };
+      b.onkeydown = function (e) {
+        if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+        var d = (e.key === "ArrowRight") !== (document.dir === "rtl") ? 1 : -1;
+        var next = $(QI_TABS[order[(order.indexOf(k) + d + order.length) % order.length]]);
+        next.focus(); next.click();
+      };
+    });
+    $("qi-search-tr").onclick = function () { if (SS.quranSearch) SS.quranSearch($("qi-search").value.trim()); };
     quranRender($("qi-search").value);
     quranTab(qiTab);
+    hook("quranInit");
     var last = SS.store.get("quran:lastRead");
     if (last && SS.SURAHS[last.surah - 1]) {
       var s = SS.SURAHS[last.surah - 1];
@@ -583,11 +644,12 @@
     return '<article class="card ayah-card" id="ayah-' + n + '" data-n="' + n + '" aria-label="' + esc(t("quran.ayah")) + " " + ref + '">' +
       '<p class="arabic" lang="ar">' + esc(arText) + ' <span class="ayah-end" aria-hidden="true">﴿' + arDigits(n) + "﴾</span></p>" +
       '<p class="transliteration" data-tl' + (s.showTransliteration ? "" : " hidden") + ">" + esc(tlText) + "</p>" +
-      '<p class="translation" data-tr' + (s.showTranslation ? "" : " hidden") + ">" + esc(trText) + "</p>" +
+      '<p class="translation" data-tr' + trAttrs() + (s.showTranslation ? "" : " hidden") + ">" + esc(trText) + "</p>" +
       '<div class="ayah-tools"><span class="ayah-ref">' + ref + '</span><span class="spacer"></span>' +
       '<button class="tafsir-btn" data-tafsir="' + n + '" type="button" aria-label="' + esc(t("tafsir.title") + " " + ref) + '">' + icon("open-book") + "<span>" + esc(t("tafsir.button")) + "</span></button>" +
       '<button class="icon-btn" data-play="' + n + '" type="button" aria-label="' + esc(t("common.play") + " " + ref) + '">' + icon("play") + "</button>" +
       '<button class="icon-btn" data-copy="' + n + '" type="button" aria-label="' + esc(t("common.copy") + " " + ref) + '">' + icon("copy") + "</button>" +
+      '<button class="icon-btn" data-share="' + n + '" type="button" aria-label="' + esc(t("common.share") + " " + ref) + '">' + icon("share") + "</button>" +
       '<button class="icon-btn' + (marked ? " fav-on" : "") + '" data-bm="' + n + '" type="button" aria-pressed="' + marked + '" aria-label="' + esc(t("quran.bookmark") + " " + ref) + '">' + icon("bookmark") + "</button></div></article>";
   }
 
@@ -647,6 +709,20 @@
     $("sr-font-down").onclick = function () { srScale(-0.1); };
     $("sr-font-up").onclick = function () { srScale(0.1); };
     $("sr-play").onclick = function () { SS.audio.start(srN, 1, srSurah); };
+    var hz = !!s.hifz;
+    $("sr-hifz").setAttribute("aria-pressed", String(hz));
+    $("sr-list").classList.toggle("hifz", hz);
+    $("sr-hifz-note").hidden = !hz;
+    $("sr-hifz").onclick = function () {
+      var on = this.getAttribute("aria-pressed") !== "true";
+      SS.store.saveSettings({ hifz: on });
+      this.setAttribute("aria-pressed", String(on));
+      $("sr-list").classList.toggle("hifz", on);
+      $("sr-hifz-note").hidden = !on;
+      var rev = document.querySelectorAll("#sr-list .reveal");
+      for (var i = 0; i < rev.length; i++) rev[i].classList.remove("reveal");
+    };
+    $("sr-source").textContent = f("quran.sourceDyn", { tr: SS.translation().label });
 
     if (sameSurah) { // e.g. "#/surah/2" → "#/surah/2/255": just scroll
       srRender(srData, jumpAyah);
@@ -682,6 +758,7 @@
     srWireList();
     srObserveLastRead();
     SS.audio.sync();
+    hook("surahRendered", srN);
     if (jumpAyah) {
       var go = function () {
         var el = $("ayah-" + jumpAyah);
@@ -731,6 +808,16 @@
         copyText(srData.arabic[i].text + "\n\n" + srData.translation[i].text + "\n— Qur'an " + srN + ":" + (i + 1) + " (" + srSurah.en + ")");
         return;
       }
+      var sh = e.target.closest("[data-share]");
+      if (sh && srData && SS.share) {
+        var k = +sh.getAttribute("data-share") - 1;
+        var arT = srData.arabic[k].text;
+        if (k === 0 && srN !== 1 && srN !== 9) arT = stripBasmala(arT);
+        SS.share.open({ arabic: arT, text: srData.translation[k].text, ref: "Qur'an " + srN + ":" + (k + 1) + " · " + srSurah.en, dir: SS.translation().dir });
+        return;
+      }
+      var hz = e.target.closest(".hifz .arabic");
+      if (hz) { hz.closest(".ayah-card").classList.toggle("reveal"); return; }
       var pl = e.target.closest("[data-play]");
       if (pl) SS.audio.start(srN, +pl.getAttribute("data-play"), srSurah);
     };
@@ -807,6 +894,7 @@
     return '<article class="card dua-card"><div class="row-between" style="align-items:flex-start"><h3>' + esc(d.titleEn) + "</h3>" +
       '<div class="card-actions">' +
       '<button class="icon-btn" data-copy="' + esc(d.id) + '" type="button" aria-label="' + esc(t("common.copy")) + '">' + icon("copy") + "</button>" +
+      '<button class="icon-btn" data-share="' + esc(d.id) + '" type="button" aria-label="' + esc(t("common.share")) + '">' + icon("share") + "</button>" +
       '<button class="icon-btn' + (fav ? " fav-on" : "") + '" data-fav="' + esc(d.id) + '" type="button" aria-pressed="' + fav + '" aria-label="' + esc(t("duas.addFavorite")) + '">' + icon("star") + "</button>" +
       "</div></div>" +
       '<p class="arabic-dua" lang="ar">' + esc(d.arabic) + "</p>" +
@@ -838,6 +926,14 @@
     if (html) el.innerHTML = html;
     else renderState(el, { kind: "empty", icon: "star", text: t("duas.empty") });
     el.onclick = function (e) {
+      var sh = e.target.closest("[data-share]");
+      if (sh && SS.share) {
+        for (var q2 = 0; q2 < SS.DUAS.length; q2++) {
+          var dd = SS.DUAS[q2];
+          if (dd.id === sh.getAttribute("data-share")) SS.share.open({ arabic: dd.arabic, text: dd.translationEn, ref: dd.source });
+        }
+        return;
+      }
       var cp = e.target.closest("[data-copy]");
       if (cp) {
         var d = null;
@@ -985,7 +1081,7 @@
   }
 
   /* ═══════════ SETTINGS ═══════════ */
-  function settingsInit() {
+  function settingsInit(params) {
     var s = SS.store.settings();
     $("st-locale").value = SS.i18n.getLocale();
     $("st-theme").value = s.theme;
@@ -1010,6 +1106,8 @@
     $("st-reciter").onchange = function () { SS.store.saveSettings({ reciter: this.value }); SS.toast(t("settings.saved")); };
     $("st-loc-set").onclick = function () { SS.geo.request().then(function () { settingsInit(); }); };
     $("st-loc-clear").onclick = function () { SS.geo.clear(); settingsInit(); SS.toast(t("settings.locationCleared")); };
+    $("st-method").addEventListener("change", function () { if (SS.reminders) SS.reminders.schedule(); });
+    $("st-school").addEventListener("change", function () { if (SS.reminders) SS.reminders.schedule(); });
 
     $("st-export").onclick = function () {
       var blob = new Blob([JSON.stringify(SS.store.exportAll(), null, 2)], { type: "application/json" });
@@ -1029,6 +1127,7 @@
         location.reload();
       }
     };
+    hook("settingsInit", params);
   }
 
   /* ═══════════ HADITH ═══════════ */
@@ -1068,7 +1167,8 @@
   }
   function hdCard(en, ar, ref, grade, num) {
     return '<article class="card dua-card">' +
-      (num != null ? '<div class="row-between"><span class="badge">#' + esc(num) + '</span><div class="card-actions"><button class="icon-btn" type="button" data-copy aria-label="' + esc(t("common.copy")) + '">' + icon("copy") + "</button></div></div>" : "") +
+      (num != null ? '<div class="row-between"><span class="badge">#' + esc(num) + '</span><div class="card-actions"><button class="icon-btn" type="button" data-copy aria-label="' + esc(t("common.copy")) + '">' + icon("copy") + "</button>" +
+        '<button class="icon-btn" type="button" data-share aria-label="' + esc(t("common.share")) + '">' + icon("share") + "</button></div></div>" : "") +
       (ar ? hdParas(ar, "arabic-dua", "ar") : "") +
       (en ? hdParas(en, "translation mt-1") : "") +
       '<div class="card-foot"><span class="badge badge-src">' + esc(t("hadith.reference")) + ": " + esc(ref) + "</span>" +
@@ -1086,6 +1186,14 @@
   }
   function hdWireCopy(list) {
     list.onclick = function (e) {
+      var sh = e.target.closest("[data-share]");
+      if (sh && SS.share) {
+        var c = sh.closest("article");
+        var arEl = c.querySelector(".arabic-dua"), enEls = c.querySelectorAll(".translation"), src = c.querySelector(".badge-src");
+        var en = []; for (var x = 0; x < enEls.length; x++) en.push(enEls[x].textContent);
+        SS.share.open({ arabic: arEl ? arEl.textContent : "", text: en.join(" "), ref: src ? src.textContent : "" });
+        return;
+      }
       var b = e.target.closest("[data-copy]");
       if (!b) return;
       var card = b.closest("article");
@@ -1260,6 +1368,12 @@
     dhikr: dhikrInit,
     calendar: calendarInit,
     settings: settingsInit,
+  };
+  SS.ui = {
+    f: function (k, v) { return f(k, v); }, icon: icon, renderState: renderState, skeletons: skeletons,
+    locLabel: locLabel, locNote: locNote, arDigits: arDigits, surahName: surahName, copyText: copyText,
+    vibrate: vibrate, parseTime: parseTime, nextPrayerKey: nextPrayerKey, liveStreak: liveStreak,
+    fillSelect: fillSelect, fillReciters: fillReciters, trAttrs: trAttrs, stripBasmala: stripBasmala,
   };
   SS.viewsReady = function () {
     esc = SS.esc; t = SS.i18n.t;

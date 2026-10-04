@@ -15,6 +15,17 @@ Live at **[salaamstreet.com](https://salaamstreet.com)**.
 - **Dua library** — authentic supplications with Arabic, transliteration, translation and a source on every dua; favourites and copy
 - **Dhikr counter** — big tap target (or Space bar on desktop), presets with sourced targets, undo, today's totals, daily streaks, haptic feedback
 - **Islamic calendar** — today's Hijri date and approximate countdowns to key dates
+- **Prayer tracker** — tick off each prayer, see the last 7 days and your streak (stays on your device)
+- **Prayer reminders** — opt-in notifications at (or before) each prayer, a soft chime, and a Friday Al-Kahf reminder
+- **Morning & evening adhkar** — a guided routine with a counter for each remembrance and automatic progress
+- **Ramadan mode** — appears automatically in Ramadan: suhoor/iftar times and countdown, plus a fasting log
+- **Qur'an reading plans** — finish the Qur'an in 30 (one juz a day), 60, 120 or 365 days
+- **Memorize mode** — hide the Arabic, recite, tap to check; loop an ayah 3×, 5×, 10× or endlessly
+- **Juz navigation, translation search, 9 translation languages** (English, Urdu, Indonesian, Turkish, Bengali, French, Malay, Spanish, German)
+- **Share as image** — turn any ayah, dua or hadith into a ready-to-post card
+- **99 Names of Allah** — with a Name of the day on the home screen
+- **Mosque finder** — nearby mosques from OpenStreetMap with one-tap directions
+- **Learn to read Arabic** — the 28 letters and their shapes, the vowel marks, and a quick quiz
 - **English + Arabic** with full right-to-left layout · **Light / dark / system theme** · **Installable** (add to home screen) · **Works offline** for anything you've already opened
 
 ## Principles
@@ -44,9 +55,11 @@ Safe-area insets (iPhone notch / home indicator), 16px form inputs (no iOS zoom)
 │   ├── surahs.js         114-surah metadata + ayah numbering
 │   ├── duas.js           Dua library + dhikr presets, all with sources
 │   ├── extras.js         Calendar events + hadith collections
+│   ├── content.js        99 Names, juz boundaries, adhkar sequence, Arabic letters, translations
 │   ├── i18n.js           English/Arabic strings + RTL switching
 │   ├── core.js           Config, storage, API clients with caching, location flow, Qibla math
 │   ├── views.js          One controller per view
+│   ├── features.js       Tracker, reminders, adhkar, Names, mosques, Arabic, plans, share cards
 │   └── app.js            Router, theme, dialogs, audio player, boot
 ├── sw.js                 Service worker (offline app shell)
 ├── manifest.webmanifest  PWA manifest · icons/ app icons
@@ -82,6 +95,7 @@ The repo is deployed from the `main` branch root:
 | [Islamic Network CDN](https://cdn.islamic.network) | Per-ayah recitation audio |
 | [tafsir_api (spa5k)](https://github.com/spa5k/tafsir_api) via jsDelivr | Tafsir Ibn Kathir |
 | [hadith-api (fawazahmed0)](https://github.com/fawazahmed0/hadith-api) via jsDelivr | Hadith collections |
+| [OpenStreetMap Overpass API](https://overpass-api.de) | Mosque finder |
 | Google Fonts | Figtree, IBM Plex Sans Arabic, Scheherazade New, Amiri |
 
 Responses are cached in localStorage, so surahs you've read and today's prayer times keep working offline.

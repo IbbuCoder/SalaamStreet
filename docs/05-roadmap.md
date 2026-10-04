@@ -15,13 +15,18 @@ laptops and large monitors. Core worship features are, and will stay, free.
 - Islamic calendar with approximate countdowns to key dates
 - English/Arabic with full RTL, light/dark/system themes
 - Installable (PWA) with offline app shell
+- Prayer tracker with weekly view and streaks; in-app prayer reminders; Friday Al-Kahf reminder
+- Guided morning & evening adhkar; Ramadan mode (suhoor/iftar countdown, fasting log)
+- Qur'an reading plans, juz navigation, memorize mode with ayah looping, translation search,
+  9 translation languages, share-as-image cards
+- 99 Names of Allah, mosque finder (OpenStreetMap), Arabic alphabet lessons and quiz
 
 ## Next
 
 - Optional account sync (Supabase schema in `backend/`) for bookmarks, streaks and settings
-- Prayer-time reminders via web notifications (opt-in)
-- Juz / page navigation and Qur'an text search
-- More translations and UI languages (ur, fr, tr, id)
+- Push reminders that arrive even when the site is closed (needs a small push server)
+- More interface languages (ur, bn, id, tr, fr) — reviewed by native speakers
+- Search-engine-friendly pages (surahs, city prayer times) and an embeddable prayer-times widget for mosques
 
 ## Principles
 

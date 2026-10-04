@@ -49,7 +49,9 @@
   };
 
   /* ── Audio player (shared, survives view switches) ─────────── */
-  var audio = null, curSurah = 0, curAyah = 0, curMeta = null, repeatOne = false;
+  var audio = null, curSurah = 0, curAyah = 0, curMeta = null;
+  // Repeat each ayah: 0 = off, then 3×, 5×, 10×, or endlessly (memorization).
+  var REPEATS = [0, 3, 5, 10, Infinity], repeatIdx = 0, repeatLeft = 0;
   var brIdx = 0; // index into SS.AUDIO_BITRATES currently being tried
 
   function currentReciter() { return SS.store.settings().reciter; }
@@ -101,7 +103,7 @@
       $("ab-progress").style.inlineSize = pct + "%";
     });
     audio.addEventListener("ended", function () {
-      if (repeatOne) return SS.audio.start(curSurah, curAyah, curMeta);
+      if (repeatLeft > 1) { repeatLeft--; return SS.audio.start(curSurah, curAyah, curMeta, true); }
       if (curMeta && curAyah < curMeta.ayahs) SS.audio.start(curSurah, curAyah + 1, curMeta);
       else { setPlayingUI(false); clearHighlight(); }
     });
@@ -149,8 +151,9 @@
   }
 
   SS.audio = {
-    start: function (surah, ayah, meta) {
+    start: function (surah, ayah, meta, isRepeat) {
       ensureAudio();
+      if (!isRepeat) repeatLeft = REPEATS[repeatIdx];
       curSurah = surah; curAyah = ayah; curMeta = meta;
       brIdx = SS.store.get("audio:br:" + currentReciter(), 0) || 0;
       playCurrent();
@@ -188,8 +191,14 @@
     $("ab-next").onclick = function () { step(1); };
     $("ab-speed").onchange = function () { if (audio) audio.playbackRate = +this.value; };
     $("ab-repeat").onclick = function () {
-      repeatOne = !repeatOne;
-      this.setAttribute("aria-pressed", String(repeatOne));
+      repeatIdx = (repeatIdx + 1) % REPEATS.length;
+      var r = REPEATS[repeatIdx];
+      repeatLeft = r;
+      this.setAttribute("aria-pressed", String(r > 0));
+      $("ab-repeat-n").hidden = r === 0;
+      $("ab-repeat-n").textContent = r === Infinity ? "∞" : r + "×";
+      this.setAttribute("aria-label", r === 0 ? SS.i18n.t("audio.repeatOff") : SS.i18n.f("audio.repeatN", { n: r === Infinity ? "∞" : r }));
+      SS.toast(r === 0 ? SS.i18n.t("audio.repeatOff") : SS.i18n.f("audio.repeatN", { n: r === Infinity ? "∞" : r }));
     };
     $("ab-close").onclick = function () {
       if (audio) { audio.pause(); audio.removeAttribute("src"); audio.load(); }
@@ -227,14 +236,16 @@
   }
 
   /* ── Router ─────────────────────────────────────────────────── */
-  var VIEWS = ["home", "prayer", "qibla", "quran", "surah", "hadith", "duas", "dhikr", "calendar", "settings"];
+  var VIEWS = ["home", "prayer", "qibla", "quran", "surah", "hadith", "duas", "dhikr", "calendar", "settings",
+    "adhkar", "names", "mosques", "learn"];
   // Which nav item to highlight for views that aren't themselves nav items.
   var NAV_ALIAS = { surah: "quran" };
   // Destinations that live in the phone "More" sheet light up the More tab.
-  var IN_MORE = { hadith: 1, duas: 1, dhikr: 1, calendar: 1, settings: 1 };
+  var IN_MORE = { hadith: 1, duas: 1, dhikr: 1, calendar: 1, settings: 1, adhkar: 1, names: 1, mosques: 1, learn: 1 };
   var TITLE_KEY = {
     home: "nav.dashboard", prayer: "prayer.title", qibla: "qibla.title", quran: "quran.title", surah: "quran.title",
     hadith: "hadith.title", duas: "duas.title", dhikr: "dhikr.title", calendar: "cal.title", settings: "settings.title",
+    adhkar: "adhkar.title", names: "names.title", mosques: "mosques.title", learn: "learn.title",
   };
   var currentView = "", currentHash = "";
   SS.currentView = function () { return currentView; };
@@ -354,6 +365,7 @@
     wireScrollState();
     wireNetwork();
     registerServiceWorker();
+    if (SS.reminders) SS.reminders.init();
     window.addEventListener("hashchange", function () { navigate(); });
     if (!location.hash) {
       try { history.replaceState(null, "", "#/home"); } catch (e) { location.hash = "#/home"; }

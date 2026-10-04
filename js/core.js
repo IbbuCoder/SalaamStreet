@@ -20,6 +20,8 @@
   SS.TAFSIR_EDITION = "en-tafisr-ibn-kathir"; // note: repo spells it "tafisr"
   /* Hadith — fawazahmed0 hadith-api (CORS via jsDelivr). */
   SS.HADITH_BASE = "https://cdn.jsdelivr.net/gh/fawazahmed0/hadith-api@1/editions";
+  /* Mosque finder — OpenStreetMap data via the public Overpass API (no key). */
+  SS.OVERPASS = "https://overpass-api.de/api/interpreter";
 
   SS.CALC_METHODS = [
     { id: 3, en: "Muslim World League", ar: "رابطة العالم الإسلامي" },
@@ -47,6 +49,8 @@
   SS.DEFAULTS = {
     locale: "en", theme: "system", method: 3, school: 0,
     reciter: "ar.alafasy", showTranslation: true, showTransliteration: false, location: null,
+    translation: "en.sahih",
+    reminders: false, reminderOffset: 0, reminderSound: true, kahfReminder: true,
   };
   SS.FALLBACK_LOC = { lat: 21.4225, lng: 39.8262, label: "Makkah (default)", isFallback: true };
 
@@ -101,6 +105,13 @@
     },
   };
   SS.store = store;
+
+  /** The Qur'an translation chosen in Settings (falls back to Saheeh International). */
+  SS.translation = function () {
+    var id = store.settings().translation;
+    for (var i = 0; i < (SS.TRANSLATIONS || []).length; i++) if (SS.TRANSLATIONS[i].id === id) return SS.TRANSLATIONS[i];
+    return { id: "en.sahih", label: "English — Saheeh International", lang: "en", dir: "ltr" };
+  };
 
   /* ── Helpers ────────────────────────────────────────────────── */
   SS.esc = function (s) {
@@ -200,21 +211,72 @@
           return { lat: +m.latitude.toFixed(2), lng: +m.longitude.toFixed(2), label: city };
         });
     },
-    /** Full surah: Arabic + Saheeh International + transliteration (cached 30 days). */
+    /** Full surah: Arabic + chosen translation + transliteration (cached 30 days). */
     surahText: function (n) {
-      var url = SS.ALQURAN + "/surah/" + n + "/editions/quran-uthmani,en.sahih,en.transliteration";
-      return cachedFetch("surah:" + n, url, 30 * DAY).then(function (r) {
+      var tr = SS.translation().id;
+      var url = SS.ALQURAN + "/surah/" + n + "/editions/quran-uthmani," + tr + ",en.transliteration";
+      return cachedFetch("surah:" + n + (tr === "en.sahih" ? "" : ":" + tr), url, 30 * DAY).then(function (r) {
         var d = r.data.data;
         return { arabic: d[0].ayahs, translation: d[1].ayahs, transliteration: d[2].ayahs };
       });
     },
     /** Single ayah by global number (daily ayah). */
     ayah: function (g) {
-      var url = SS.ALQURAN + "/ayah/" + g + "/editions/quran-uthmani,en.sahih";
-      return cachedFetch("ayah:" + g, url, 30 * DAY).then(function (r) {
+      var tr = SS.translation().id;
+      var url = SS.ALQURAN + "/ayah/" + g + "/editions/quran-uthmani," + tr;
+      return cachedFetch("ayah:" + g + (tr === "en.sahih" ? "" : ":" + tr), url, 30 * DAY).then(function (r) {
         var d = r.data.data;
         return { arabic: d[0].text, translation: d[1].text, surah: d[0].surah, numberInSurah: d[0].numberInSurah };
       });
+    },
+    /** Search the chosen translation for a word or phrase. No matches → []. */
+    searchQuran: function (q) {
+      var tr = SS.translation().id;
+      var url = SS.ALQURAN + "/search/" + encodeURIComponent(q) + "/all/" + tr;
+      return cachedFetch("search:" + tr + ":" + q.toLowerCase(), url, 7 * DAY).then(function (r) {
+        return (r.data && r.data.data && r.data.data.matches) || [];
+      }).catch(function (err) {
+        if (/HTTP 404/.test(String(err && err.message))) return [];
+        throw err;
+      });
+    },
+    /** Mosques near a point from OpenStreetMap (Overpass API). Cached 1 day. */
+    mosques: function (lat, lng, radiusM) {
+      var la = lat.toFixed(2), lo = lng.toFixed(2);
+      var key = "cache:mosques:" + la + ":" + lo + ":" + radiusM;
+      var cached = store.get(key);
+      if (cached && Date.now() - cached.at < DAY) return Promise.resolve(cached.data);
+      var q = "[out:json][timeout:20];(" +
+        'node["amenity"="place_of_worship"]["religion"="muslim"](around:' + radiusM + "," + la + "," + lo + ");" +
+        'way["amenity"="place_of_worship"]["religion"="muslim"](around:' + radiusM + "," + la + "," + lo + ");" +
+        'relation["amenity"="place_of_worship"]["religion"="muslim"](around:' + radiusM + "," + la + "," + lo + ");" +
+        ");out center 80;";
+      var ctrl = typeof AbortController === "function" ? new AbortController() : null;
+      var timer = ctrl ? setTimeout(function () { ctrl.abort(); }, 25000) : null;
+      return fetch(SS.OVERPASS, {
+        method: "POST", body: "data=" + encodeURIComponent(q),
+        headers: { "Content-Type": "application/x-www-form-urlencoded" }, signal: ctrl ? ctrl.signal : undefined,
+      }).then(function (res) {
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        return res.json();
+      }).then(function (json) {
+        var out = (json.elements || []).map(function (e) {
+          var t = e.tags || {};
+          return {
+            id: e.type + "/" + e.id,
+            lat: e.lat != null ? e.lat : e.center && e.center.lat,
+            lng: e.lon != null ? e.lon : e.center && e.center.lon,
+            name: t["name:en"] || t.name || "", nameAr: t["name:ar"] || "",
+            street: [t["addr:housenumber"], t["addr:street"]].filter(Boolean).join(" "),
+            city: t["addr:city"] || "", denomination: t.denomination || "",
+          };
+        }).filter(function (m) { return typeof m.lat === "number" && typeof m.lng === "number"; });
+        store.set(key, { at: Date.now(), data: out });
+        return out;
+      }).catch(function (err) {
+        if (cached) return cached.data;
+        throw err;
+      }).finally(function () { if (timer) clearTimeout(timer); });
     },
     /** Tafsir (Ibn Kathir, English) for a given surah:ayah. Cached 30 days. */
     tafsir: function (surah, ayah) {

@@ -3,10 +3,11 @@
    network-first (so a new deploy is picked up immediately) and fall back to
    the cache; Google Fonts are cached after first use. API responses are
    cached by the app itself in localStorage, so they are not handled here. */
-var VERSION = "ss-v2";
+var VERSION = "ss-v3";
 var SHELL = [
   "./", "index.html", "css/styles.css",
-  "js/surahs.js", "js/duas.js", "js/extras.js", "js/i18n.js", "js/core.js", "js/views.js", "js/app.js",
+  "js/surahs.js", "js/duas.js", "js/extras.js", "js/content.js", "js/i18n.js", "js/core.js",
+  "js/views.js", "js/features.js", "js/app.js",
   "manifest.webmanifest", "icons/icon.svg", "icons/icon-192.png",
 ];
 
@@ -57,4 +58,18 @@ self.addEventListener("fetch", function (e) {
       })
     );
   }
+});
+
+/* Prayer reminders: tapping a notification focuses (or opens) the app. */
+self.addEventListener("notificationclick", function (e) {
+  e.notification.close();
+  var target = (e.notification.data && e.notification.data.url) || "./#/home";
+  e.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(function (list) {
+      for (var i = 0; i < list.length; i++) {
+        if ("focus" in list[i]) { list[i].navigate(target).catch(function () {}); return list[i].focus(); }
+      }
+      return self.clients.openWindow(target);
+    })
+  );
 });
