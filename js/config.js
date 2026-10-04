@@ -18,8 +18,10 @@
   "use strict";
   window.SS = window.SS || {};
   SS.CONFIG = {
-    supabaseUrl: "",
-    supabaseAnonKey: "",
-    signInMethods: ["apple", "google", "phone", "email"],
+    supabaseUrl: "https://aqyanyrmxjjofhyxodzm.supabase.co",
+    supabaseAnonKey: "sb_publishable_tgu8mvHZ9RwiXz7tcKjnyg_5fRzsvvh",
+    // Only email is switched on in Supabase so far. Add "google", "apple" and
+    // "phone" back here once each is set up (backend/README-backend.md).
+    signInMethods: ["email"],
   };
 })();
