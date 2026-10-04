@@ -71,6 +71,19 @@ function createMock() {
     if (state.failNext && p.indexOf(state.failNext.path) > -1) { const f = state.failNext; state.failNext = null; return json(route, f.status, f.body); }
 
     /* ── Auth ── */
+    if (p === "/auth/v1/signup" && method === "POST") {
+      // Email + password sign-up ("Confirm email" switched off → signed in at once).
+      if (!body.email || !body.password) return json(route, 400, { code: 400, error_code: "validation_failed", msg: "missing email or password" });
+      if (String(body.password).length < 6) return json(route, 422, { code: 422, error_code: "weak_password", msg: "Password should be at least 6 characters." });
+      if (findUser((x) => x.email === body.email)) return json(route, 422, { code: 422, error_code: "user_already_exists", msg: "User already registered" });
+      const nu = newUser({ email: body.email, provider: "email" });
+      nu.password = body.password;
+      return json(route, 200, session(nu));
+    }
+    if (p === "/auth/v1/recover" && method === "POST") {
+      state.recoverySent = body.email;
+      return json(route, 200, {});
+    }
     if (p === "/auth/v1/otp" && method === "POST") {
       const kind = body.email ? "email" : "phone", target = body.email || body.phone;
       if (kind === "phone" && !/^\+?\d{8,15}$/.test(target)) return json(route, 400, { code: 400, error_code: "validation_failed", msg: "Invalid phone number format" });
@@ -103,6 +116,11 @@ function createMock() {
         if (!c) return json(route, 400, { code: 400, error_code: "flow_state_not_found", msg: "invalid flow state" });
         pkce.delete(body.auth_code);
         return json(route, 200, session(users.get(c.userId)));
+      }
+      if (grant === "password") {
+        const pu = findUser((x) => x.email === body.email);
+        if (!pu || pu.password !== body.password) return json(route, 400, { code: 400, error_code: "invalid_credentials", msg: "Invalid login credentials" });
+        return json(route, 200, session(pu));
       }
       if (grant === "refresh_token") {
         const id = String(body.refresh_token || "").slice(2, 38);
@@ -152,6 +170,10 @@ function createMock() {
     if (p === "/auth/v1/user" && method === "PUT") {
       const u = userFromAuth(req);
       if (!u) return json(route, 401, {});
+      if (body.password) {
+        if (u.password === body.password) return json(route, 422, { code: 422, error_code: "same_password", msg: "New password should be different from the old password." });
+        u.password = body.password;
+      }
       if (body.phone) { const k = "phone:" + String(body.phone).replace(/^\+/, ""); codes.set(k, "123456"); pendingChange.set(k, u.id); }
       if (body.email) { codes.set("email:" + body.email, "123456"); pendingChange.set("email:" + body.email, u.id); }
       return json(route, 200, u);

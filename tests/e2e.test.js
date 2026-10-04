@@ -337,6 +337,7 @@ async function emailSignIn(page, email, code) {
   await page.click("#ac-signin");
   await page.waitForSelector("#acct-dialog[open] .acct-methods");
   await page.click('[data-method="email"]');
+  await page.click("#acct-use-link"); // the emailed-link/code route
   await page.fill("#acct-input", email);
   await page.click("#acct-submit");
   await page.waitForSelector("#acct-input.acct-code");
@@ -449,6 +450,70 @@ test("accounts: email sign-in migrates guest data, syncs across devices, persist
   assert.equal(mock.rowsFor("yusuf@example.com").filter((r) => r.col === "bm").length, 0, "nothing leaked into the other account");
   for (const d of [A, B]) assert.deepEqual(d.page.errors, []);
   await A.context.close(); await B.context.close();
+});
+
+test("accounts: email + password — create account, wrong password, sign in elsewhere, change password, reset", async () => {
+  const mock = createMock();
+  const A = await device({ mock });
+  await open(A.page, "#/account");
+  await A.page.click("#ac-signin");
+  await A.page.click('[data-method="email"]');
+  await A.page.waitForSelector("#acct-pass");
+  // Create account (too-short password is caught first).
+  await A.page.click('[data-mode="signup"]');
+  await A.page.fill("#acct-email", "zaid@example.com");
+  await A.page.fill("#acct-pass", "short");
+  await A.page.click("#acct-submit");
+  assert.match(await A.page.textContent("#acct-msg"), /at least 8 characters/);
+  await A.page.fill("#acct-pass", "bismillah123");
+  await A.page.click("#acct-submit");
+  await A.page.waitForSelector("#acct-dialog", { state: "hidden" });
+  await A.page.waitForFunction(() => SS.account.signedIn());
+  await A.page.evaluate(() => SS.store.set("quran:bookmarks", { "36:58": { at: Date.now() } }));
+  await A.page.evaluate(() => SS.account.syncNow());
+  // Signing up again with the same email explains what to do.
+  const B = await device({ mock, context: { viewport: { width: 1280, height: 800 } } });
+  await open(B.page, "#/account");
+  await B.page.click("#ac-signin");
+  await B.page.click('[data-method="email"]');
+  await B.page.click('[data-mode="signup"]');
+  await B.page.fill("#acct-email", "zaid@example.com");
+  await B.page.fill("#acct-pass", "anotherpass1");
+  await B.page.click("#acct-submit");
+  await B.page.waitForFunction(() => /already an account/.test(document.getElementById("acct-msg").textContent));
+  // Wrong password, then right one → same account, bookmark synced.
+  await B.page.click('[data-mode="signin"]');
+  assert.equal(await B.page.inputValue("#acct-email"), "zaid@example.com"); // kept when switching tabs
+  await B.page.fill("#acct-pass", "wrongpass");
+  await B.page.click("#acct-submit");
+  await B.page.waitForFunction(() => /email or password is wrong/.test(document.getElementById("acct-msg").textContent));
+  await B.page.fill("#acct-pass", "bismillah123");
+  await B.page.click("#acct-submit");
+  await B.page.waitForSelector("#acct-dialog", { state: "hidden" });
+  await B.page.waitForSelector("#ac-bm-card .acct-bm");
+  assert.match(await B.page.textContent("#ac-bm-card"), /36:58/);
+  assert.equal(mock.state.users.size, 1);
+  await shot(B.page, "account-password-desktop");
+  // Change password while signed in.
+  await B.page.click("#ac-password");
+  await B.page.fill("#acct-pass", "newpassword9");
+  await B.page.click("#acct-submit");
+  await B.page.waitForSelector("#acct-dialog", { state: "hidden" });
+  assert.equal(mock.userByEmail("zaid@example.com").password, "newpassword9");
+  // Forgot password from a signed-out device.
+  const C = await device({ mock });
+  await open(C.page, "#/account");
+  await C.page.click("#ac-signin");
+  await C.page.click('[data-method="email"]');
+  await C.page.fill("#acct-email", "zaid@example.com");
+  await C.page.click("#acct-forgot");
+  assert.equal(await C.page.inputValue("#acct-email"), "zaid@example.com");
+  await C.page.click("#acct-submit");
+  await C.page.waitForFunction(() => /we've sent a link to reset/.test(document.getElementById("acct-body").textContent));
+  assert.equal(mock.state.recoverySent, "zaid@example.com");
+  await C.page.click("[data-back]");
+  await C.page.waitForSelector("#acct-pass");
+  for (const d of [A, B, C]) { assert.deepEqual(d.page.errors, []); await d.context.close(); }
 });
 
 test("accounts: phone sign-in, validation and linking another method to the same account", async () => {
