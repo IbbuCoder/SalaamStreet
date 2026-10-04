@@ -35,18 +35,44 @@
 
   /* ── Locale ─────────────────────────────────────────────────── */
   SS.updateLocaleToggle = function () {
-    var ar = SS.i18n.isAr();
-    $("locale-label").textContent = ar ? "English" : "العربية";
-    $("locale-toggle").setAttribute("lang", ar ? "en" : "ar");
+    var cur = SS.i18n.getLocale(), name = "";
+    SS.i18n.LANGS.forEach(function (l) { if (l.code === cur) name = l.name; });
+    $("locale-label").textContent = name;
+    $("locale-label").setAttribute("lang", cur);
   };
   SS.changeLocale = function (next) {
-    SS.store.saveSettings({ locale: next });
-    SS.i18n.setLocale(next);
-    SS.updateLocaleToggle();
-    SS.applyTheme();
-    SS.audio.refreshLabel();
-    navigate(true); // re-render the active view in the new language
+    SS.i18n.load(next).then(function (code) {
+      SS.store.saveSettings({ locale: code });
+      // Readers who never picked a translation get one in their new language.
+      var match = { ur: "ur.jalandhry", bn: "bn.bengali", id: "id.indonesian", tr: "tr.diyanet", fr: "fr.hamidullah", en: "en.sahih" }[code];
+      var curTr = SS.store.settings().translation;
+      if (match && (curTr === "en.sahih" || curTr === SS.store.get("translation:auto"))) {
+        SS.store.saveSettings({ translation: match });
+        SS.store.set("translation:auto", match);
+      }
+      SS.i18n.setLocale(code);
+      SS.updateLocaleToggle();
+      SS.applyTheme();
+      SS.audio.refreshLabel();
+      navigate(true); // re-render the active view in the new language
+    });
   };
+  function openLangSheet() {
+    var dlg = $("lang-sheet"), cur = SS.i18n.getLocale(), html = "";
+    SS.i18n.LANGS.forEach(function (l) {
+      html += '<button class="lang-opt' + (l.code === cur ? " on" : "") + '" type="button" data-lang="' + l.code + '" lang="' + l.code + '" dir="' + l.dir + '" aria-pressed="' + (l.code === cur) + '">' +
+        "<span>" + SS.esc(l.name) + "</span>" + (l.draft ? '<span class="badge badge-src">' + SS.esc(SS.i18n.t("lang.draft")) + "</span>" : "") +
+        (l.code === cur ? '<svg class="ic" aria-hidden="true"><use href="#i-check"/></svg>' : "") + "</button>";
+    });
+    $("lang-list").innerHTML = html;
+    $("lang-list").onclick = function (e) {
+      var b = e.target.closest("[data-lang]");
+      if (!b) return;
+      dlg.close();
+      if (b.getAttribute("data-lang") !== SS.i18n.getLocale()) SS.changeLocale(b.getAttribute("data-lang"));
+    };
+    if (dlg.showModal && !dlg.open) SS.openDialog(dlg);
+  }
 
   /* ── Audio player (shared, survives view switches) ─────────── */
   var audio = null, curSurah = 0, curAyah = 0, curMeta = null;
@@ -343,6 +369,14 @@
   /* ── Boot ───────────────────────────────────────────────────── */
   function boot() {
     var s = SS.store.settings();
+    // A downloaded interface language must be ready before the first render.
+    if (s.locale && !SS.i18n.LANGS.some(function (l) { return l.code === s.locale && !l.draft; })) {
+      SS.i18n.load(s.locale).then(function () { start(s); });
+      return;
+    }
+    start(s);
+  }
+  function start(s) {
     SS.viewsReady();
     SS.i18n.initLocale(s.locale);
     SS.applyTheme();
@@ -357,7 +391,7 @@
       } catch (e) { /* older browsers */ }
     }
 
-    $("locale-toggle").onclick = function () { SS.changeLocale(SS.i18n.isAr() ? "en" : "ar"); };
+    $("locale-toggle").onclick = openLangSheet;
     $("theme-toggle").onclick = cycleTheme;
 
     wireAudioBar();

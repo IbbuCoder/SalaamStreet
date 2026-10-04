@@ -349,7 +349,7 @@
     var now = new Date();
     var table = $("pt-month-table");
     try {
-      $("pt-month-title").textContent = now.toLocaleDateString(SS.i18n.isAr() ? "ar" : undefined, { month: "long", year: "numeric" });
+      $("pt-month-title").textContent = now.toLocaleDateString(SS.i18n.dateLocale(), { month: "long", year: "numeric" });
     } catch (e) { $("pt-month-title").textContent = ""; }
     table.innerHTML = '<tbody><tr><td colspan="7" style="padding:20px">' + skeletons(6, 22) + "</td></tr></tbody>";
     SS.api.monthlyTimes({ lat: loc.lat, lng: loc.lng, method: s.method, school: s.school, year: now.getFullYear(), month: now.getMonth() + 1 })
@@ -467,7 +467,7 @@
       $("qb-needle").style.transform = "rotate(" + qbBearing + "deg)";
       $("qb-compass").setAttribute("aria-label", f("qibla.compassLabel", { deg: qbBearing.toFixed(0) }));
       var km = distanceKm(loc.lat, loc.lng);
-      try { $("qb-dist").textContent = Math.round(km).toLocaleString(SS.i18n.isAr() ? "ar" : undefined) + " " + t("qibla.km"); }
+      try { $("qb-dist").textContent = Math.round(km).toLocaleString(SS.i18n.dateLocale()) + " " + t("qibla.km"); }
       catch (e) { $("qb-dist").textContent = Math.round(km) + " km"; }
       $("qb-coords").textContent = loc.lat.toFixed(2) + ", " + loc.lng.toFixed(2);
       if (!qbHasCompass) qbRender(0);
@@ -1083,7 +1083,12 @@
   /* ═══════════ SETTINGS ═══════════ */
   function settingsInit(params) {
     var s = SS.store.settings();
-    $("st-locale").value = SS.i18n.getLocale();
+    var lh = "";
+    SS.i18n.LANGS.forEach(function (l) {
+      lh += '<option value="' + l.code + '"' + (l.code === SS.i18n.getLocale() ? " selected" : "") + ">" + esc(l.name) + (l.draft ? " · " + esc(t("lang.draft")) : "") + "</option>";
+    });
+    $("st-locale").innerHTML = lh;
+    $("st-draft-note").hidden = !SS.i18n.isDraft();
     $("st-theme").value = s.theme;
     $("st-translation").checked = !!s.showTranslation;
     $("st-translit").checked = !!s.showTransliteration;
@@ -1284,7 +1289,7 @@
     $("cal-hijri").innerHTML = '<span class="sk-text" style="inline-size:12ch"></span>';
     $("cal-next").textContent = "";
     try {
-      $("cal-greg").textContent = new Date().toLocaleDateString(SS.i18n.isAr() ? "ar" : undefined,
+      $("cal-greg").textContent = new Date().toLocaleDateString(SS.i18n.dateLocale(),
         { weekday: "long", year: "numeric", month: "long", day: "numeric" });
     } catch (e) { $("cal-greg").textContent = new Date().toDateString(); }
     $("cal-events").innerHTML = skeletons(5, 84);
@@ -1338,7 +1343,7 @@
       var approxDate = "";
       if (r.diff !== null && r.diff >= 0) {
         try {
-          approxDate = "≈ " + new Date(Date.now() + r.diff * DAY).toLocaleDateString(ar ? "ar" : undefined, { day: "numeric", month: "short", year: "numeric" });
+          approxDate = "≈ " + new Date(Date.now() + r.diff * DAY).toLocaleDateString(SS.i18n.dateLocale(), { day: "numeric", month: "short", year: "numeric" });
         } catch (x) { approxDate = ""; }
       }
       html += '<div class="event ' + cls + '">' +

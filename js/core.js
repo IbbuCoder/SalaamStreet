@@ -124,7 +124,7 @@
     var d = new Date();
     d.setHours(+parts[0] || 0, +parts[1] || 0, 0, 0);
     try {
-      return d.toLocaleTimeString(SS.i18n.isAr() ? "ar" : undefined, { hour: "numeric", minute: "2-digit" });
+      return d.toLocaleTimeString(SS.i18n.dateLocale(), { hour: "numeric", minute: "2-digit" });
     } catch (e) { return String(hhmm).slice(0, 5); }
   };
   /** YYYY-MM-DD in the device's local time zone (toISOString would use UTC). */
@@ -135,8 +135,8 @@
   /** "12 Ramadan 1447 AH" from an AlAdhan hijri object, localised. */
   SS.hijriLabel = function (h) {
     if (!h) return "";
-    var ar = SS.i18n.isAr();
-    return h.day + " " + (ar ? h.month.ar : h.month.en) + " " + h.year + (ar ? " هـ" : " AH");
+    var rtl = SS.i18n.isRtl ? SS.i18n.isRtl() : SS.i18n.isAr();
+    return h.day + " " + (rtl ? h.month.ar : h.month.en) + " " + h.year + (rtl ? " هـ" : " AH");
   };
   var toastTimer = null;
   SS.toast = function (msg) {

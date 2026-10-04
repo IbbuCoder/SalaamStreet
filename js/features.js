@@ -24,7 +24,7 @@
   }
   function addDays(d, n) { var x = new Date(d); x.setDate(x.getDate() + n); return x; }
   function weekdayShort(d) {
-    try { return d.toLocaleDateString(isAr() ? "ar" : undefined, { weekday: "short" }); } catch (e) { return ""; }
+    try { return d.toLocaleDateString(SS.i18n.dateLocale(), { weekday: "short" }); } catch (e) { return ""; }
   }
   function keyActivate(handler) {
     return function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handler(e); } };
@@ -569,7 +569,7 @@
     return 2 * R * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
   }
   function fmtDist(km) {
-    var loc = isAr() ? "ar" : undefined;
+    var loc = SS.i18n.dateLocale();
     try {
       return km < 1 ? Math.round(km * 1000 / 10) * 10 + " " + t("mosques.m")
         : (km < 10 ? km.toFixed(1) : Math.round(km)).toLocaleString(loc) + " " + t("qibla.km");

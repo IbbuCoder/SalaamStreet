@@ -21,12 +21,13 @@ laptops and large monitors. Core worship features are, and will stay, free.
   9 translation languages, share-as-image cards
 - 99 Names of Allah, mosque finder (OpenStreetMap), Arabic alphabet lessons and quiz
 - Prayer-times widget for mosque websites; generated SEO pages and sitemap
+- Draft interface languages: Urdu, Bengali, Indonesian, Turkish, French
 
 ## Next
 
 - Optional account sync (Supabase schema in `backend/`) for bookmarks, streaks and settings
 - Push reminders that arrive even when the site is closed (needs a small push server)
-- More interface languages (ur, bn, id, tr, fr) — reviewed by native speakers
+- Native-speaker review of the draft Urdu, Bengali, Indonesian, Turkish and French translations
 
 ## Principles
 

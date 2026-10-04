@@ -28,7 +28,7 @@ Live at **[salaamstreet.com](https://salaamstreet.com)**.
 - **Learn to read Arabic** — the 28 letters and their shapes, the vowel marks, and a quick quiz
 - **Prayer-times widget for mosques** — a free embed builder at [`/widget/`](https://salaamstreet.com/widget/): pick a location, method and style, copy one line of code
 - **Search-friendly pages** — every surah, the dua library, the 99 Names and prayer times for 60 major cities have their own indexable page, plus `sitemap.xml`
-- **English + Arabic** with full right-to-left layout · **Light / dark / system theme** · **Installable** (add to home screen) · **Works offline** for anything you've already opened
+- **7 interface languages** — English and Arabic, plus draft Urdu, Bengali, Indonesian, Turkish and French (loaded only when chosen; pending native-speaker review) — with full right-to-left layout for Arabic and Urdu · **Light / dark / system theme** · **Installable** (add to home screen) · **Works offline** for anything you've already opened
 
 ## Principles
 
@@ -58,7 +58,8 @@ Safe-area insets (iPhone notch / home indicator), 16px form inputs (no iOS zoom)
 │   ├── duas.js           Dua library + dhikr presets, all with sources
 │   ├── extras.js         Calendar events + hadith collections
 │   ├── content.js        99 Names, juz boundaries, adhkar sequence, Arabic letters, translations
-│   ├── i18n.js           English/Arabic strings + RTL switching
+│   ├── i18n.js           English/Arabic strings, language loading, RTL switching
+│   ├── lang/             Draft interface languages (ur, bn, id, tr, fr), loaded on demand
 │   ├── core.js           Config, storage, API clients with caching, location flow, Qibla math
 │   ├── views.js          One controller per view
 │   ├── features.js       Tracker, reminders, adhkar, Names, mosques, Arabic, plans, share cards

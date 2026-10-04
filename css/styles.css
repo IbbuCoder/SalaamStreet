@@ -63,7 +63,9 @@ body{
   min-block-size:100vh;min-block-size:100dvh;overflow-x:hidden;
   -webkit-tap-highlight-color:transparent;
 }
-html[lang="ar"] body{font-family:var(--font-ar-ui)}
+html[lang="ar"] body,html[lang="ur"] body{font-family:var(--font-ar-ui)}
+html[lang="ur"] body{line-height:1.75}
+html[lang="bn"] body{font-family:"Noto Sans Bengali","Hind Siliguri",var(--font)}
 img,svg,video{display:block;max-inline-size:100%}
 button,input,select,textarea{font:inherit;color:inherit;letter-spacing:inherit}
 button{cursor:pointer}
@@ -74,7 +76,7 @@ a:hover{text-decoration:underline;text-underline-offset:3px}
 :focus-visible{outline:2.5px solid var(--primary);outline-offset:2px;border-radius:8px}
 [hidden]{display:none!important}
 h1,h2,h3{line-height:1.2;font-weight:800;letter-spacing:-.018em;text-wrap:balance}
-html[lang="ar"] :is(h1,h2,h3){letter-spacing:0}
+html:is([lang="ar"],[lang="ur"],[lang="bn"]) :is(h1,h2,h3){letter-spacing:0}
 h1{font-size:clamp(1.5rem,1.25rem + 1.1vw,2rem)}
 h2{font-size:1.18rem} h3{font-size:1.02rem}
 p{text-wrap:pretty}
@@ -242,7 +244,7 @@ body.scrolled .topbar{border-block-end-color:var(--border)}
 .page-head p{color:var(--text-2);margin-block-start:6px;max-inline-size:62ch}
 @media (min-width:1100px){.page-head{margin-block-end:28px}}
 .group-label{font-size:.78rem;text-transform:uppercase;letter-spacing:.07em;color:var(--text-3);font-weight:700;margin:24px 6px 8px}
-html[lang="ar"] .group-label{letter-spacing:0;font-size:.85rem}
+html:is([lang="ar"],[lang="ur"],[lang="bn"]) .group-label{letter-spacing:0;font-size:.85rem}
 .group-label:first-of-type{margin-block-start:0}
 
 .back-link{display:inline-flex;align-items:center;gap:4px;min-block-size:44px;margin-block:-8px 6px;margin-inline-start:-6px;padding-inline:6px;border-radius:10px;font-weight:700;color:var(--text-2)}
@@ -762,7 +764,7 @@ dialog.sheet.tall{inline-size:min(calc(100vw - 32px),640px)}
 
 /* ════════════ Feature additions ════════════ */
 .nav-label{display:none;margin:12px 14px 4px;font-size:.7rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3)}
-html[lang="ar"] .nav-label{letter-spacing:0;font-size:.78rem}
+html:is([lang="ar"],[lang="ur"],[lang="bn"]) .nav-label{letter-spacing:0;font-size:.78rem}
 .nav-group > .nav-label:first-of-type{margin-block-start:8px}
 @media (min-width:1100px){.nav-label{display:block}}
 @media (min-width:768px) and (max-width:1099px){.navlink{padding-block:7px}.navlink .ic{inline-size:21px;block-size:21px}}
@@ -932,6 +934,13 @@ mark{background:color-mix(in srgb,var(--gold-bright) 35%,transparent);color:inhe
 @media (max-width:599px){.share-preview canvas{max-inline-size:min(320px,100%)}}
 .modal-actions.two{grid-template-columns:1fr 1fr}
 .modal-actions.two > [hidden] + .btn,.modal-actions.two > .btn:only-child{grid-column:1/-1}
+
+.lang-list{display:grid;gap:6px}
+.lang-opt{display:flex;align-items:center;gap:10px;min-block-size:52px;padding:10px 14px;border-radius:14px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-weight:600;font-size:1rem;text-align:start}
+.lang-opt:hover{border-color:var(--primary)}
+.lang-opt > span:first-child{flex:1}
+.lang-opt.on{background:var(--primary-soft);border-color:var(--primary);color:var(--primary-strong)}
+.set-note{margin-block:-4px 10px}
 
 /* ── Standalone pages (SEO pages, widget builder) ──────────────── */
 .standalone .main{margin-inline-start:0;padding-block:20px 48px;min-block-size:auto}

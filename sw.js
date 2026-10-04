@@ -3,7 +3,7 @@
    network-first (so a new deploy is picked up immediately) and fall back to
    the cache; Google Fonts are cached after first use. API responses are
    cached by the app itself in localStorage, so they are not handled here. */
-var VERSION = "ss-v3";
+var VERSION = "ss-v4";
 var SHELL = [
   "./", "index.html", "css/styles.css",
   "js/surahs.js", "js/duas.js", "js/extras.js", "js/content.js", "js/i18n.js", "js/core.js",

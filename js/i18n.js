@@ -289,7 +289,7 @@
       "quran.searchNone": "No ayahs mention “{q}” in this translation.",
       "quran.searchCount": "{n} ayahs mention “{q}”",
       "quran.searchMore": "…and {n} more. Try a more specific word.",
-      "settings.translationLang": "Translation", "settings.mosques": "For mosques & communities", "settings.widget": "Prayer times widget", "settings.widgetDesc": "Add free, ad-free prayer times to your mosque's website.",
+      "settings.translationLang": "Translation", "lang.draft": "Draft", "lang.draftNote": "This translation is a draft and may contain mistakes. Corrections from native speakers are welcome.", "settings.mosques": "For mosques & communities", "settings.widget": "Prayer times widget", "settings.widgetDesc": "Add free, ad-free prayer times to your mosque's website.",
       "share.title": "Share as image",
       "share.download": "Download",
       "share.emerald": "Emerald",
@@ -582,7 +582,7 @@
       "quran.searchNone": "لا توجد آيات تذكر «{q}» في هذه الترجمة.",
       "quran.searchCount": "{n} آية تذكر «{q}»",
       "quran.searchMore": "…و{n} أخرى. جرّب كلمة أدق.",
-      "settings.translationLang": "الترجمة", "settings.mosques": "للمساجد والجاليات", "settings.widget": "أداة مواقيت الصلاة", "settings.widgetDesc": "أضف مواقيت الصلاة مجانًا وبلا إعلانات إلى موقع مسجدك.",
+      "settings.translationLang": "الترجمة", "lang.draft": "مسودة", "lang.draftNote": "هذه الترجمة مسودة وقد تحتوي على أخطاء. نرحب بتصحيحات المتحدثين الأصليين.", "settings.mosques": "للمساجد والجاليات", "settings.widget": "أداة مواقيت الصلاة", "settings.widgetDesc": "أضف مواقيت الصلاة مجانًا وبلا إعلانات إلى موقع مسجدك.",
       "share.title": "مشاركة كصورة",
       "share.download": "تنزيل",
       "share.emerald": "زمردي",
@@ -607,11 +607,45 @@
     for (var j = 0; j < phs.length; j++) phs[j].setAttribute("placeholder", t(phs[j].getAttribute("data-i18n-ph")));
   }
 
-  function setLocale(locale) {
+  /* Interface languages. English and Arabic are built in; the others load on
+     demand from js/lang/<code>.js (machine-drafted, pending native review). */
+  var LANGS = [
+    { code: "en", name: "English", dir: "ltr" },
+    { code: "ar", name: "العربية", dir: "rtl" },
+    { code: "ur", name: "اردو", dir: "rtl", draft: true },
+    { code: "bn", name: "বাংলা", dir: "ltr", draft: true },
+    { code: "id", name: "Bahasa Indonesia", dir: "ltr", draft: true },
+    { code: "tr", name: "Türkçe", dir: "ltr", draft: true },
+    { code: "fr", name: "Français", dir: "ltr", draft: true },
+  ];
+  function langInfo(code) {
+    for (var i = 0; i < LANGS.length; i++) if (LANGS[i].code === code) return LANGS[i];
+    return LANGS[0];
+  }
+  var loading = {};
+  /** Make sure a language's strings are available (loads js/lang/<code>.js once). */
+  function load(code) {
+    if (MSG[code] || !langInfo(code).draft) return Promise.resolve(code);
+    if (loading[code]) return loading[code];
+    loading[code] = new Promise(function (resolve) {
+      var s = document.createElement("script");
+      var base = (document.querySelector('script[src*="js/i18n.js"]') || {}).getAttribute
+        ? document.querySelector('script[src*="js/i18n.js"]').getAttribute("src").replace(/i18n\.js.*$/, "") : "js/";
+      s.src = base + "lang/" + code + ".js";
+      s.onload = function () { resolve(MSG[code] ? code : "en"); };
+      s.onerror = function () { delete loading[code]; resolve("en"); };
+      document.head.appendChild(s);
+    });
+    return loading[code];
+  }
+  function apply(locale) {
     current = MSG[locale] ? locale : "en";
     document.documentElement.lang = current;
-    document.documentElement.dir = current === "ar" ? "rtl" : "ltr";
+    document.documentElement.dir = langInfo(current).dir;
     applyTranslations();
+  }
+  function setLocale(locale) {
+    apply(locale);
     document.dispatchEvent(new CustomEvent("ss:localechange"));
   }
 
@@ -625,15 +659,18 @@
   SS.i18n = {
     t: t,
     f: fmt,
+    LANGS: LANGS,
+    load: load,
+    /** Called by js/lang/<code>.js files. Missing keys fall back to English. */
+    register: function (code, dict) { MSG[code] = dict; },
     setLocale: setLocale,
     getLocale: function () { return current; },
     isAr: function () { return current === "ar"; },
-    initLocale: function (locale) {
-      current = MSG[locale] ? locale : "en";
-      document.documentElement.lang = current;
-      document.documentElement.dir = current === "ar" ? "rtl" : "ltr";
-      applyTranslations();
-    },
+    isRtl: function () { return langInfo(current).dir === "rtl"; },
+    isDraft: function () { return !!langInfo(current).draft; },
+    /** BCP-47 tag for dates and numbers in the current language. */
+    dateLocale: function () { return current === "en" ? undefined : current; },
+    initLocale: apply,
     applyTranslations: applyTranslations,
   };
 })();
