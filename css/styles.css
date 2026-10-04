@@ -1231,3 +1231,9 @@ html[data-theme="dark"] .acct-method.acct-apple{background:#fff;color:#000;borde
 .tl-desc{color:var(--text-2);margin-block:2px 8px;font-size:.93rem}
 .tl-group{font-size:.82rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--primary-strong);margin-block:12px 4px}
 [dir="rtl"] .tl-group{letter-spacing:0;text-transform:none}
+
+/* Email + password sign-in */
+.acct-pw-tabs{display:flex;inline-size:100%}
+.acct-pw-tabs button{flex:1}
+.acct-pw-tabs button[aria-pressed="true"]{background:var(--surface);color:var(--primary-strong);box-shadow:var(--shadow-sm)}
+.acct-check.tiny{font-weight:500;font-size:.88rem}

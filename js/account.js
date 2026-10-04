@@ -83,6 +83,10 @@
     state.user = user;
     if (first) handleSignedIn(user);
     else { renderNav(); if (SS.currentView() === "account") render(); }
+    if (event === "PASSWORD_RECOVERY") {
+      // Opened the "reset password" email link: let them choose a new one.
+      setTimeout(function () { if (dlgStep !== "merge") openDialog("newpass", { recovery: true }); }, 60);
+    }
   }
 
   function handleSignedIn(user) {
@@ -248,6 +252,11 @@
     var code = err && (err.code || err.error_code);
     if ((err && err.offline) || navigator.onLine === false || /Failed to fetch|NetworkError|Load failed/i.test(m)) return t("account.errOffline");
     if (code === "over_email_send_rate_limit" || code === "over_sms_send_rate_limit" || code === "over_request_rate_limit" || /rate limit|too many/i.test(m) || (err && err.status === 429)) return t("account.errRate");
+    if (code === "invalid_credentials" || /invalid login credentials/i.test(m)) return t("account.errLogin");
+    if (code === "user_already_exists" || code === "email_exists" || /user already registered/i.test(m)) return t("account.errExists");
+    if (code === "weak_password" || /password should be|password is too weak|weak password/i.test(m)) return t("account.errWeak");
+    if (code === "email_not_confirmed" || /email not confirmed/i.test(m)) return t("account.errNotConfirmed");
+    if (code === "same_password") return t("account.errSamePassword");
     if (code === "otp_expired" || /expired|invalid.*(otp|token|code)|token has expired/i.test(m)) return t("account.errCode");
     if (/provider is not enabled|unsupported (\w+ )?provider|not enabled/i.test(m) || code === "provider_disabled" || code === "phone_provider_disabled" || code === "email_provider_disabled") return t("account.errProvider");
     if (/manual linking/i.test(m) || code === "manual_linking_disabled") return t("account.errLinking");
@@ -284,6 +293,33 @@
     var s = String(raw || "").trim();
     return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(s) ? s : null;
   }
+  /* Email + password */
+  function passwordSignIn(email, password) {
+    return client().then(function (c) {
+      return c.auth.signInWithPassword({ email: email, password: password }).then(function (r) { if (r.error) throw r.error; return r.data; });
+    });
+  }
+  function passwordSignUp(email, password) {
+    rememberReturn();
+    return client().then(function (c) {
+      return c.auth.signUp({ email: email, password: password, options: { emailRedirectTo: returnUrl() } }).then(function (r) {
+        if (r.error) throw r.error;
+        return r.data; // .session is null when Supabase wants the email confirmed first
+      });
+    });
+  }
+  function sendPasswordReset(email) {
+    return client().then(function (c) {
+      return c.auth.resetPasswordForEmail(email, { redirectTo: returnUrl() }).then(function (r) { if (r.error) throw r.error; });
+    });
+  }
+  function setPassword(password) {
+    return client().then(function (c) {
+      return c.auth.updateUser({ password: password }).then(function (r) { if (r.error) throw r.error; });
+    });
+  }
+  var MIN_PASSWORD = 8;
+
   function sendCode(kind, target) {
     rememberReturn();
     return client().then(function (c) {
@@ -379,6 +415,8 @@
   }
 
   function showStep(step) {
+    // Email is the only method switched on: skip the one-button list.
+    if (step === "methods" && methods().length === 1 && methods()[0] === "email") { dlgCtx = { mode: "signin" }; step = "password"; }
     dlgStep = step;
     clearInterval(resendTimer);
     var h = $("acct-h"), body = $("acct-body"), html = "";
@@ -390,6 +428,47 @@
         '<p class="acct-msg" id="acct-msg" role="alert" hidden></p>' +
         '<p class="tiny mt-2">' + esc(t("account.guestNote")) + "</p>" +
         '<p class="tiny mt-1">' + esc(t("account.privacyNote")) + "</p>";
+    } else if (step === "password") {
+      var signup = c.mode === "signup";
+      h.textContent = t(signup ? "account.pwSignUpTitle" : "account.pwSignInTitle");
+      html = '<div class="segmented acct-pw-tabs" role="group" aria-label="' + esc(t("account.with.email")) + '">' +
+        '<button type="button" data-mode="signin" aria-pressed="' + !signup + '">' + esc(t("account.pwSignInTab")) + "</button>" +
+        '<button type="button" data-mode="signup" aria-pressed="' + signup + '">' + esc(t("account.pwSignUpTab")) + "</button></div>" +
+        '<form id="acct-form" class="mt-2" novalidate>' +
+        '<div class="field"><label for="acct-email">' + esc(t("account.emailLabel")) + "</label>" +
+        '<input class="input" id="acct-email" type="email" autocomplete="email" inputmode="email" placeholder="you@example.com" required value="' + esc(c.target || "") + '" /></div>' +
+        '<div class="field mt-1"><label for="acct-pass">' + esc(t("account.passwordLabel")) + "</label>" +
+        '<input class="input" id="acct-pass" type="password" autocomplete="' + (signup ? "new-password" : "current-password") + '" minlength="' + MIN_PASSWORD + '" required /></div>' +
+        '<label class="acct-check tiny mt-1"><input type="checkbox" id="acct-show" /> <span>' + esc(t("account.showPassword")) + "</span></label>" +
+        (signup ? '<p class="tiny mt-1">' + esc(f("account.passwordHint", { n: MIN_PASSWORD })) + "</p>" : "") +
+        '<p class="acct-msg" id="acct-msg" role="alert" hidden></p>' +
+        '<div class="modal-actions"><button class="btn" type="submit" id="acct-submit">' + esc(t(signup ? "account.pwSignUpBtn" : "account.pwSignInBtn")) + "</button>" +
+        (signup ? "" : '<button class="btn btn-ghost" type="button" id="acct-forgot">' + esc(t("account.forgot")) + "</button>") +
+        '<button class="btn btn-ghost" type="button" id="acct-use-link">' + esc(t("account.useLink")) + "</button>" +
+        (methods().length > 1 ? '<button class="btn btn-ghost" type="button" data-back>' + esc(t("account.otherMethods")) + "</button>" : "") +
+        "</div></form>" +
+        (methods().length > 1 ? "" : '<p class="tiny mt-2">' + esc(t("account.guestNote")) + '</p><p class="tiny mt-1">' + esc(t("account.privacyNote")) + "</p>");
+    } else if (step === "forgot") {
+      h.textContent = t("account.forgotTitle");
+      html = '<form id="acct-form" novalidate><p class="muted">' + esc(t("account.forgotSub")) + "</p>" +
+        '<div class="field mt-2"><label for="acct-email">' + esc(t("account.emailLabel")) + "</label>" +
+        '<input class="input" id="acct-email" type="email" autocomplete="email" inputmode="email" required value="' + esc(c.target || "") + '" /></div>' +
+        '<p class="acct-msg" id="acct-msg" role="alert" hidden></p>' +
+        '<div class="modal-actions"><button class="btn" type="submit" id="acct-submit">' + esc(t("account.forgotBtn")) + "</button>" +
+        '<button class="btn btn-ghost" type="button" data-back>' + esc(t("account.backToSignIn")) + "</button></div></form>";
+    } else if (step === "newpass") {
+      h.textContent = t(c.recovery ? "account.newPassTitle" : "account.setPassTitle");
+      html = '<form id="acct-form" novalidate><p class="muted">' + esc(f("account.passwordHint", { n: MIN_PASSWORD })) + "</p>" +
+        '<div class="field mt-2"><label for="acct-pass">' + esc(t("account.newPasswordLabel")) + "</label>" +
+        '<input class="input" id="acct-pass" type="password" autocomplete="new-password" minlength="' + MIN_PASSWORD + '" required /></div>' +
+        '<label class="acct-check tiny mt-1"><input type="checkbox" id="acct-show" /> <span>' + esc(t("account.showPassword")) + "</span></label>" +
+        '<p class="acct-msg" id="acct-msg" role="alert" hidden></p>' +
+        '<div class="modal-actions"><button class="btn" type="submit" id="acct-submit">' + esc(t("account.savePassword")) + "</button>" +
+        '<button class="btn btn-ghost" type="button" data-close>' + esc(t("common.cancel")) + "</button></div></form>";
+    } else if (step === "notice") {
+      h.textContent = c.title;
+      html = '<p class="muted">' + esc(c.text) + "</p>" +
+        '<div class="modal-actions"><button class="btn" type="button" data-back>' + esc(t("account.backToSignIn")) + "</button></div>";
     } else if (step === "email" || step === "phone" || step === "addEmail" || step === "addPhone") {
       var isEmail = step === "email" || step === "addEmail";
       var adding = step === "addEmail" || step === "addPhone";
@@ -447,14 +526,73 @@
     var back = body.querySelector("[data-back]");
     if (back) back.onclick = function () {
       if (step === "code") showStep(c.adding ? (c.kind === "email" ? "addEmail" : "addPhone") : c.kind);
+      else if (step === "forgot" || step === "notice" || (step === "email" && methods().length === 1)) { dlgCtx = { mode: "signin", target: c.target }; showStep("password"); }
       else showStep("methods");
     };
+    var show = $("acct-show");
+    if (show) show.onchange = function () { $("acct-pass").type = this.checked ? "text" : "password"; };
+    if (step === "password") {
+      body.querySelector(".acct-pw-tabs").onclick = function (e) {
+        var b = e.target.closest("[data-mode]");
+        if (!b) return;
+        dlgCtx = { mode: b.getAttribute("data-mode"), target: $("acct-email").value.trim() };
+        showStep("password");
+      };
+      if ($("acct-forgot")) $("acct-forgot").onclick = function () { dlgCtx = { target: $("acct-email").value.trim() }; showStep("forgot"); };
+      $("acct-use-link").onclick = function () { dlgCtx = { target: $("acct-email").value.trim() }; showStep("email"); };
+      $("acct-form").onsubmit = function (e) {
+        e.preventDefault();
+        var email = normEmail($("acct-email").value), pass = $("acct-pass").value;
+        if (!email) { setMsg(t("account.errEmail"), "error"); $("acct-email").focus(); return; }
+        if (c.mode === "signup" && pass.length < MIN_PASSWORD) { setMsg(t("account.errWeak"), "error"); $("acct-pass").focus(); return; }
+        if (!pass) { setMsg(t("account.errLogin"), "error"); $("acct-pass").focus(); return; }
+        var btn = $("acct-submit");
+        busy(btn, true); setMsg(t(c.mode === "signup" ? "account.creating" : "account.signingIn"));
+        if (c.mode === "signup") {
+          passwordSignUp(email, pass).then(function (d) {
+            if (!d.session) { // Supabase is set to confirm emails first
+              dlgCtx = { title: t("account.confirmTitle"), text: f("account.confirmBody", { to: email }), target: email };
+              showStep("notice");
+            } // otherwise signed in → onAuthStateChange closes the dialog
+          }).catch(function (err) { busy(btn, false); setMsg(authError(err), "error"); });
+        } else {
+          passwordSignIn(email, pass).catch(function (err) { busy(btn, false); setMsg(authError(err), "error"); });
+        }
+      };
+    }
+    if (step === "forgot") {
+      $("acct-form").onsubmit = function (e) {
+        e.preventDefault();
+        var email = normEmail($("acct-email").value);
+        if (!email) { setMsg(t("account.errEmail"), "error"); return; }
+        var btn = $("acct-submit");
+        busy(btn, true); setMsg(t("account.sending"));
+        sendPasswordReset(email).then(function () {
+          dlgCtx = { title: t("account.forgotSentTitle"), text: f("account.forgotSent", { to: email }), target: email };
+          showStep("notice");
+        }).catch(function (err) { busy(btn, false); setMsg(authError(err), "error"); });
+      };
+    }
+    if (step === "newpass") {
+      $("acct-form").onsubmit = function (e) {
+        e.preventDefault();
+        var pass = $("acct-pass").value;
+        if (pass.length < MIN_PASSWORD) { setMsg(t("account.errWeak"), "error"); return; }
+        var btn = $("acct-submit");
+        busy(btn, true);
+        setPassword(pass).then(function () {
+          $("acct-dialog").close();
+          SS.toast(t("account.passwordSaved"));
+        }).catch(function (err) { busy(btn, false); setMsg(authError(err), "error"); });
+      };
+    }
     if (step === "methods") {
       body.querySelector(".acct-methods").onclick = function (e) {
         var b = e.target.closest("[data-method]");
         if (!b) return;
         var m = b.getAttribute("data-method");
-        if (m === "email" || m === "phone") { dlgCtx = {}; showStep(m); return; }
+        if (m === "email") { dlgCtx = { mode: "signin" }; showStep("password"); return; }
+        if (m === "phone") { dlgCtx = {}; showStep(m); return; }
         busy(b, true); setMsg("");
         oauth(m, false).catch(function (err) { busy(b, false); setMsg(authError(err), "error"); });
       };
@@ -874,6 +1012,7 @@
       '<h3 class="acct-sub mt-2">' + esc(t("account.whatSyncs")) + '</h3><p class="tiny">' + esc(t("account.whatSyncsBody")) + "</p>" +
       '<div class="row wrap mt-2">' +
       '<a class="btn btn-outline btn-sm" href="#/settings">' + icon("settings") + "<span>" + esc(t("nav.settings")) + "</span></a>" +
+      '<button class="btn btn-outline btn-sm" type="button" id="ac-password">' + icon("edit") + "<span>" + esc(t("account.setPassTitle")) + "</span></button>" +
       '<button class="btn btn-outline btn-sm" type="button" id="ac-signout">' + icon("logout") + "<span>" + esc(t("account.signOut")) + "</span></button>" +
       '<button class="btn btn-danger btn-sm" type="button" id="ac-delete">' + icon("trash") + "<span>" + esc(t("account.deleteBtn")) + "</span></button></div>" +
       "</article>";
@@ -920,6 +1059,7 @@
       });
     };
     if ($("ac-signout")) $("ac-signout").onclick = function () { openDialog("signout"); };
+    if ($("ac-password")) $("ac-password").onclick = function () { openDialog("newpass", {}); };
     if ($("ac-delete")) $("ac-delete").onclick = function () { openDialog("delete"); };
     var ml = $("ac-methods");
     if (ml) ml.onclick = function (e) {
