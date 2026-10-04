@@ -323,6 +323,8 @@ test("guest mode: everything works, no account prompts, no account network traff
 
 test("site without account configuration: guest only, explained honestly", async () => {
   const { page, context } = await device();
+  await context.route("**/js/config.js", (route) => route.fulfill({ contentType: "text/javascript",
+    body: 'window.SS=window.SS||{};SS.CONFIG={supabaseUrl:"",supabaseAnonKey:"",signInMethods:["email"]};' }));
   await open(page, "#/account");
   assert.match(await page.textContent("#ac-root"), /Sign-in isn't available on this copy/);
   assert.equal(await page.$("#ac-signin"), null);
