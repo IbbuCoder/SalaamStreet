@@ -15,9 +15,19 @@
   SS.AUDIO_URL = "https://cdn.islamic.network/quran/audio/{bitrate}/{edition}/{ayah}.mp3";
   SS.AUDIO_BITRATES = [128, 64, 192, 48, 40, 32];
 
-  /* Tafsir — spa5k tafsir_api (CORS via jsDelivr). Ibn Kathir (en). */
-  SS.TAFSIR_BASE = "https://cdn.jsdelivr.net/gh/spa5k/tafsir_api@main/tafsir";
+  /* Tafsir — spa5k tafsir_api. Ibn Kathir (en). Files live at
+     {base}/{edition}/{surah}/{ayah}.json (one file per ayah). jsDelivr first,
+     GitHub's raw CDN as a fallback mirror (both send CORS headers). */
+  SS.TAFSIR_MIRRORS = [
+    "https://cdn.jsdelivr.net/gh/spa5k/tafsir_api@main/tafsir",
+    "https://raw.githubusercontent.com/spa5k/tafsir_api/main/tafsir",
+  ];
+  SS.TAFSIR_BASE = SS.TAFSIR_MIRRORS[0];
   SS.TAFSIR_EDITION = "en-tafisr-ibn-kathir"; // note: repo spells it "tafisr"
+  /** URL of one ayah's tafsir file. */
+  SS.tafsirUrl = function (surah, ayah, base) {
+    return (base || SS.TAFSIR_BASE) + "/" + SS.TAFSIR_EDITION + "/" + surah + "/" + ayah + ".json";
+  };
   /* Hadith — fawazahmed0 hadith-api (CORS via jsDelivr). */
   SS.HADITH_BASE = "https://cdn.jsdelivr.net/gh/fawazahmed0/hadith-api@1/editions";
   /* Mosque finder — OpenStreetMap data via the public Overpass API (no key). */
@@ -56,6 +66,19 @@
 
   /* ── Storage ────────────────────────────────────────────────── */
   var PREFIX = "salaamstreet:";
+  /* Account sync (sync.js/account.js) watches writes to the keys it syncs:
+     store.watch(key) says whether a key is synced, store.onWrite(key, old,
+     new) is told about each change. Guests are tracked too (just timestamps
+     on the device) so their data can be merged into an account later. */
+  function notify(key, write) {
+    var watched = false;
+    try { watched = !!(store.watch && store.watch(key)); } catch (e) { /* noop */ }
+    var old = watched ? store.get(key) : null;
+    write();
+    if (watched && store.onWrite) {
+      try { store.onWrite(key, old, write.value); } catch (e) { if (window.console) console.error(e); }
+    }
+  }
   var store = {
     get: function (key, fb) {
       try {
@@ -64,10 +87,32 @@
       } catch (e) { return fb === undefined ? null : fb; }
     },
     set: function (key, val) {
-      try { localStorage.setItem(PREFIX + key, JSON.stringify(val)); } catch (e) { /* full/unavailable */ }
+      var w = function () { store.setSilent(key, val); };
+      w.value = val;
+      notify(key, w);
     },
     remove: function (key) {
+      var w = function () { store.removeSilent(key); };
+      w.value = undefined;
+      notify(key, w);
+    },
+    /** Raw write/remove that sync itself uses (not reported back to sync). */
+    setSilent: function (key, val) {
+      try { localStorage.setItem(PREFIX + key, JSON.stringify(val)); } catch (e) { /* full/unavailable */ }
+    },
+    removeSilent: function (key) {
       try { localStorage.removeItem(PREFIX + key); } catch (e) { /* unavailable */ }
+    },
+    /** All SalaamStreet keys (without the prefix). */
+    keys: function () {
+      var out = [];
+      try {
+        for (var i = 0; i < localStorage.length; i++) {
+          var k = localStorage.key(i);
+          if (k && k.indexOf(PREFIX) === 0) out.push(k.slice(PREFIX.length));
+        }
+      } catch (e) { /* unavailable */ }
+      return out;
     },
     settings: function () {
       var s = store.get("settings", {});
@@ -86,7 +131,7 @@
       try {
         for (var i = 0; i < localStorage.length; i++) {
           var k = localStorage.key(i);
-          if (k && k.indexOf(PREFIX) === 0) {
+          if (k && k.indexOf(PREFIX) === 0 && k !== PREFIX + "sync:meta") { // sync bookkeeping isn't "your data"
             try { out[k.slice(PREFIX.length)] = JSON.parse(localStorage.getItem(k)); } catch (e) { /* skip */ }
           }
         }
@@ -305,11 +350,34 @@
         throw err;
       }).finally(function () { if (timer) clearTimeout(timer); });
     },
-    /** Tafsir (Ibn Kathir, English) for a given surah:ayah. Cached 30 days. */
+    /** Tafsir (Ibn Kathir, English) for a given surah:ayah. Cached 30 days.
+        Tries each mirror in turn and checks the file really is for that ayah,
+        so a wrong or stale response can never be shown for another verse. */
     tafsir: function (surah, ayah) {
-      var url = SS.TAFSIR_BASE + "/" + SS.TAFSIR_EDITION + "/" + surah + "_" + ayah + ".json";
-      return cachedFetch("tafsir:" + surah + ":" + ayah, url, 30 * DAY).then(function (r) {
-        return { text: (r.data && r.data.text) || "", surah: surah, ayah: ayah };
+      surah = +surah; ayah = +ayah;
+      var key = "tafsir2:" + surah + ":" + ayah;
+      var cached = store.get("cache:" + key);
+      if (cached && Date.now() - cached.at < 30 * DAY && cached.data && cached.data.text) {
+        return Promise.resolve({ text: cached.data.text, surah: surah, ayah: ayah, fromCache: true });
+      }
+      var mirrors = SS.TAFSIR_MIRRORS.slice();
+      function attempt(i, lastErr) {
+        if (i >= mirrors.length) return Promise.reject(lastErr || new Error("tafsir-unavailable"));
+        return fetchJson(SS.tafsirUrl(surah, ayah, mirrors[i])).then(function (json) {
+          if (!json || typeof json.text !== "string") throw new Error("tafsir-bad-response");
+          if ((json.surah != null && +json.surah !== surah) || (json.ayah != null && +json.ayah !== ayah)) {
+            throw new Error("tafsir-mismatch");
+          }
+          return json;
+        }).catch(function (err) { return attempt(i + 1, err); });
+      }
+      return attempt(0).then(function (json) {
+        var text = json.text || "";
+        if (text) store.set("cache:" + key, { at: Date.now(), data: { text: text } });
+        return { text: text, surah: surah, ayah: ayah, fromCache: false };
+      }).catch(function (err) {
+        if (cached && cached.data && cached.data.text) return { text: cached.data.text, surah: surah, ayah: ayah, fromCache: true, stale: true };
+        throw err;
       });
     },
     /** A full hadith edition (e.g. "eng-nawawi"): metadata + hadiths[]. Cached 30 days. */

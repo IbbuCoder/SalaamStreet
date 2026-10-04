@@ -7,6 +7,10 @@
   <meta name="description" content="Add accurate daily prayer times to your mosque or community website for free. Choose your location, calculation method and style, then copy one line of code." />
   <meta name="theme-color" content="#f6faf7" media="(prefers-color-scheme: light)" />
   <meta name="theme-color" content="#0a100d" media="(prefers-color-scheme: dark)" />
+  <meta name="color-scheme" content="light dark" />
+  <!-- Saved theme before any stylesheet loads, so there is no light/dark flash. -->
+  <style>html{background:#f6faf7;color-scheme:light}html[data-theme="dark"]{background:#0a100d;color-scheme:dark}</style>
+  <script>(function(){var d=document.documentElement,t="system";try{t=(JSON.parse(localStorage.getItem("salaamstreet:settings")||"{}")||{}).theme||"system"}catch(e){}var k=t==="dark"||(t!=="light"&&!!window.matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light";d.setAttribute("data-theme",k);var m=document.querySelectorAll('meta[name="theme-color"]');for(var i=0;i<m.length;i++){m[i].setAttribute("content",k==="dark"?"#0a100d":"#f6faf7");m[i].removeAttribute("media")}var c=document.querySelector('meta[name="color-scheme"]');if(c)c.setAttribute("content",k)})();</script>
   <link rel="canonical" href="https://salaamstreet.com/widget/" />
   <link rel="icon" href="../icons/favicon-32.png" type="image/png" sizes="32x32" />
   <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png" />
@@ -14,13 +18,6 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="../css/styles.css" />
-  <script>
-    try {
-      var s = JSON.parse(localStorage.getItem("salaamstreet:settings") || "{}"), t = s.theme || "system";
-      var dark = t === "dark" || (t === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
-      document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
-    } catch (e) { /* noop */ }
-  </script>
   <style>
     .wb-top{display:flex;align-items:center;gap:10px;margin-block-end:24px}
     .wb-top a{font-weight:800;font-size:1.08rem;color:var(--primary-strong);display:inline-flex;align-items:center;gap:8px}

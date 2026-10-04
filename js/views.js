@@ -392,99 +392,7 @@
       });
   }
 
-  /* ═══════════ QIBLA ═══════════ */
-  var qbBearing = 0, qbHasCompass = false, qbListening = false, qbDialAngle = 0, qbTimer = null;
-
-  function qbRender(heading) {
-    // Rotate the dial (N/E/S/W + Kaaba needle) so it matches the real world.
-    var target = -heading;
-    var delta = ((target - qbDialAngle) % 360 + 540) % 360 - 180; // shortest way round
-    qbDialAngle += delta;
-    $("qb-dial").style.transform = "rotate(" + qbDialAngle + "deg)";
-    var diff = Math.abs(((qbBearing - heading) % 360 + 540) % 360 - 180);
-    var aligned = qbHasCompass && diff < 5;
-    var was = $("qibla-card").classList.contains("aligned");
-    $("qibla-card").classList.toggle("aligned", aligned);
-    $("qb-aligned").hidden = !aligned;
-    if (aligned && !was) vibrate(25);
-  }
-  function screenAngle() {
-    try { return (screen.orientation && screen.orientation.angle) || window.orientation || 0; } catch (e) { return 0; }
-  }
-  function qbOnOrientation(e) {
-    var heading = null;
-    if (typeof e.webkitCompassHeading === "number" && !isNaN(e.webkitCompassHeading)) heading = e.webkitCompassHeading;
-    else if (e.absolute && typeof e.alpha === "number") heading = 360 - e.alpha;
-    if (heading === null) return;
-    heading = (heading + screenAngle() + 360) % 360;
-    if (!qbHasCompass) {
-      qbHasCompass = true;
-      $("qb-hint").textContent = t("qibla.calibrate");
-    }
-    qbRender(heading);
-  }
-  function qbStop() {
-    if (qbListening) {
-      window.removeEventListener("deviceorientationabsolute", qbOnOrientation, true);
-      window.removeEventListener("deviceorientation", qbOnOrientation, true);
-      qbListening = false;
-    }
-    clearTimeout(qbTimer);
-  }
-  function qbEnable(fromClick) {
-    var DOE = window.DeviceOrientationEvent;
-    function listen() {
-      if (!qbListening) {
-        window.addEventListener("deviceorientationabsolute", qbOnOrientation, true);
-        window.addEventListener("deviceorientation", qbOnOrientation, true);
-        qbListening = true;
-      }
-      $("qb-enable").hidden = true;
-      clearTimeout(qbTimer);
-      qbTimer = setTimeout(function () { if (!qbHasCompass) $("qb-hint").textContent = t("qibla.noCompass"); }, 2500);
-    }
-    if (!DOE) { $("qb-hint").textContent = t("qibla.noCompass"); return; }
-    if (typeof DOE.requestPermission === "function") {
-      if (!fromClick) { $("qb-enable").hidden = false; return; }
-      DOE.requestPermission().then(function (res) {
-        if (res === "granted") listen();
-        else $("qb-hint").textContent = t("qibla.noCompass");
-      }).catch(function () { $("qb-hint").textContent = t("qibla.noCompass"); });
-    } else { listen(); }
-  }
-  function distanceKm(lat, lng) {
-    var R = 6371, rad = Math.PI / 180;
-    var dLat = (SS.KAABA.lat - lat) * rad, dLng = (SS.KAABA.lng - lng) * rad;
-    var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(lat * rad) * Math.cos(SS.KAABA.lat * rad) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
-    return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  }
-
-  function qiblaInit() {
-    $("qb-loc-chip").onclick = function () {
-      SS.geo.request().then(function (l) { if (!l) SS.toast(t("loc.denied")); qiblaLoad(); });
-    };
-    $("qb-enable").onclick = function () { qbEnable(true); };
-    qiblaLoad();
-  }
-  function qiblaLoad() {
-    SS.geo.resolve().then(function (loc) {
-      if (SS.currentView() !== "qibla") return;
-      $("qb-loc-label").textContent = locLabel(loc);
-      qbBearing = SS.qiblaBearing(loc.lat, loc.lng);
-      $("qb-deg").textContent = qbBearing.toFixed(1);
-      $("qb-needle").style.transform = "rotate(" + qbBearing + "deg)";
-      $("qb-compass").setAttribute("aria-label", f("qibla.compassLabel", { deg: qbBearing.toFixed(0) }));
-      var km = distanceKm(loc.lat, loc.lng);
-      $("qb-dist").textContent = SS.formatDistance(km, true);
-      $("qb-coords").textContent = loc.lat.toFixed(2) + ", " + loc.lng.toFixed(2);
-      if (!qbHasCompass) qbRender(0);
-      var hint = loc.isFallback ? t("dash.setLocation") : loc.approx ? t("loc.approx") : "";
-      $("qb-hint").textContent = qbHasCompass ? t("qibla.calibrate") : hint;
-      qbEnable(false);
-    });
-  }
-  leave.qibla = function () { qbStop(); qbHasCompass = false; };
+  /* ═══════════ QIBLA ═══════════ — see js/qibla.js */
 
   /* ═══════════ QURAN INDEX ═══════════ */
   var qiTab = "all";
@@ -831,42 +739,85 @@
     };
   }
 
+  /* Tafsir sheet. Every request gets a generation number; a response is only
+     rendered if it is still for the ayah on screen, so tapping quickly between
+     ayahs (or a slow network) can never show the commentary of another verse. */
+  var tfGen = 0, tfSurah = 0, tfAyah = 0;
   function showTafsir(surah, ayah) {
     var dlg = $("tafsir-dialog");
     if (!dlg || typeof dlg.showModal !== "function") return;
+    var meta = SS.SURAHS[surah - 1];
+    if (!meta) return;
+    ayah = Math.min(meta.ayahs, Math.max(1, ayah));
+    var gen = ++tfGen;
+    tfSurah = surah; tfAyah = ayah;
     var body = $("tafsir-body");
     $("tafsir-ref").textContent = surah + ":" + ayah;
+    $("tafsir-surah").textContent = surahName(meta) + " · " + f("tafsir.ayahN", { n: ayah });
+    $("tafsir-prev").disabled = ayah <= 1;
+    $("tafsir-next").disabled = ayah >= meta.ayahs;
+    $("tafsir-prev").onclick = function () { showTafsir(tfSurah, tfAyah - 1); };
+    $("tafsir-next").onclick = function () { showTafsir(tfSurah, tfAyah + 1); };
     body.setAttribute("aria-busy", "true");
-    body.innerHTML = skeletons(1, 18) + '<div class="mt-1">' + skeletons(1, 18) + '</div><div class="mt-1">' + skeletons(1, 80) + "</div>";
-    if (!dlg.open) SS.openDialog(dlg);
+    body.innerHTML = '<p class="visually-hidden">' + esc(t("common.loading")) + "</p>" + skeletons(1, 18) + '<div class="mt-1">' + skeletons(1, 18) + '</div><div class="mt-1">' + skeletons(1, 80) + "</div>";
+    if (!dlg.open) {
+      SS.openDialog(dlg);
+      if (!dlg._tfWired) {
+        dlg._tfWired = true;
+        // Closing invalidates any in-flight request and clears old text.
+        dlg.addEventListener("close", function () { tfGen++; $("tafsir-body").innerHTML = ""; });
+      }
+    }
     dlg.querySelector(".modal-scroll").scrollTop = 0;
     SS.api.tafsir(surah, ayah).then(function (r) {
+      if (gen !== tfGen || r.surah !== tfSurah || r.ayah !== tfAyah) return; // superseded
       var text = (r.text || "").trim();
       if (!text) { renderState(body, { kind: "empty", icon: "open-book", text: t("tafsir.none") }); return; }
       var paras = text.split(/\n\s*\n|\n/);
       var html = "";
       for (var i = 0; i < paras.length; i++) if (paras[i].trim()) html += "<p>" + esc(paras[i].trim()) + "</p>";
+      if (r.stale) html = '<p class="note">' + esc(t("common.offline")) + "</p>" + html;
       body.innerHTML = html;
       body.removeAttribute("aria-busy");
     }).catch(function () {
-      renderState(body, { kind: "error", retry: function () { showTafsir(surah, ayah); } });
+      if (gen !== tfGen) return;
+      renderState(body, { kind: "error", text: navigator.onLine === false ? t("common.offline") : t("tafsir.error"), retry: function () { showTafsir(surah, ayah); } });
     });
+  }
+  SS.showTafsir = showTafsir;
+
+  /** Remember where the reader is: continue-reading position (with time, so
+      the most recent device wins when synced), recently read surahs, and the
+      furthest ayah reached in each surah (reading progress). */
+  function srSaveProgress(surah, ayah) {
+    var now = Date.now();
+    SS.store.set("quran:lastRead", { surah: surah, ayah: ayah, at: now });
+    var recent = SS.store.get("quran:recent", []);
+    recent = (Array.isArray(recent) ? recent : []).filter(function (r) { return r && r.surah !== surah; });
+    recent.unshift({ surah: surah, ayah: ayah, at: now });
+    SS.store.set("quran:recent", recent.slice(0, 12));
+    var prog = SS.store.get("quran:progress", {}) || {};
+    if (!(prog[surah] >= ayah)) { prog[surah] = ayah; SS.store.set("quran:progress", prog); }
   }
 
   function srObserveLastRead() {
     if (srIO) { srIO.disconnect(); srIO = null; }
     if (typeof IntersectionObserver === "undefined") return;
-    var pending = null;
+    var pending = null, lastSaved = null;
     srIO = new IntersectionObserver(function (entries) {
       for (var i = 0; i < entries.length; i++) {
         if (entries[i].isIntersecting) pending = +entries[i].target.getAttribute("data-n");
       }
-      if (pending) SS.store.set("quran:lastRead", { surah: srN, ayah: pending });
+      if (pending && pending !== lastSaved) { lastSaved = pending; srSaveProgress(srN, pending); }
     }, { rootMargin: "-35% 0px -60% 0px" });
     var cards = document.querySelectorAll("#sr-list .ayah-card");
     for (var j = 0; j < cards.length; j++) srIO.observe(cards[j]);
   }
-  leave.surah = function () { if (srIO) { srIO.disconnect(); srIO = null; } };
+  leave.surah = function () {
+    if (srIO) { srIO.disconnect(); srIO = null; }
+    var tf = $("tafsir-dialog");
+    if (tf && tf.open) tf.close();
+  };
 
   /* ═══════════ DUAS ═══════════ */
   function duFavs() { return SS.store.get("duas:favorites", {}); }
@@ -1146,12 +1097,16 @@
       setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
     };
     $("st-delete").onclick = function () {
-      if (confirm(t("settings.deleteConfirm"))) {
+      var signedIn = SS.account && SS.account.signedIn();
+      if (!confirm(t(signedIn ? "settings.deleteConfirmAccount" : "settings.deleteConfirm"))) return;
+      // Signed in: this device forgets the account too (the account itself
+      // is only deleted from Account → Delete account).
+      (signedIn ? SS.account.signOut(false).catch(function () {}) : Promise.resolve()).then(function () {
         SS.store.clearAll();
         SS.geo.clear();
         location.hash = "#/home";
         location.reload();
-      }
+      });
     };
     hook("settingsInit", params);
   }
@@ -1388,7 +1343,6 @@
   SS.views = {
     home: homeInit,
     prayer: prayerInit,
-    qibla: qiblaInit,
     quran: quranInit,
     surah: surahInit,
     hadith: hadithInit,

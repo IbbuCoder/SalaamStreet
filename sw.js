@@ -2,12 +2,15 @@
    Keeps the app shell available offline. Same-origin files are fetched
    network-first (so a new deploy is picked up immediately) and fall back to
    the cache; Google Fonts are cached after first use. API responses are
-   cached by the app itself in localStorage, so they are not handled here. */
-var VERSION = "ss-v6";
+   cached by the app itself in localStorage, so they are not handled here.
+   The account client (js/vendor/supabase.js) is cached the first time
+   someone signs in, so guests never download it; Supabase API calls are
+   never cached. */
+var VERSION = "ss-v7";
 var SHELL = [
   "./", "index.html", "css/styles.css",
   "js/surahs.js", "js/duas.js", "js/extras.js", "js/content.js", "js/i18n.js", "js/core.js",
-  "js/views.js", "js/features.js", "js/app.js",
+  "js/views.js", "js/features.js", "js/qibla.js", "js/config.js", "js/sync.js", "js/account.js", "js/app.js",
   "manifest.webmanifest", "icons/icon-192.png", "icons/apple-touch-icon.png", "icons/favicon-32.png",
   "icons/brand/logo-mark-128.png", "icons/brand/logo-mark-256.png",
 ];
