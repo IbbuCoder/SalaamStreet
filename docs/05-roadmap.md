@@ -32,6 +32,10 @@ laptops and large monitors. Core worship features are, and will stay, free.
   (magnetic-declination correction, full 3-D orientation, no direction without a real location) and
   Qibla Camera Mode; Tafsir fix (correct files, no stale commentary, previous/next ayah); startup
   theme fix (no light/dark flash, dark iOS launch screens)
+- **2.5.5 — Quality of Life + Bug Fixes:** redesigned Qibla compass; smoother Camera Mode with
+  turn-left/right guidance, a heading strip and a lock-on animation with a short vibration; Ayah of the
+  Day audio; an "Opening soon" MSA tab (starting with the Neuqua Valley High School MSA); Google sign-in
+  switched on and email + password accounts; installed-app launch colour now matches the theme
 
 ## Planned (no release dates; plans may change)
 
@@ -40,7 +44,8 @@ The same list appears in the app under About → Updates (`SS.ROADMAP` in `js/co
 - **2.6.0 — Qur'an+:** deeper Qur'an study and reading tools
 - **2.7.0 — Hadith + Knowledge:** more hadith collections and learning content
 - **2.8.0 — Learn:** structured lessons beyond the Arabic alphabet
-- **2.9.0 — MSA + Community:** tools for Muslim Student Associations and local communities
+- **2.9.0 — MSA + Community:** tools for Muslim Student Associations and local communities (the MSA tab is
+  already open as a preview)
 - **3.0.0 — Major SalaamStreet milestone**
 
 Also open: push reminders that arrive while the site is closed, and native-speaker

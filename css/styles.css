@@ -501,65 +501,133 @@ dialog.sheet.tall{inline-size:min(calc(100vw - 32px),640px)}
 /* ── Qibla ─────────────────────────────────────────────────────── */
 .qibla-layout{display:grid;gap:16px}
 @media (min-width:900px){.qibla-layout{grid-template-columns:minmax(0,1.2fr) minmax(280px,1fr);gap:24px;align-items:start}}
-.qibla-card{text-align:center;display:grid;justify-items:center}
-.compass-wrap{display:grid;place-items:center;padding-block:22px 12px;inline-size:100%}
-.compass{
-  position:relative;inline-size:min(78vw,320px);aspect-ratio:1;border-radius:50%;
-  background:radial-gradient(circle,var(--surface) 56%,var(--surface-2));
-  box-shadow:var(--shadow-lg),inset 0 0 0 2px var(--border);transition:box-shadow .3s;
-}
-@media (max-height:640px) and (max-width:599px){.compass{inline-size:min(64vw,250px)}}
-.dial{position:absolute;inset:0;border-radius:50%;transition:transform .15s linear}
-.dial::before{ /* tick ring */
-  content:"";position:absolute;inset:8px;border-radius:50%;
-  background:repeating-conic-gradient(var(--text-3) 0 .6deg,transparent .6deg 15deg);
-  -webkit-mask:radial-gradient(circle,transparent 66%,#000 67%,#000 71%,transparent 72%);mask:radial-gradient(circle,transparent 66%,#000 67%,#000 71%,transparent 72%);opacity:.5;
-}
-.compass .cd{position:absolute;font-weight:800;color:var(--text-3);font-size:.9rem;inline-size:24px;text-align:center;line-height:24px}
-.compass .n{top:22px;left:calc(50% - 12px);color:var(--danger)}
-.compass .s{bottom:22px;left:calc(50% - 12px)}
-.compass .e{right:22px;top:calc(50% - 12px)}
-.compass .w{left:22px;top:calc(50% - 12px)}
-.needle{position:absolute;inset:16%;display:grid;place-items:start center;transform-origin:center;transition:transform .3s var(--ease)}
-.needle::before{content:"";position:absolute;inset-block:12% 50%;inline-size:4px;border-radius:4px;background:linear-gradient(var(--gold-bright),color-mix(in srgb,var(--gold-bright) 20%,transparent));left:calc(50% - 2px)}
-.needle .k{position:relative;margin-block-start:-6%;inline-size:44px;block-size:44px;filter:drop-shadow(0 3px 6px rgb(0 0 0/.3))}
-.needle .k svg{inline-size:100%;block-size:100%}
-.heading-mark{position:absolute;inset-block-start:-10px;left:calc(50% - 8px);inline-size:0;block-size:0;border-inline:8px solid transparent;border-block-start:12px solid var(--primary)}
-.qibla-deg{font-size:2.4rem;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1;direction:ltr}
-.aligned .compass{box-shadow:0 0 0 6px color-mix(in srgb,var(--gold-bright) 40%,transparent),var(--shadow-lg)}
-.qb-top{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:10px;inline-size:100%}
-.qb-modes button{display:inline-flex;align-items:center;gap:6px}
-.qb-modes button .ic{inline-size:16px;block-size:16px}
-.qb-modes button[aria-pressed="true"]{background:var(--surface);color:var(--primary-strong);box-shadow:var(--shadow-sm)}
-.qb-modes button:disabled{opacity:.45;cursor:not-allowed}
-.qb-locwarn{margin-block-start:12px;inline-size:100%;text-align:start}
-.qb-turn{font-weight:700;color:var(--primary-strong);margin-block-start:6px;font-size:1.05rem}
+.qibla-card{display:grid;justify-items:center;gap:14px;text-align:center}
+.qibla-card .note{margin:0}
+.qb-locwarn{inline-size:100%;text-align:start}
+.qb-pill{display:inline-flex;align-items:center;gap:8px;margin:0;padding:9px 18px;border-radius:999px;font-weight:700;font-size:1rem;background:var(--primary-soft);color:var(--primary-strong)}
+.qb-pill .ic{inline-size:18px;block-size:18px}
+.qb-aligned .ic{stroke-width:2.6}
 
-/* Qibla camera mode — full-screen AR-style overlay */
+/* Compass: the dial turns with the phone, the pointer on top is where you face. */
+.compass-wrap{display:grid;place-items:center;inline-size:100%}
+.compass{position:relative;inline-size:min(80vw,320px);aspect-ratio:1}
+@media (max-height:640px) and (max-width:599px){.compass{inline-size:min(64vw,250px)}}
+.qb-svg{display:block;inline-size:100%;block-size:100%;overflow:visible;stroke:none;stroke-linecap:butt}
+.qb-halo{fill:none;stroke:var(--gold-bright);stroke-width:1;opacity:0;transition:opacity .3s}
+.qb-face{fill:var(--surface);stroke:var(--border);stroke-width:1.5;transition:stroke .3s}
+.qb-ticks{fill:none;stroke:var(--surface-3);stroke-width:8;stroke-dasharray:1.2 9.97}
+.qb-ticks-major{fill:none;stroke:var(--text-3);stroke-width:13;stroke-dasharray:2.2 64.82}
+.qb-cd{font:600 15px var(--font);fill:var(--text-2);text-anchor:middle;dominant-baseline:central}
+.qb-cd-n{font-size:17px;font-weight:800;fill:var(--primary)}
+.qb-arc{fill:none;stroke:var(--gold-bright);stroke-width:6;stroke-linecap:round}
+.qb-kaaba-glow{fill:var(--gold-bright);opacity:0;transition:opacity .3s}
+.qb-kaaba-bg{fill:var(--surface);stroke:var(--gold);stroke-width:2}
+.qb-kaaba-cube{fill:#0b1210}
+html[data-theme="dark"] .qb-kaaba-cube{fill:#000;stroke:#3a4a42;stroke-width:1}
+.qb-kaaba-band{fill:var(--gold-bright)}
+.qb-pointer{fill:var(--primary);transition:fill .3s}
+.qb-hub{fill:var(--bg);stroke:var(--border);stroke-width:1.5}
+.qb-hub-n{font:800 34px var(--font);fill:var(--text);text-anchor:middle;dominant-baseline:central;font-variant-numeric:tabular-nums}
+.qb-hub-l{font:600 13px var(--font);fill:var(--text-2);text-anchor:middle;dominant-baseline:central}
+.qb-hub-check{display:none}
+.qb-hub-check circle{fill:var(--primary)}
+.qb-hub-check path{fill:none;stroke:var(--on-primary);stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+.qibla-card.aligned .qb-hub-check{display:inline}
+.qibla-card.aligned .qb-hub-n{display:none}
+.qibla-card.aligned .qb-hub-l{font-size:15px;font-weight:700;fill:var(--text)}
+.qibla-card.aligned .qb-face{stroke:var(--gold-bright);stroke-width:2.5}
+.qibla-card.aligned .qb-halo{opacity:.35}
+.qibla-card.aligned .qb-pointer{fill:var(--gold-bright)}
+.qibla-card.aligned .qb-kaaba-glow{opacity:.18}
+.qibla-card.aligned .qb-arc{display:none}
+/* Lock-on: a quick pop and a gold ring that settles. */
+.qb-lock .compass{animation:qb-pop .6s var(--ease)}
+.qb-lock .qb-halo{animation:qb-halo .9s ease-out}
+@keyframes qb-pop{0%{transform:scale(1)}35%{transform:scale(1.04)}100%{transform:scale(1)}}
+@keyframes qb-halo{from{opacity:.9;stroke-width:7}to{opacity:.35;stroke-width:1}}
+
+.qb-tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;inline-size:100%;margin:0}
+.qb-tiles > div{display:grid;align-content:start;gap:4px;padding:12px;border:1px solid var(--border);border-radius:14px;background:var(--bg);text-align:start;min-inline-size:0}
+.qb-tiles dt{font-size:.75rem;font-weight:600;color:var(--text-3)}
+.qb-tiles dd{margin:0;display:flex;align-items:center;flex-wrap:wrap;gap:0 5px;font-size:1rem;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.3}
+[dir="rtl"] .qb-tiles dd[dir="ltr"]{justify-content:flex-end}
+.qb-dot{inline-size:8px;block-size:8px;border-radius:50%;background:var(--text-3);flex-shrink:0}
+.qb-dot.on{background:var(--primary)}
+.qb-dot.warn{background:var(--gold-bright)}
+.qb-open-cam{inline-size:100%;min-block-size:52px;font-size:1.02rem}
+
+/* ── Qibla camera mode (full-screen overlay) ── */
 body.qb-cam-open{overflow:hidden}
-.qb-cam{position:fixed;inset:0;z-index:200;background:#000;color:#fff;overflow:hidden;display:grid}
-.qb-cam[hidden]{display:none}
+.qb-cam{position:fixed;inset:0;z-index:200;background:#000;color:#fff;overflow:hidden}
 .qb-cam video{position:absolute;inset:0;inline-size:100%;block-size:100%;object-fit:cover}
-.qb-cam-shade{position:absolute;inset:0;background:linear-gradient(rgb(0 0 0/.55),transparent 22%,transparent 62%,rgb(0 0 0/.7));pointer-events:none}
-.qb-cam-top{position:absolute;inset-inline:0;inset-block-start:0;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:calc(var(--safe-t) + 12px) calc(var(--safe-r) + 14px) 12px calc(var(--safe-l) + 14px)}
-.qb-cam-btn{display:inline-flex;align-items:center;gap:6px;min-block-size:44px;padding:8px 14px 8px 10px;border-radius:999px;border:0;background:rgb(0 0 0/.5);color:#fff;font:inherit;font-weight:700;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);cursor:pointer}
+.qb-cam-shade{position:absolute;inset:0;background:linear-gradient(rgb(0 0 0/.5),transparent 25%,transparent 55%,rgb(0 0 0/.55));pointer-events:none}
+.qb-cam-top{position:absolute;inset-inline:0;inset-block-start:0;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:calc(var(--safe-t) + 12px) calc(var(--safe-r) + 16px) 12px calc(var(--safe-l) + 16px)}
+.qb-cam-btn{white-space:nowrap;display:inline-flex;align-items:center;gap:6px;min-block-size:44px;padding:8px 14px 8px 10px;border-radius:999px;border:0;background:rgb(10 16 13/.66);color:#fff;font:inherit;font-weight:700;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);cursor:pointer}
 .qb-cam-btn:focus-visible{outline:3px solid var(--gold-bright);outline-offset:2px}
-.qb-cam-deg{font-weight:800;font-variant-numeric:tabular-nums;background:rgb(0 0 0/.45);padding:6px 12px;border-radius:999px}
-.qb-cam-center{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none}
-.qb-cam-cross{inline-size:2px;block-size:44px;background:rgb(255 255 255/.75);border-radius:2px;box-shadow:0 0 6px rgb(0 0 0/.5)}
-.qb-cam-marker{position:absolute;transform:translate(-50%,-50%);display:grid;justify-items:center;gap:4px;transition:left .12s linear,top .12s linear;pointer-events:none}
-.qb-cam-marker .k{inline-size:64px;block-size:64px;padding:8px;border-radius:18px;background:rgb(255 255 255/.18);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);border:2px solid var(--gold-bright);filter:drop-shadow(0 4px 10px rgb(0 0 0/.5))}
+.qb-cam-deg{white-space:nowrap;font-weight:700;font-variant-numeric:tabular-nums;background:rgb(10 16 13/.66);padding:10px 14px;border-radius:999px;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);transition:background-color .25s,color .25s}
+.qb-cam.aligned .qb-cam-deg{background:var(--em-500);color:#022c22}
+.qb-cam-deg:empty{display:none}
+/* Heading strip: where you're facing (centre notch) and where the Qibla is. */
+.qb-tape{position:absolute;inset-inline:calc(var(--safe-l) + 16px) calc(var(--safe-r) + 16px);inset-block-start:calc(var(--safe-t) + 70px);max-inline-size:520px;margin-inline:auto;block-size:54px;border-radius:14px;background:rgb(10 16 13/.62);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);overflow:hidden;direction:ltr;pointer-events:none}
+.qb-tape-strip{position:absolute;inset-block:0;left:50%;will-change:transform}
+.qb-tape-strip > span{position:absolute;top:10px;transform:translateX(-50%);font-size:.8rem;font-weight:600;color:#b0c2b8;white-space:nowrap;line-height:16px}
+.qb-tape-strip > span::after{content:"";position:absolute;top:24px;left:calc(50% - 1px);inline-size:2px;block-size:8px;border-radius:1px;background:#87998f}
+.qb-tape-strip > .cardinal{color:#6ee7b7;font-weight:800}
+.qb-tape-strip > .qb-tape-k{top:10px;inline-size:16px;block-size:16px;box-sizing:border-box;border:1.5px solid var(--gold-bright);border-radius:3px;background:#000}
+.qb-tape-strip > .qb-tape-k::before{content:"";position:absolute;inset-inline:0;top:3px;block-size:3px;background:var(--gold-bright)}
+.qb-tape-strip > .qb-tape-k::after{top:23px;background:var(--gold-bright)}
+.qb-tape-notch{position:absolute;top:0;left:calc(50% - 7px);border-inline:7px solid transparent;border-block-start:8px solid #fff;transition:border-color .25s}
+.qb-cam.aligned .qb-tape-notch{border-block-start-color:var(--gold-bright)}
+.qb-tape-edge{position:absolute;inset-block:0;inline-size:26px;display:grid;place-items:center;background:var(--gold-bright);color:#1a1406}
+.qb-tape-l{left:0}
+.qb-tape-r{right:0}
+.qb-tape-edge .ic{inline-size:16px;block-size:16px;stroke-width:3}
+/* Centre ring: the Kaaba lands in it when you face the Qibla. */
+.qb-cam-reticle{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none}
+.qb-cam-reticle > span{grid-area:1/1;border-radius:50%}
+.qb-ring{inline-size:120px;block-size:120px;box-sizing:border-box;border:2px solid rgb(255 255 255/.85);box-shadow:0 0 8px rgb(0 0 0/.35);transition:border-color .25s,background-color .25s}
+.qb-dotc{inline-size:6px;block-size:6px;background:#fff;transition:opacity .2s}
+.qb-ring-glow{inline-size:190px;block-size:190px;background:radial-gradient(circle,rgb(227 194 90/.3) 40%,rgb(227 194 90/0) 70%);opacity:0;transform:scale(.6);transition:opacity .3s,transform .45s var(--ease)}
+.qb-cam.aligned .qb-ring{border:3px solid var(--gold-bright);background:rgb(10 16 13/.3)}
+.qb-cam.aligned .qb-ring-glow{opacity:1;transform:scale(1)}
+.qb-cam.aligned .qb-dotc{opacity:0}
+.qb-cam.qb-lock .qb-ring{animation:qb-ring-pop .55s var(--ease)}
+@keyframes qb-ring-pop{0%{transform:scale(1.3)}60%{transform:scale(.94)}100%{transform:scale(1)}}
+/* Kaaba marker: positioned by script with a transform (no layout per frame). */
+.qb-cam-marker{position:absolute;left:50%;top:50%;display:grid;justify-items:center;gap:4px;pointer-events:none;will-change:transform}
+.qb-cam-marker .k{inline-size:56px;block-size:56px;box-sizing:border-box;padding:7px;border-radius:16px;background:rgb(255 255 255/.18);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);border:2px solid var(--gold-bright);filter:drop-shadow(0 4px 10px rgb(0 0 0/.5))}
 .qb-cam-marker .k svg{inline-size:100%;block-size:100%}
 .qb-cam-marker-l{font-weight:800;font-size:.85rem;background:var(--gold-bright);color:#1a1405;padding:2px 10px;border-radius:999px}
-.qb-cam-guide{position:absolute;inset-inline:0;inset-block-end:0;display:grid;justify-items:center;gap:10px;padding:16px 20px calc(var(--safe-b) + 24px);text-align:center}
-.qb-cam-arrow{inline-size:88px;block-size:88px;transition:transform .15s linear}
-.qb-cam-arrow svg{inline-size:100%;block-size:100%;fill:#fff;stroke:rgb(0 0 0/.35);stroke-width:2;filter:drop-shadow(0 3px 8px rgb(0 0 0/.5))}
-.qb-cam-arrow.on svg{fill:var(--gold-bright)}
-.qb-cam-msg{font-size:1.35rem;font-weight:800;text-shadow:0 2px 8px rgb(0 0 0/.6);min-block-size:1.4em}
-.qb-cam.aligned .qb-cam-msg{color:var(--gold-bright)}
-.qb-cam-note{font-size:.82rem;opacity:.85;max-inline-size:34ch;text-shadow:0 1px 4px rgb(0 0 0/.6)}
-@media (prefers-reduced-motion:reduce){.qb-cam-arrow,.qb-cam-marker{transition:none}}
-.aligned-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:999px;background:color-mix(in srgb,var(--gold-bright) 18%,transparent);color:var(--gold);font-weight:700}
+/* Big edge arrow: which way to turn. */
+.qb-cam-arrow{position:absolute;top:calc(50% - 50px);inline-size:62px;block-size:100px;border-radius:31px;display:grid;place-items:center;background:var(--gold-bright);color:#1a1406;box-shadow:0 6px 20px rgb(0 0 0/.35);animation:qb-nudge-r 1.2s ease-in-out infinite;pointer-events:none}
+.qb-cam-arrow.right{right:calc(var(--safe-r) + 12px)}
+.qb-cam-arrow.left{left:calc(var(--safe-l) + 12px);animation-name:qb-nudge-l}
+.qb-cam-arrow.left svg{transform:scaleX(-1)}
+.qb-cam-arrow svg{inline-size:34px;block-size:34px;fill:none;stroke:currentColor;stroke-width:2.8;stroke-linecap:round;stroke-linejoin:round}
+@keyframes qb-nudge-r{0%,100%{translate:0}50%{translate:6px}}
+@keyframes qb-nudge-l{0%,100%{translate:0}50%{translate:-6px}}
+/* Bottom panel. */
+.qb-cam-guide{position:absolute;inset-inline:calc(var(--safe-l) + 16px) calc(var(--safe-r) + 16px);inset-block-end:calc(var(--safe-b) + 20px);max-inline-size:520px;margin-inline:auto;display:grid;gap:14px;padding:20px;border-radius:24px;background:rgb(10 16 13/.84);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+.qb-cam-head{display:flex;align-items:center;gap:12px}
+.qb-cam-check{display:none;place-items:center;inline-size:44px;block-size:44px;border-radius:50%;background:var(--em-500);color:#022c22;flex-shrink:0}
+.qb-cam-check .ic{inline-size:24px;block-size:24px;stroke-width:3}
+.qb-cam.aligned .qb-cam-check{display:grid}
+.qb-cam-msg{margin:0;font-size:1.6rem;font-weight:800;line-height:1.15;min-block-size:1.15em}
+.qb-cam.aligned .qb-cam-msg{font-size:1.4rem}
+.qb-cam-sub{margin:2px 0 0;font-size:.9rem;color:#b0c2b8}
+.qb-cam-sub:empty{display:none}
+.qb-cam-meter{display:grid;gap:8px}
+.qb-cam-meter-row{display:flex;justify-content:space-between;gap:12px;font-size:.82rem;color:#b0c2b8}
+.qb-cam.aligned #qb-cam-meter-l{color:#6ee7b7;font-weight:700}
+.qb-cam-bar{block-size:8px;border-radius:4px;background:rgb(255 255 255/.16);overflow:hidden}
+.qb-cam-bar span{display:block;block-size:100%;border-radius:4px;background:var(--em-500);transform:scaleX(0);transform-origin:left center;will-change:transform}
+[dir="rtl"] .qb-cam-bar span{transform-origin:right center}
+.qb-cam-guide .btn{inline-size:100%}
+.qb-cam-note{margin:0;font-size:.78rem;color:#9fb1a7}
+@media (prefers-reduced-motion:reduce){
+  .qb-lock .compass,.qb-lock .qb-halo,.qb-cam.qb-lock .qb-ring,.qb-cam-arrow{animation:none}
+  .qb-ring-glow{transition:none}
+}
 .steps{padding-inline-start:20px;display:grid;gap:8px;color:var(--text-2)}
 .steps li::marker{color:var(--primary);font-weight:800}
 .facts{display:grid;gap:10px}
@@ -1237,3 +1305,17 @@ html[data-theme="dark"] .acct-method.acct-apple{background:#fff;color:#000;borde
 .acct-pw-tabs button{flex:1}
 .acct-pw-tabs button[aria-pressed="true"]{background:var(--surface);color:var(--primary-strong);box-shadow:var(--shadow-sm)}
 .acct-check.tiny{font-weight:500;font-size:.88rem}
+
+/* ═══════════ MSA (opening soon) ═══════════ */
+.nav-soon{display:none}
+@media (min-width:1100px){.nav-soon{display:inline-flex;margin-inline-start:auto;font-size:.66rem;padding:1px 8px}}
+.msa-hero{display:grid;gap:10px;justify-items:start}
+@media (min-width:600px){.msa-hero{padding:28px}}
+.msa-hero h2{font-size:1.5rem;line-height:1.2;margin:0}
+.msa-hero p{margin:0;max-inline-size:52ch}
+.msa-grid{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+@media (min-width:600px){.msa-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.msa-feature{display:flex;gap:14px;align-items:flex-start}
+.msa-feature .q-ic{flex-shrink:0}
+.msa-feature h3{font-size:1rem;margin:0 0 2px}
+.msa-feature p{margin:0;font-size:.92rem}

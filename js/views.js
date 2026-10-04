@@ -209,8 +209,15 @@
       body.innerHTML =
         '<p class="arabic" lang="ar">' + esc(a.arabic) + "</p>" +
         '<p class="translation mt-1"' + trAttrs() + ">" + esc(a.translation) + "</p>" +
-        '<div class="card-foot"><span class="spacer"></span><button class="btn btn-ghost btn-sm" type="button" id="da-share">' + icon("share") + "<span>" + esc(t("common.share")) + "</span></button></div>";
+        '<div class="card-foot"><button class="btn btn-ghost btn-sm" type="button" id="da-play"></button>' +
+        '<span class="spacer"></span><button class="btn btn-ghost btn-sm" type="button" id="da-share">' + icon("share") + "<span>" + esc(t("common.share")) + "</span></button></div>";
       body.removeAttribute("aria-busy");
+      dailyAyah = { surah: a.surah.number, ayah: a.numberInSurah };
+      setDailyPlay();
+      $("da-play").onclick = function () {
+        if (SS.audio.state(dailyAyah.surah, dailyAyah.ayah).loaded) SS.audio.toggle();
+        else SS.audio.start(dailyAyah.surah, dailyAyah.ayah, SS.SURAHS[dailyAyah.surah - 1], false, { single: true });
+      };
       $("da-share").onclick = function () {
         if (SS.share) SS.share.open({ arabic: a.arabic, text: a.translation, ref: "Qur'an " + a.surah.number + ":" + a.numberInSurah + " · " + a.surah.englishName, dir: SS.translation().dir });
       };
@@ -218,6 +225,16 @@
       renderState(body, { kind: "error", inline: true, retry: homeLoadAyah });
     });
   }
+
+  /** The Ayah of the Day's play button mirrors the shared audio player. */
+  var dailyAyah = null;
+  function setDailyPlay() {
+    var b = $("da-play");
+    if (!b || !dailyAyah) return;
+    var playing = SS.audio.state(dailyAyah.surah, dailyAyah.ayah).playing;
+    b.innerHTML = icon(playing ? "pause" : "play") + "<span>" + esc(t(playing ? "common.pause" : "home.listen")) + "</span>";
+  }
+  document.addEventListener("ss:audio", setDailyPlay);
 
   /** Streak only counts if it was kept up today or yesterday. */
   function liveStreak() {

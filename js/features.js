@@ -26,9 +26,6 @@
   function weekdayShort(d) {
     try { return d.toLocaleDateString(SS.i18n.dateLocale(), { weekday: "short" }); } catch (e) { return ""; }
   }
-  function keyActivate(handler) {
-    return function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handler(e); } };
-  }
 
   /* ═══════════ PRAYER TRACKER ═══════════ */
   var tracker = {

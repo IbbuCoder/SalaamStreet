@@ -18,7 +18,7 @@
     try { return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"; } catch (e) { return "light"; }
   };
   /** Paint a theme everywhere the startup script in index.html does — page,
-      browser chrome, iOS status bar and launch images — so a theme change
+      browser chrome, iOS status bar, launch images and manifest — so a theme change
       (by the user, the system, or account sync) is the same as a fresh load. */
   SS.paintTheme = function (mode) {
     var d = document.documentElement;
@@ -36,6 +36,12 @@
     if (cs) cs.setAttribute("content", mode);
     var st = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
     if (st) st.setAttribute("content", mode === "dark" ? "black" : "default");
+    var mf = document.querySelector('link[rel="manifest"][data-dark]');
+    if (mf) {
+      if (!mf.getAttribute("data-light")) mf.setAttribute("data-light", mf.getAttribute("href"));
+      var want = mf.getAttribute(mode === "dark" ? "data-dark" : "data-light");
+      if (mf.getAttribute("href") !== want) mf.setAttribute("href", want);
+    }
     var sp = document.querySelectorAll('link[rel="apple-touch-startup-image"][data-dark]');
     for (i = 0; i < sp.length; i++) {
       var light = sp[i].getAttribute("data-light") || sp[i].getAttribute("href");
@@ -106,6 +112,7 @@
 
   /* ── Audio player (shared, survives view switches) ─────────── */
   var audio = null, curSurah = 0, curAyah = 0, curMeta = null;
+  var singleAyah = false; // stop after this ayah (e.g. the home Ayah of the Day)
   // Repeat each ayah: 0 = off, then 3×, 5×, 10×, or endlessly (memorization).
   var REPEATS = [0, 3, 5, 10, Infinity], repeatIdx = 0, repeatLeft = 0;
   var brIdx = 0; // index into SS.AUDIO_BITRATES currently being tried
@@ -147,6 +154,8 @@
     if ("mediaSession" in navigator) {
       try { navigator.mediaSession.playbackState = playing ? "playing" : "paused"; } catch (e) { /* noop */ }
     }
+    // Lets other play buttons (e.g. the Ayah of the Day card) mirror the player.
+    document.dispatchEvent(new CustomEvent("ss:audio", { detail: { surah: curSurah, ayah: curAyah, playing: playing } }));
   }
   function ensureAudio() {
     if (audio) return;
@@ -160,6 +169,7 @@
     });
     audio.addEventListener("ended", function () {
       if (repeatLeft > 1) { repeatLeft--; return SS.audio.start(curSurah, curAyah, curMeta, true); }
+      if (singleAyah) { setPlayingUI(false); clearHighlight(); return; }
       if (curMeta && curAyah < curMeta.ayahs) SS.audio.start(curSurah, curAyah + 1, curMeta);
       else if (SS.store.settings().continuousPlay && curSurah < 114) {
         // Optional: carry on into the next surah.
@@ -211,9 +221,10 @@
   }
 
   SS.audio = {
-    start: function (surah, ayah, meta, isRepeat) {
+    /** Play an ayah. opts.single: stop after it instead of carrying on. */
+    start: function (surah, ayah, meta, isRepeat, opts) {
       ensureAudio();
-      if (!isRepeat) repeatLeft = REPEATS[repeatIdx];
+      if (!isRepeat) { repeatLeft = REPEATS[repeatIdx]; singleAyah = !!(opts && opts.single); }
       curSurah = surah; curAyah = ayah; curMeta = meta;
       brIdx = SS.store.get("audio:br:" + currentReciter(), 0) || 0;
       playCurrent();
@@ -238,6 +249,11 @@
     sync: function () { if (audio && !audio.paused) highlight(); },
     refreshLabel: function () { if (curMeta) $("ab-now").textContent = nowLabel(); },
     isActive: function () { return !!audio && !$("audio-bar").hidden; },
+    /** Is this ayah the one loaded in the player, and is it playing? */
+    state: function (surah, ayah) {
+      var loaded = !!audio && !$("audio-bar").hidden && curSurah === surah && curAyah === ayah;
+      return { loaded: loaded, playing: loaded && !audio.paused };
+    },
     toggle: function () {
       if (!audio) return;
       if (audio.paused) { var p = audio.play(); if (p && p.catch) p.catch(function () {}); }
@@ -263,6 +279,7 @@
     $("ab-close").onclick = function () {
       if (audio) { audio.pause(); audio.removeAttribute("src"); audio.load(); }
       $("audio-bar").hidden = true;
+      setPlayingUI(false);
       document.body.classList.remove("has-audio");
       clearHighlight();
     };
@@ -297,16 +314,16 @@
 
   /* ── Router ─────────────────────────────────────────────────── */
   var VIEWS = ["home", "prayer", "qibla", "quran", "surah", "hadith", "duas", "dhikr", "calendar", "settings",
-    "adhkar", "names", "mosques", "learn", "about", "account"];
+    "adhkar", "names", "mosques", "learn", "about", "account", "msa"];
   // Which nav item to highlight for views that aren't themselves nav items.
   var NAV_ALIAS = { surah: "quran" };
   // Destinations that live in the phone "More" sheet light up the More tab.
-  var IN_MORE = { hadith: 1, duas: 1, dhikr: 1, calendar: 1, settings: 1, adhkar: 1, names: 1, mosques: 1, learn: 1, about: 1, account: 1 };
+  var IN_MORE = { hadith: 1, duas: 1, dhikr: 1, calendar: 1, settings: 1, adhkar: 1, names: 1, mosques: 1, learn: 1, about: 1, account: 1, msa: 1 };
   var TITLE_KEY = {
     home: "nav.dashboard", prayer: "prayer.title", qibla: "qibla.title", quran: "quran.title", surah: "quran.title",
     hadith: "hadith.title", duas: "duas.title", dhikr: "dhikr.title", calendar: "cal.title", settings: "settings.title",
     adhkar: "adhkar.title", names: "names.title", mosques: "mosques.title", learn: "learn.title", about: "about.title",
-    account: "account.title",
+    account: "account.title", msa: "msa.title",
   };
   var currentView = "", currentHash = "";
   SS.currentView = function () { return currentView; };

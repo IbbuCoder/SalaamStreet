@@ -12,6 +12,7 @@ const { chromium } = require("playwright");
 const { createMock, URL_BASE } = require("./helpers/mock-supabase");
 
 const ROOT = path.resolve(__dirname, "..");
+const VERSION = require("../package.json").version;
 const SHOTS = process.env.SS_SHOTS || "";
 const TYPES = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".png": "image/png", ".json": "application/json", ".webmanifest": "application/manifest+json", ".svg": "image/svg+xml" };
 let server, base, browser;
@@ -75,14 +76,14 @@ async function device(opts = {}) {
   }
   const settings = Object.assign({ location: CHICAGO }, opts.settings || {});
   if (opts.noSettings !== true) {
-    await context.addInitScript((s) => {
+    await context.addInitScript(({ s, v }) => {
       if (!sessionStorage.getItem("seeded")) {
         sessionStorage.setItem("seeded", "1");
         localStorage.setItem("salaamstreet:settings", JSON.stringify(s));
         localStorage.setItem("salaamstreet:onboarded", "true");
-        localStorage.setItem("salaamstreet:seenVersion", '"2.5.0"');
+        localStorage.setItem("salaamstreet:seenVersion", JSON.stringify(v)); // no "new version" toast
       }
-    }, settings);
+    }, { s: settings, v: VERSION });
   }
   const page = await context.newPage();
   page.errors = [];
@@ -124,6 +125,7 @@ test("startup uses the saved theme from the very first frame", async () => {
       bootBg: getComputedStyle(document.getElementById("boot")).backgroundColor,
       themeColor: [...document.querySelectorAll('meta[name="theme-color"]')].map((m) => m.content + "|" + (m.getAttribute("media") || "")),
       splash: document.querySelector('link[rel="apple-touch-startup-image"]').getAttribute("href"),
+      manifest: document.querySelector('link[rel="manifest"]').getAttribute("href"),
     }));
     const label = JSON.stringify(c);
     assert.equal(early.theme, c.want, label);
@@ -131,6 +133,8 @@ test("startup uses the saved theme from the very first frame", async () => {
     assert.equal(early.bootBg, c.bg, label);
     assert.ok(early.themeColor.every((m) => m === (c.want === "dark" ? "#0a100d|" : "#f6faf7|")), label + " " + early.themeColor);
     assert.equal(/-dark\.png$/.test(early.splash), c.want === "dark", label + " " + early.splash);
+    // Installed apps take their launch-screen colour from the manifest.
+    assert.equal(early.manifest, c.want === "dark" ? "manifest-dark.webmanifest" : "manifest.webmanifest", label);
     release();
     await page.waitForFunction(() => !document.getElementById("boot"));
     const after = await page.evaluate(() => [document.documentElement.getAttribute("data-theme"), getComputedStyle(document.body).backgroundColor]);
@@ -145,9 +149,13 @@ test("changing theme in the app updates page, browser chrome colour and launch i
   await open(page, "#/home");
   await page.click("#theme-toggle"); // light → dark
   const s = await page.evaluate(() => [document.documentElement.getAttribute("data-theme"),
-    document.querySelector('meta[name="theme-color"]').content, document.querySelector('link[rel="apple-touch-startup-image"]').getAttribute("href")]);
+    document.querySelector('meta[name="theme-color"]').content, document.querySelector('link[rel="apple-touch-startup-image"]').getAttribute("href"),
+    document.querySelector('link[rel="manifest"]').getAttribute("href")]);
   assert.deepEqual(s.slice(0, 2), ["dark", "#0a100d"]);
   assert.match(s[2], /-dark\.png$/);
+  assert.equal(s[3], "manifest-dark.webmanifest");
+  await page.click("#theme-toggle"); // dark → system (light here)
+  assert.equal(await page.getAttribute('link[rel="manifest"]', "href"), "manifest.webmanifest");
   assert.deepEqual(page.errors, []);
   await context.close();
 });
@@ -225,6 +233,16 @@ test("qibla compass: true bearing, declination-corrected heading, turn guidance"
   const magHeading = deg - decl, alpha = (360 - magHeading + 360) % 360;
   await orient(page, { alpha });
   assert.equal(await page.isVisible("#qb-aligned"), true);
+  assert.match(await page.textContent("#qb-hub-l"), /Locked on/);
+  // Small wobble while locked on stays locked (no flicker)…
+  await orient(page, { alpha: (alpha + 6) % 360 });
+  assert.equal(await page.isVisible("#qb-aligned"), true);
+  // …but turning further away unlocks it.
+  await orient(page, { alpha: (alpha + 12) % 360 });
+  assert.equal(await page.isVisible("#qb-aligned"), false);
+  assert.match(await page.textContent("#qb-turn"), /Turn right 12°/);
+  assert.notEqual(await page.getAttribute("#qb-arc", "d"), ""); // gold arc shows the way to turn
+  await orient(page, { alpha });
   // Old behaviour ignored declination: pointing at magnetic 48.6 would be ~4° off.
   await orient(page, { alpha: (360 - deg + 360) % 360 });
   // Turn 90° away → told which way to turn.
@@ -260,11 +278,17 @@ test("qibla camera mode: live camera, real direction overlay, clear exit", async
   const camMag = deg + 40 - decl;
   await orient(page, { alpha: (360 - camMag + 360) % 360, beta: 90 });
   assert.match(await page.textContent("#qb-cam-msg"), /Turn left 40°/);
+  assert.equal(await page.isVisible("#qb-cam-arrow.left"), true); // big edge arrow on the left
+  assert.equal(await page.isVisible("#qb-tape-l"), true); // heading strip: the Qibla is off to the left
+  assert.equal(await page.isVisible("#qb-cam-done"), false);
   assert.equal(await page.isVisible("#qb-cam-marker"), false); // outside the camera's view
   await orient(page, { alpha: (360 - (deg + 6 - decl) + 360) % 360, beta: 90 });
   assert.equal(await page.isVisible("#qb-cam-marker"), true); // Kaaba marker on screen, slightly left
   await orient(page, { alpha: (360 - (deg - decl) + 360) % 360, beta: 90 });
   assert.match(await page.textContent("#qb-cam-msg"), /facing the Qibla/);
+  assert.equal(await page.isVisible("#qb-cam-arrow"), false);
+  assert.equal(await page.isVisible("#qb-cam-done"), true);
+  assert.match(await page.textContent("#qb-cam-sub"), /to Makkah/);
   await shot(page, "qibla-camera-mobile");
   // Exit button → back to compass, camera released.
   await page.click("#qb-cam-exit");
@@ -592,11 +616,39 @@ test("accounts: a sign-in method that isn't enabled yet gives a clear message", 
   await context.close();
 });
 
+/* ═══════════ Home & MSA ═══════════ */
+test("ayah of the day: Listen plays just that ayah in the shared player", async () => {
+  const { page, context } = await device();
+  await open(page, "#/home");
+  await page.waitForSelector("#da-play");
+  assert.match(await page.textContent("#da-play"), /Listen/);
+  await page.click("#da-play");
+  await page.waitForSelector("#audio-bar:not([hidden])");
+  assert.match(await page.textContent("#ab-now"), /1:1/);
+  assert.deepEqual(await page.evaluate(() => SS.audio.state(1, 1).loaded), true);
+  assert.deepEqual(page.errors, []);
+  await context.close();
+});
+
+test("MSA tab: opening soon page, reachable from the navigation", async () => {
+  const { page, context } = await device();
+  await open(page, "#/home");
+  await page.click("#more-btn");
+  await page.click('#more-sheet a[href="#/msa"]');
+  await page.waitForSelector("#view-msa:not([hidden])");
+  assert.equal(await page.textContent("#msa-h"), "MSA");
+  assert.match(await page.textContent("#view-msa"), /Opening soon/);
+  assert.match(await page.textContent("#view-msa"), /Neuqua Valley High School MSA/);
+  assert.equal(await page.getAttribute('#more-btn', "class"), "active"); // More tab lights up
+  assert.deepEqual(page.errors, []);
+  await context.close();
+});
+
 test("layout: no horizontal overflow on phone, tablet and desktop", async () => {
   const mock = createMock();
   for (const vp of [{ width: 320, height: 640 }, { width: 390, height: 844 }, { width: 820, height: 1180 }, { width: 1440, height: 900 }]) {
     const { page, context } = await device({ mock, context: { viewport: vp } });
-    for (const v of ["#/account", "#/qibla", "#/settings", "#/home"]) {
+    for (const v of ["#/account", "#/qibla", "#/settings", "#/home", "#/msa"]) {
       await open(page, v);
       const over = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
       assert.ok(over <= 0, `${v} overflows by ${over}px at ${vp.width}px`);

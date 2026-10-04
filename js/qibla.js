@@ -226,6 +226,12 @@
       var y = Math.sin(prev * RAD) * (1 - k) + Math.sin(next * RAD) * k;
       return norm360(Math.atan2(y, x) / RAD);
     }
+    // Smooth hard while the phone is still (hides sensor jitter) but follow
+    // quickly while it's turning (no lag): the bigger the jump, the less smoothing.
+    function adaptiveK(prev, next) {
+      if (prev === null) return 1;
+      return Math.min(0.85, 0.12 + Math.abs(angleDiff(prev, next)) / 25);
+    }
     function onEvent(e) {
       if (typeof e.alpha !== "number" || typeof e.beta !== "number" || typeof e.gamma !== "number" || isNaN(e.alpha)) return;
       var alphaAbs = null, accuracy = null;
@@ -246,8 +252,8 @@
       var h = orientationHeadings(alphaAbs, e.beta, e.gamma, screenAngle());
       // Magnetic → true north.
       var top = norm360(h.top + decl), cam = norm360(h.camera + decl);
-      smooth.top = lowpass(smooth.top, top, 0.25);
-      smooth.camera = lowpass(smooth.camera, cam, 0.25);
+      smooth.top = lowpass(smooth.top, top, adaptiveK(smooth.top, top));
+      smooth.camera = lowpass(smooth.camera, cam, adaptiveK(smooth.camera, cam));
       last = { top: smooth.top, camera: smooth.camera, flat: h.flat, pitch: h.pitch, accuracy: accuracy };
       if (!rafPending) {
         rafPending = true;
@@ -289,44 +295,138 @@
   })();
   SS.compass = compass;
 
+
   /* ═══════════ Qibla view ═══════════ */
   var $ = function (id) { return document.getElementById(id); };
   function t(k) { return SS.i18n.t(k); }
   function f(k, v) { return SS.ui.f(k, v); }
-  var bearing = null, dialAngle = 0, noSensorTimer = null, loc = null, loadGen = 0;
-  var camStream = null, camOpen = false, camPushed = false, lastAligned = false;
+  var bearing = null, noSensorTimer = null, loc = null, loadGen = 0;
+  var camStream = null, camOpen = false, camPushed = false;
+  // Locked on, with hysteresis: lock within LOCK_IN degrees, and stay locked
+  // until LOCK_OUT degrees away, so sensor jitter can't make it flicker.
+  var LOCK_IN = 4, LOCK_OUT = 8, aligned = false;
 
   function fmtDeg(d) { return (Math.round(d * 10) / 10).toFixed(1); }
+  /** Eight-point compass name for a bearing (N, NE, E, …). */
+  function pointName(d) { return t("qibla.dir" + Math.round(norm360(d) / 45) % 8); }
   function turnText(diff) {
-    var n = Math.round(Math.abs(diff));
-    if (n <= 5) return t("qibla.aligned");
-    return f(diff > 0 ? "qibla.turnRight" : "qibla.turnLeft", { n: n });
+    if (aligned) return t("qibla.aligned");
+    return f(diff > 0 ? "qibla.turnRight" : "qibla.turnLeft", { n: Math.max(1, Math.round(Math.abs(diff))) });
   }
+  /** Write text only when it changes (readings arrive many times a second). */
+  function setText(el, s) { if (el.textContent !== s) el.textContent = s; }
+  function setHidden(el, on) { if (on) el.setAttribute("hidden", ""); else el.removeAttribute("hidden"); }
 
   /** Compass-mode heading: top of the screen when flat-ish, else where the camera faces. */
   function facing(r) { return r.flat >= 0.5 ? r.top : r.camera; }
 
-  function renderCompass(r) {
+  function updateLock(diff, quiet) {
+    var was = aligned;
+    aligned = Math.abs(diff) <= (was ? LOCK_OUT : LOCK_IN);
+    if (aligned && !was && !quiet) {
+      SS.ui.vibrate(30);
+      pulse(camOpen ? $("qb-cam") : $("qibla-card"));
+    }
+    return aligned;
+  }
+  var pulseTimer = null;
+  function pulse(el) {
+    el.classList.remove("qb-lock");
+    void el.offsetWidth; // restart the animation
+    el.classList.add("qb-lock");
+    clearTimeout(pulseTimer);
+    pulseTimer = setTimeout(function () { el.classList.remove("qb-lock"); }, 900);
+  }
+
+  /* ── Animation: everything on screen glides to the latest reading ──
+     Sensor readings set a target; each animation frame eases the shown
+     heading toward it (time-based, so it feels the same at 30 or 120 Hz)
+     and moves things with transforms only — no layout work per frame. */
+  var anim = { target: null, shown: null, pitchT: 0, pitch: 0, raf: 0, last: 0 };
+  var TAU = 70; // ms
+  function setTarget(h) {
+    anim.target = h;
+    if (anim.shown === null) anim.shown = h;
+    if (!anim.raf) { anim.last = 0; anim.raf = requestAnimationFrame(frame); }
+  }
+  function resetAnim() {
+    if (anim.raf) window.cancelAnimationFrame(anim.raf);
+    anim.raf = 0; anim.target = anim.shown = null;
+  }
+  function frame(ts) {
+    anim.raf = 0;
+    if (anim.target === null) return;
+    var dt = anim.last ? Math.min(64, ts - anim.last) : 16;
+    anim.last = ts;
+    var k = 1 - Math.exp(-dt / TAU);
+    var d = angleDiff(anim.shown, anim.target);
+    // "shown" is left unwrapped (it can pass 360) so the dial never spins the long way.
+    anim.shown = Math.abs(d) < 0.05 ? anim.shown + d : anim.shown + d * k;
+    var dp = anim.pitchT - anim.pitch;
+    anim.pitch = Math.abs(dp) < 0.05 ? anim.pitchT : anim.pitch + dp * k;
+    if (camOpen) drawCamera(anim.shown); else drawCompass(anim.shown);
+    if (Math.abs(d) >= 0.05 || Math.abs(dp) >= 0.05) anim.raf = requestAnimationFrame(frame);
+    else anim.last = 0;
+  }
+
+  /* ── Compass mode ───────────────────────────────────────────── */
+  var KAABA_R = 112, ARC_R = 140;
+  function arcPoint(a) {
+    return (150 + ARC_R * Math.sin(a * RAD)).toFixed(1) + " " + (150 - ARC_R * Math.cos(a * RAD)).toFixed(1);
+  }
+  function drawCompass(h) {
     if (SS.currentView() !== "qibla") return;
-    var heading = facing(r);
-    var target = -heading;
-    dialAngle += angleDiff(dialAngle, target);
-    $("qb-dial").style.transform = "rotate(" + dialAngle + "deg)";
+    $("qb-dial").setAttribute("transform", "rotate(" + (-h).toFixed(2) + " 150 150)");
     if (bearing === null) return;
-    var diff = angleDiff(heading, bearing);
-    var aligned = Math.abs(diff) <= 5;
-    $("qibla-card").classList.toggle("aligned", aligned);
-    $("qb-aligned").hidden = !aligned;
-    $("qb-turn").hidden = aligned;
-    $("qb-turn").textContent = aligned ? "" : turnText(diff);
-    if (aligned && !lastAligned) SS.ui.vibrate(25);
-    lastAligned = aligned;
-    if (r.accuracy !== null && (r.accuracy < 0 || r.accuracy > 25)) $("qb-hint").textContent = t("qibla.lowAccuracy");
-    else if (!camOpen) $("qb-hint").textContent = t("qibla.calibrate");
+    // Keep the Kaaba upright whatever the dial's rotation.
+    $("qb-kaaba").setAttribute("transform", "translate(150 " + (150 - KAABA_R) + ") rotate(" + (h - bearing).toFixed(2) + ")");
+    var diff = angleDiff(h, bearing);
+    // Gold arc: from where you face to the Qibla, the way you should turn.
+    $("qb-arc").setAttribute("d", Math.abs(diff) < 1 ? "" :
+      "M" + arcPoint(norm360(h)) + " A" + ARC_R + " " + ARC_R + " 0 0 " + (diff > 0 ? 1 : 0) + " " + arcPoint(bearing));
+    setText($("qb-hub-n"), Math.round(Math.abs(diff)) + "°");
+    setText($("qb-hub-l"), aligned ? t("qibla.locked") : Math.round(Math.abs(diff)) === 0 ? "" : t(diff > 0 ? "qibla.toRight" : "qibla.toLeft"));
+  }
+  /** Before any compass reading (e.g. a laptop): north up, show the bearing. */
+  function drawStatic() {
+    $("qb-dial").setAttribute("transform", "rotate(0 150 150)");
+    $("qb-arc").setAttribute("d", "");
+    if (bearing === null) { setText($("qb-hub-n"), "—"); setText($("qb-hub-l"), ""); return; }
+    $("qb-kaaba").setAttribute("transform", "translate(150 " + (150 - KAABA_R) + ") rotate(" + (-bearing).toFixed(2) + ")");
+    setText($("qb-hub-n"), Math.round(bearing) + "°");
+    setText($("qb-hub-l"), t("qibla.fromNorthShort"));
+  }
+
+  function sensorState(state) {
+    var dot = $("qb-sensor-dot");
+    dot.classList.toggle("on", state === "live");
+    dot.classList.toggle("warn", state === "low");
+    setText($("qb-sensor"), state === "live" ? t("qibla.sensorLive") : state === "low" ? t("qibla.sensorLow")
+      : state === "none" ? t("qibla.sensorNone") : "—");
+  }
+
+  /** quiet: refresh without the lock-on buzz (e.g. coming back from camera mode). */
+  function renderCompass(r, quiet) {
+    if (SS.currentView() !== "qibla" || camOpen) return;
+    var low = r.accuracy !== null && (r.accuracy < 0 || r.accuracy > 25);
+    sensorState(low ? "low" : "live");
+    var heading = facing(r);
+    if (bearing !== null) {
+      var diff = angleDiff(heading, bearing);
+      var on = updateLock(diff, quiet === true);
+      $("qibla-card").classList.toggle("aligned", on);
+      setHidden($("qb-aligned"), !on);
+      setHidden($("qb-turn"), on);
+      setText($("qb-turn"), on ? "" : turnText(diff));
+    }
+    setTarget(heading);
+    setText($("qb-hint"), low ? t("qibla.lowAccuracy") : t("qibla.calibrate"));
   }
 
   function startSensors(fromTap) {
-    if (!compass.supported() || window.isSecureContext === false) { $("qb-hint").textContent = t("qibla.noCompass"); return Promise.resolve(false); }
+    if (!compass.supported() || window.isSecureContext === false) {
+      $("qb-hint").textContent = t("qibla.noCompass"); sensorState("none"); return Promise.resolve(false);
+    }
     if (compass.needsPermission() && !fromTap) { $("qb-enable").hidden = false; return Promise.resolve(false); }
     var p = compass.needsPermission() ? compass.requestPermission() : Promise.resolve("granted");
     return p.then(function (res) {
@@ -339,6 +439,7 @@
       noSensorTimer = setTimeout(function () {
         if (!compass.hasReading()) {
           $("qb-hint").textContent = t("qibla.noCompass");
+          sensorState("none");
           if (camOpen) $("qb-cam-msg").textContent = t("qibla.cameraNoCompass");
         }
       }, 3000);
@@ -349,6 +450,7 @@
     clearTimeout(noSensorTimer);
     compass.off(renderCompass); compass.off(renderCamera);
     compass.stop();
+    resetAnim();
   }
 
   function showLocationState(l) {
@@ -371,35 +473,40 @@
       loc = l;
       $("qb-loc-label").textContent = SS.ui.locLabel(l);
       showLocationState(l);
+      aligned = false;
+      $("qibla-card").classList.remove("aligned");
+      setHidden($("qb-aligned"), true);
       if (l.isFallback) {
         // No real location: show no direction rather than a made-up one.
         bearing = null;
         $("qb-deg").textContent = "—";
-        $("qb-needle").hidden = true;
+        $("qb-dir").textContent = "";
+        setHidden($("qb-needle"), true);
         $("qb-dist").textContent = "—";
         $("qb-coords").textContent = "—";
         $("qb-decl").textContent = "—";
-        $("qb-turn").hidden = true;
-        $("qb-aligned").hidden = true;
-        $("qibla-card").classList.remove("aligned");
+        setHidden($("qb-turn"), true);
         $("qb-compass").setAttribute("aria-label", t("qibla.needLocation"));
         $("qb-mode-camera").disabled = true;
         $("qb-hint").textContent = "";
+        drawStatic();
         if (camOpen) closeCamera();
         return;
       }
       bearing = SS.qiblaBearing(l.lat, l.lng);
       var d = compass.setLocation(l.lat, l.lng);
       $("qb-deg").textContent = fmtDeg(bearing);
-      $("qb-needle").hidden = false;
-      $("qb-needle").style.transform = "rotate(" + bearing + "deg)";
+      $("qb-dir").textContent = pointName(bearing);
+      setHidden($("qb-needle"), false);
+      $("qb-needle").setAttribute("transform", "rotate(" + bearing.toFixed(2) + " 150 150)");
       $("qb-compass").setAttribute("aria-label", f("qibla.compassLabel", { deg: bearing.toFixed(0) }));
       $("qb-dist").textContent = SS.formatDistance(distanceKm(l.lat, l.lng), true);
       $("qb-coords").textContent = l.lat.toFixed(2) + ", " + l.lng.toFixed(2);
       $("qb-decl").textContent = Math.abs(d).toFixed(1) + "° " + t(d >= 0 ? "qibla.east" : "qibla.west");
       $("qb-mode-camera").disabled = false;
-      if (!compass.hasReading()) {
-        $("qb-dial").style.transform = "rotate(0deg)"; dialAngle = 0;
+      if (compass.hasReading() && anim.shown !== null) drawCompass(anim.shown);
+      else {
+        drawStatic();
         $("qb-hint").textContent = t("qibla.northUp");
       }
       startSensors(false);
@@ -412,6 +519,8 @@
 
   /* ── Camera mode ─────────────────────────────────────────────── */
   var HFOV = 62; // typical phone main camera, landscape; portrait uses less
+  var PX = 7;    // heading strip: pixels per degree
+  var tapeHalf = 25; // degrees visible either side of the strip's centre
   function camSupported() {
     return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) && window.isSecureContext !== false;
   }
@@ -433,6 +542,28 @@
       : name === "NotReadableError" ? "qibla.cameraBusy" : "qibla.cameraError";
     return t(key);
   }
+  /** Heading strip labels: every 10° from -60° to 420° so it can wrap round north. */
+  function buildTape() {
+    var html = "", d;
+    var card = { 0: "qibla.n", 90: "qibla.e", 180: "qibla.s", 270: "qibla.w" };
+    for (d = -60; d <= 420; d += 10) {
+      var n = norm360(d), c = card[n];
+      if (bearing !== null && Math.abs(angleDiff(n, bearing)) < 5) continue; // the Kaaba sits here
+      html += '<span class="' + (c ? "cardinal" : "") + '" style="left:' + (d * PX) + 'px">' + (c ? SS.esc(t(c)) : n + "°") + "</span>";
+    }
+    if (bearing !== null) {
+      for (var k = -1; k <= 1; k++) {
+        d = bearing + k * 360;
+        if (d >= -60 && d <= 420) html += '<span class="qb-tape-k" style="left:' + (d * PX).toFixed(1) + 'px"></span>';
+      }
+    }
+    $("qb-tape-strip").innerHTML = html;
+    measureTape();
+  }
+  function measureTape() {
+    var w = $("qb-tape").clientWidth;
+    if (w) tapeHalf = w / 2 / PX;
+  }
   /** Ask for camera (+ iOS motion) inside the tap, then open the overlay. */
   function enterCamera() {
     if (bearing === null) { askLocation(); return; }
@@ -449,14 +580,20 @@
     var el = $("qb-cam");
     if (camOpen) return;
     camOpen = true;
+    aligned = false;
+    resetAnim();
     el.hidden = false;
+    el.classList.remove("aligned");
     document.body.classList.add("qb-cam-open");
-    $("qb-mode-camera").setAttribute("aria-pressed", "true");
-    $("qb-mode-compass").setAttribute("aria-pressed", "false");
     $("qb-cam-msg").textContent = bearing === null ? t("qibla.needLocation") : t("qibla.cameraHold");
-    $("qb-cam-deg").textContent = bearing === null ? "" : fmtDeg(bearing) + "°";
+    $("qb-cam-sub").textContent = "";
+    $("qb-cam-deg").textContent = bearing === null ? "" : Math.round(bearing) + "° " + pointName(bearing);
     $("qb-cam-marker").hidden = true;
     $("qb-cam-arrow").hidden = true;
+    $("qb-cam-meter").hidden = true;
+    $("qb-cam-done").hidden = true;
+    $("qb-tape-l").hidden = $("qb-tape-r").hidden = true;
+    buildTape();
     var startBtn = $("qb-cam-start");
     startBtn.hidden = true;
     function attach() {
@@ -490,51 +627,64 @@
   function closeCamera() {
     if (!camOpen) return;
     camOpen = false;
+    aligned = false;
+    resetAnim();
     stopStream();
     $("qb-cam").hidden = true;
     document.body.classList.remove("qb-cam-open");
-    $("qb-mode-camera").setAttribute("aria-pressed", "false");
-    $("qb-mode-compass").setAttribute("aria-pressed", "true");
+    var last = compass.last();
+    if (last && SS.currentView() === "qibla") renderCompass(last, true);
     try { $("qb-mode-camera").focus({ preventScroll: true }); } catch (e) { /* noop */ }
   }
   function exitCamera() {
     if (camPushed) { camPushed = false; history.back(); }
     else location.hash = "#/qibla";
   }
+  function fov() {
+    var portrait = window.innerHeight >= window.innerWidth;
+    return { h: portrait ? HFOV * 0.62 : HFOV, v: portrait ? HFOV : HFOV * 0.62 };
+  }
   function renderCamera(r) {
     if (!camOpen || bearing === null) return;
     var diff = angleDiff(r.camera, bearing);
-    var aligned = Math.abs(diff) <= 5;
+    var raise = r.flat > 0.85; // lying flat: the camera sees the floor
+    var on = raise ? (aligned = false) : updateLock(diff);
+    $("qb-cam").classList.toggle("aligned", on);
+    setText($("qb-cam-msg"), raise ? t("qibla.cameraRaise") : turnText(diff));
+    setText($("qb-cam-sub"), on ? f("qibla.camSub", { deg: Math.round(bearing) + "° " + pointName(bearing), dist: SS.formatDistance(distanceKm(loc.lat, loc.lng), true) }) : "");
     var arrow = $("qb-cam-arrow");
-    arrow.hidden = false;
-    arrow.style.transform = "rotate(" + diff + "deg)";
-    arrow.classList.toggle("on", aligned);
-    $("qb-cam-msg").textContent = r.flat > 0.85 ? t("qibla.cameraRaise") : turnText(diff);
-    $("qb-cam").classList.toggle("aligned", aligned);
-    if (aligned && !lastAligned) SS.ui.vibrate(25);
-    lastAligned = aligned;
-    // AR marker: place the Kaaba on screen when it's inside the camera's view.
-    var portrait = window.innerHeight >= window.innerWidth;
-    var hfov = portrait ? HFOV * 0.62 : HFOV, vfov = portrait ? HFOV : HFOV * 0.62;
-    var m = $("qb-cam-marker");
-    if (Math.abs(diff) < hfov / 2 + 4) {
-      var x = 50 + (diff / (hfov / 2)) * 50;
-      var y = 50 + (r.pitch / (vfov / 2)) * 50; // horizon moves down as you tilt up
-      m.hidden = false;
-      m.style.left = Math.max(4, Math.min(96, x)) + "%";
-      m.style.top = Math.max(12, Math.min(80, y)) + "%";
-    } else {
-      m.hidden = true;
-    }
+    arrow.hidden = on || raise;
+    arrow.className = "qb-cam-arrow " + (diff > 0 ? "right" : "left");
+    $("qb-cam-meter").hidden = raise;
+    setText($("qb-cam-meter-l"), on ? t("qibla.locked") : Math.abs(diff) <= 30 ? t("qibla.closer") : "");
+    $("qb-cam-done").hidden = !on;
+    // AR marker: shown when the Kaaba is inside the camera's view.
+    $("qb-cam-marker").hidden = !(Math.abs(diff) < fov().h / 2 + 4);
+    anim.pitchT = r.pitch;
+    setTarget(r.camera);
+  }
+  function drawCamera(h) {
+    var diff = angleDiff(h, bearing);
+    var hn = norm360(h);
+    $("qb-tape-strip").style.transform = "translateX(" + (-hn * PX).toFixed(1) + "px)";
+    var off = Math.abs(diff) > tapeHalf - 2;
+    $("qb-tape-l").hidden = !(off && diff < 0);
+    $("qb-tape-r").hidden = !(off && diff > 0);
+    var fv = fov(), W = window.innerWidth, H = window.innerHeight;
+    var x = Math.max(-W / 2 + 36, Math.min(W / 2 - 36, (diff / (fv.h / 2)) * (W / 2)));
+    var y = Math.max(-H * 0.32, Math.min(H * 0.26, (anim.pitch / (fv.v / 2)) * (H / 2))); // horizon moves down as you tilt up
+    $("qb-cam-marker").style.transform = "translate(calc(-50% + " + x.toFixed(1) + "px), " + (y - 28).toFixed(1) + "px)";
+    $("qb-cam-bar").style.transform = "scaleX(" + (aligned ? 1 : Math.max(0.04, 1 - Math.abs(diff) / 90)).toFixed(3) + ")";
   }
 
   function wire() {
     $("qb-loc-chip").onclick = askLocation;
     $("qb-locwarn-btn").onclick = askLocation;
     $("qb-enable").onclick = function () { startSensors(true); };
-    $("qb-mode-compass").onclick = function () { if (camOpen) exitCamera(); };
     $("qb-mode-camera").onclick = function () { if (!camOpen) enterCamera(); };
     $("qb-cam-exit").onclick = exitCamera;
+    $("qb-cam-done").onclick = exitCamera;
+    window.addEventListener("resize", function () { if (camOpen) measureTape(); });
     document.addEventListener("keydown", function (e) {
       if (camOpen && e.key === "Escape") { e.preventDefault(); exitCamera(); }
     });
@@ -571,6 +721,6 @@
     closeCamera();
     camPushed = false;
     stopSensors();
-    lastAligned = false;
+    aligned = false;
   };
 })(typeof window !== "undefined" ? window : globalThis);
