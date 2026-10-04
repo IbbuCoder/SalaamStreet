@@ -22,12 +22,23 @@ laptops and large monitors. Core worship features are, and will stay, free.
 - 99 Names of Allah, mosque finder (OpenStreetMap), Arabic alphabet lessons and quiz
 - Prayer-times widget for mosque websites; generated SEO pages and sitemap
 - Draft interface languages: Urdu, Bengali, Indonesian, Turkish, French
+- 2.4.0: About page, Updates tab with version history, new logo and iOS home-screen support
+- 2.4.1: 12/24-hour time, km/miles, optional Imsak/Midnight/Last-third times, custom dhikr targets,
+  continuous Qur'an play across surahs, richer Updates tab, provided logo used everywhere
 
-## Next
+## Planned (no release dates; plans may change)
 
-- Optional account sync (Supabase schema in `backend/`) for bookmarks, streaks and settings
-- Push reminders that arrive even when the site is closed (needs a small push server)
-- Native-speaker review of the draft Urdu, Bengali, Indonesian, Turkish and French translations
+The same list appears in the app under About → Updates (`SS.ROADMAP` in `js/content.js`).
+
+- **2.5.0 — Accounts + Guest Mode:** optional sign-in with free sync; guest mode keeps working with no account
+- **2.6.0 — Qur'an+:** deeper Qur'an study and reading tools
+- **2.7.0 — Hadith + Knowledge:** more hadith collections and learning content
+- **2.8.0 — Learn:** structured lessons beyond the Arabic alphabet
+- **2.9.0 — MSA + Community:** tools for Muslim Student Associations and local communities
+- **3.0.0 — Major SalaamStreet milestone**
+
+Also open: push reminders that arrive while the site is closed, and native-speaker
+review of the draft Urdu, Bengali, Indonesian, Turkish and French translations.
 
 ## Principles
 

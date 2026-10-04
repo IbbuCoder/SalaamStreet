@@ -415,11 +415,15 @@
   function adhkarHome() {
     var done = adhkarDone(), sug = suggestedAdhkar(), html = "";
     ["morning", "evening"].forEach(function (k) {
-      html += '<a class="card ak-choice' + (k === sug ? " suggested" : "") + '" href="#/adhkar/' + k + '">' +
-        '<span class="w-ic' + (k === "evening" ? " gold" : "") + '">' + icon(k === "morning" ? "sunrise" : "moon") + "</span>" +
-        '<span class="w-body"><span class="w-title">' + esc(t("adhkar." + k)) + "</span>" +
-        '<span class="w-sub">' + esc(f("adhkar.items", { n: adhkarItems(k).length })) + "</span></span>" +
-        (done[k] ? '<span class="badge">' + icon("check") + esc(t("adhkar.doneShort")) + "</span>" : k === sug ? '<span class="badge badge-gold">' + esc(t("adhkar.now")) + "</span>" : "") +
+      html += '<a class="card ak-choice ' + k + (k === sug ? " suggested" : "") + (done[k] ? " is-done" : "") + '" href="#/adhkar/' + k + '">' +
+        '<span class="ak-deco" aria-hidden="true">' + icon(k === "morning" ? "sunrise" : "moon") + "</span>" +
+        '<span class="ak-top"><span class="w-ic' + (k === "evening" ? " gold" : "") + '">' + icon(k === "morning" ? "sunrise" : "moon") + "</span>" +
+        (done[k] ? '<span class="badge">' + icon("check") + esc(t("adhkar.doneShort")) + "</span>" : k === sug ? '<span class="badge badge-gold">' + esc(t("adhkar.now")) + "</span>" : "") + "</span>" +
+        '<span class="w-title">' + esc(t("adhkar." + k)) + "</span>" +
+        '<span class="ak-when">' + esc(t("adhkar.when" + (k === "morning" ? "Morning" : "Evening"))) + "</span>" +
+        '<span class="w-sub">' + esc(f("adhkar.items", { n: adhkarItems(k).length })) + "</span>" +
+        '<span class="ak-incl">' + esc(t("adhkar.includes")) + "</span>" +
+        '<span class="btn btn-sm ak-go">' + esc(t(done[k] ? "adhkar.again" : "adhkar.begin")) + icon("chev-r", "flip") + "</span>" +
         "</a>";
     });
     $("ak-choices").innerHTML = html;
@@ -556,8 +560,12 @@
   /* ═══════════ MOSQUE FINDER ═══════════ */
   var mqGen = 0;
   function mosquesInit() {
-    var s = SS.store.get("mosques:radius");
-    if (s) $("mq-radius").value = String(s);
+    fillRadius();
+    $("mq-units").textContent = t(SS.units() === "mi" ? "units.switchToKm" : "units.switchToMi");
+    $("mq-units").onclick = function () {
+      SS.store.saveSettings({ units: SS.units() === "mi" ? "km" : "mi" });
+      mosquesInit();
+    };
     $("mq-radius").onchange = function () { SS.store.set("mosques:radius", +this.value); mosquesLoad(); };
     $("mq-loc").onclick = function () { SS.geo.request().then(function (l) { if (!l) SS.toast(t("loc.denied")); mosquesLoad(); }); };
     mosquesLoad();
@@ -568,12 +576,17 @@
     var h = x * x + Math.cos(a * r) * Math.cos(c * r) * y * y;
     return 2 * R * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
   }
-  function fmtDist(km) {
-    var loc = SS.i18n.dateLocale();
-    try {
-      return km < 1 ? Math.round(km * 1000 / 10) * 10 + " " + t("mosques.m")
-        : (km < 10 ? km.toFixed(1) : Math.round(km)).toLocaleString(loc) + " " + t("qibla.km");
-    } catch (e) { return km.toFixed(1) + " km"; }
+  function fmtDist(km) { return SS.formatDistance(km); }
+  /** Search-radius choices in the user's units (values are metres). */
+  function fillRadius() {
+    var mi = SS.units() === "mi";
+    var opts = mi ? [[1609, 1], [4828, 3], [8047, 5], [24140, 15]] : [[2000, 2], [5000, 5], [10000, 10], [25000, 25]];
+    var saved = +SS.store.get("mosques:radius") || (mi ? 4828 : 5000);
+    var best = opts[0][0];
+    opts.forEach(function (o) { if (Math.abs(o[0] - saved) < Math.abs(best - saved)) best = o[0]; });
+    $("mq-radius").innerHTML = opts.map(function (o) {
+      return '<option value="' + o[0] + '"' + (o[0] === best ? " selected" : "") + ">" + o[1] + "\u00a0" + esc(t(mi ? "units.mi" : "units.km")) + "</option>";
+    }).join("");
   }
   function mapsLink(m) {
     var apple = /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent);
@@ -604,7 +617,7 @@
         items.sort(function (a, b) { return a.km - b.km; });
         list.removeAttribute("aria-busy");
         if (!items.length) {
-          SS.ui.renderState(list, { kind: "empty", icon: "mosque", text: f("mosques.none", { r: radius / 1000 }) });
+          SS.ui.renderState(list, { kind: "empty", icon: "mosque", text: f("mosques.noneWithin", { r: SS.formatDistance(radius / 1000, true) }) });
           return;
         }
         $("mq-count").textContent = f("mosques.count", { n: items.length });
@@ -894,6 +907,8 @@
     light: { bg: ["#fbf8ef", "#f3efe2", "#ebe5d2"], text: "#0b1210", sub: "#3d4a43", accent: "#9a7614", dot: "rgba(6,78,59,0.08)" },
   };
   var shareData = null, shareStyle = "emerald";
+  var shareLogo = new Image();
+  shareLogo.src = "icons/brand/logo-mark-256.png";
 
   function wrapLines(ctx, text, maxW) {
     var words = String(text).split(/\s+/), lines = [], line = "";
@@ -927,13 +942,17 @@
     // Frame
     ctx.strokeStyle = st.accent; ctx.globalAlpha = 0.5; ctx.lineWidth = 3;
     ctx.strokeRect(48, 48, W - 96, H - 96); ctx.globalAlpha = 1;
-    // Star ornament
-    function star(cx, cy, r) {
-      ctx.save(); ctx.translate(cx, cy); ctx.strokeStyle = st.accent; ctx.lineWidth = 4;
-      for (var k = 0; k < 2; k++) { ctx.save(); ctx.rotate(k * Math.PI / 4); ctx.strokeRect(-r, -r, 2 * r, 2 * r); ctx.restore(); }
+    // Brand mark: the official SalaamStreet logo, with a rounded crop.
+    // (Skipped when opened from disk: a file:// image would block exporting the canvas.)
+    if (location.protocol !== "file:" && shareLogo.complete && shareLogo.naturalWidth) {
+      var L = 96, lx = W / 2 - L / 2, ly = 102, rr = 22;
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(lx + rr, ly); ctx.arcTo(lx + L, ly, lx + L, ly + L, rr); ctx.arcTo(lx + L, ly + L, lx, ly + L, rr);
+      ctx.arcTo(lx, ly + L, lx, ly, rr); ctx.arcTo(lx, ly, lx + L, ly, rr); ctx.closePath(); ctx.clip();
+      ctx.drawImage(shareLogo, lx, ly, L, L);
       ctx.restore();
     }
-    star(W / 2, 150, 30);
     ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
     var top = 250, maxW = W - 220;
     var arH = d.text ? 470 : 760;
@@ -1001,6 +1020,7 @@
         : Promise.resolve();
       drawShare();
       fontsReady.then(drawShare);
+      if (!shareLogo.complete) shareLogo.onload = function () { if ($("share-dialog").open) drawShare(); };
       $("share-go").hidden = !(navigator.share && navigator.canShare);
       $("share-go").onclick = function () {
         canvasBlob().then(function (blob) {
@@ -1041,7 +1061,7 @@
       else if (isIOS()) {
         how = '<ol class="install-steps"><li>' + icon("share") + "<span>" + esc(t("install.ios")) + "</span></li></ol>";
       } else how = '<p class="note">' + esc(t("install.other")) + "</p>";
-      html = '<div class="card install"><img src="icons/icon.svg" alt="" width="56" height="56" />' +
+      html = '<div class="card install"><img src="icons/brand/logo-mark-128.png" alt="" width="56" height="56" />' +
         '<div class="w-body"><b class="w-title">' + esc(t("install.title")) + '</b><span class="w-sub wrap-text">' + esc(t("install.sub")) + "</span>" +
         '<div class="mt-1">' + how + "</div></div></div>";
     }
@@ -1082,31 +1102,68 @@
     });
     if (k === "updates") renderUpdates();
   }
+  function fmtReleaseDate(d) {
+    if (!d) return "";
+    try { var p = d.split("-"); return new Date(+p[0], +p[1] - 1, +p[2]).toLocaleDateString(SS.i18n.dateLocale(), { day: "numeric", month: "long", year: "numeric" }); }
+    catch (e) { return d; }
+  }
   function renderUpdates() {
-    var ar = isAr(), html = "";
-    SS.ROADMAP.forEach(function (r) {
-      html += '<div class="card road"><span class="w-ic">' + icon(r.icon) + '</span><div class="w-body"><b class="w-title">' + esc(ar ? r.ar : r.en) +
-        '</b><span class="w-sub wrap-text">' + esc(ar ? r.dar : r.den) + "</span></div></div>";
+    var ar = isAr();
+    var latest = SS.CHANGELOG[0];
+    // "You're up to date" summary for the version this device is running.
+    $("ab-uptodate").innerHTML =
+      '<img src="icons/brand/logo-mark-128.png" alt="" width="52" height="52" />' +
+      '<div class="w-body"><span class="up-kicker">' + icon("check") + "<span>" + esc(t("updates.upToDate")) + "</span></span>" +
+      '<b class="up-title">' + esc(f("settings.version", { v: SS.VERSION })) + "</b>" +
+      '<span class="w-sub wrap-text">' + esc(ar ? latest.ar : latest.en) + (latest.date ? " · " + esc(fmtReleaseDate(latest.date)) : "") + "</span></div>";
+    // Roadmap: planned versions, in order. Never shows dates.
+    var html = "";
+    SS.ROADMAP.forEach(function (r, i) {
+      var milestone = /^3\./.test(r.v);
+      html += '<li class="road-item' + (i === 0 ? " next" : "") + (milestone ? " milestone" : "") + '">' +
+        '<span class="road-node" aria-hidden="true">' + icon(r.icon) + "</span>" +
+        '<div class="card road-card"><div class="road-top">' +
+        '<span class="ver-pill' + (milestone ? " gold" : "") + '" dir="ltr">' + esc(r.v) + "</span>" +
+        '<span class="status-pill' + (i === 0 ? " next" : "") + '">' + esc(t(i === 0 ? "updates.upNext" : "updates.planned")) + "</span></div>" +
+        '<b class="road-title">' + esc(ar ? r.ar : r.en) + "</b>" +
+        '<p class="road-desc">' + esc(ar ? r.dar : r.den) + "</p></div></li>";
     });
     $("ab-roadmap").innerHTML = html;
+    // Released history — rendered exactly as recorded, newest first.
     var hist = "";
     SS.CHANGELOG.forEach(function (c, i) {
-      var date = "";
-      if (c.date) {
-        try { var p = c.date.split("-"); date = new Date(+p[0], +p[1] - 1, +p[2]).toLocaleDateString(SS.i18n.dateLocale(), { day: "numeric", month: "long", year: "numeric" }); }
-        catch (e) { date = c.date; }
-      }
-      hist += '<li class="tl-item' + (i === 0 ? " current" : "") + '"><span class="tl-dot" aria-hidden="true"></span><div class="card">' +
-        '<div class="row-between wrap"><b>' + esc(f("about.version", { v: c.v })) + "</b>" +
-        (i === 0 ? '<span class="badge">' + esc(t("updates.current")) + "</span>" : date ? '<span class="tiny">' + esc(date) + "</span>" : "") + "</div>" +
-        '<p class="tl-title">' + esc(ar ? c.ar : c.en) + "</p><ul>" +
-        c.items.map(function (it) { return "<li>" + esc(ar ? it.ar : it.en) + "</li>"; }).join("") + "</ul></div></li>";
+      var date = fmtReleaseDate(c.date);
+      hist += '<li class="tl-item' + (i === 0 ? " current" : "") + '"><span class="tl-dot" aria-hidden="true"></span><article class="card tl-card">' +
+        '<div class="tl-top"><span class="ver-pill' + (i === 0 ? " solid" : "") + '" dir="ltr">' + esc(c.v) + "</span>" +
+        (i === 0 ? '<span class="status-pill next">' + esc(t("updates.current")) + "</span>" : "") +
+        (date ? '<time class="tiny" datetime="' + esc(c.date) + '">' + esc(date) + "</time>" : "") + "</div>" +
+        '<h3 class="tl-title">' + esc(ar ? c.ar : c.en) + "</h3><ul class=\"tl-list\">" +
+        c.items.map(function (it) { return "<li>" + icon("check") + "<span>" + esc(ar ? it.ar : it.en) + "</span></li>"; }).join("") + "</ul></article></li>";
     });
     $("ab-history").innerHTML = hist;
+    $("ab-history-count").textContent = f("updates.releases", { n: SS.CHANGELOG.length });
+    // In-tab jump links move focus to the section heading (and keep the URL clean).
+    var jumps = document.querySelectorAll("#ab-updates [data-jump]");
+    for (var j = 0; j < jumps.length; j++) {
+      jumps[j].onclick = function (e) {
+        e.preventDefault();
+        var h = $(this.getAttribute("data-jump"));
+        var reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+        h.scrollIntoView({ block: "start", behavior: reduce ? "auto" : "smooth" });
+        try { h.focus({ preventScroll: true }); } catch (x) { /* noop */ }
+      };
+    }
   }
 
   onHook("settingsInit", function () {
+    var st = SS.store.settings();
     $("st-version").textContent = f("settings.version", { v: SS.VERSION });
+    $("st-timefmt").value = st.timeFormat || "auto";
+    $("st-units").value = st.units || "auto";
+    $("st-continuous").checked = !!st.continuousPlay;
+    $("st-timefmt").onchange = function () { SS.store.saveSettings({ timeFormat: this.value }); SS.toast(t("settings.saved")); };
+    $("st-units").onchange = function () { SS.store.saveSettings({ units: this.value }); SS.toast(t("settings.saved")); };
+    $("st-continuous").onchange = function () { SS.store.saveSettings({ continuousPlay: this.checked }); };
     renderInstall();
   });
 

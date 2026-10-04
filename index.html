@@ -17,9 +17,9 @@
   <meta property="og:description" content="Prayer times, Qibla, Qur'an with audio, authentic hadith and duas, and a dhikr counter." />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://salaamstreet.com/" />
-  <meta property="og:image" content="https://salaamstreet.com/icons/icon-512.png" />
-  <link rel="icon" href="icons/favicon.svg" type="image/svg+xml" />
+  <meta property="og:image" content="https://salaamstreet.com/icons/og-image.png" />
   <link rel="icon" href="icons/favicon-32.png" type="image/png" sizes="32x32" />
+  <link rel="icon" href="icons/favicon-16.png" type="image/png" sizes="16x16" />
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
   <link rel="apple-touch-icon" sizes="152x152" href="icons/apple-touch-icon-152.png" />
   <link rel="apple-touch-icon" sizes="167x167" href="icons/apple-touch-icon-167.png" />
@@ -63,7 +63,6 @@
     <defs>
       <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9v11.5h13V9"/><path d="M10 20.5v-6h4v6"/></symbol>
       <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/></symbol>
-      <symbol id="i-logo" viewBox="0 0 64 64"><path d="M17 54V30c0-8 6-13.5 15-18 9 4.5 15 10 15 18v24" fill="none" stroke="#e9c766" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M35.5 21a9 9 0 1 0 0 17 7.2 7.2 0 1 1 0-17z" fill="#e9c766" stroke="none"/></symbol>
       <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5h.01"/></symbol>
       <symbol id="i-plus-square" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="4"/><path d="M12 8v8M8 12h8"/></symbol>
       <symbol id="i-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m15.8 8.2-2.4 5.2-5.2 2.4 2.4-5.2z"/></symbol>
@@ -117,7 +116,7 @@
   <!-- ═══════════ Side navigation (tablet rail / desktop sidebar) ═══════════ -->
   <nav class="sidenav" aria-label="Main">
     <a class="brand" href="#/home" aria-label="SalaamStreet home">
-      <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 64 64"><use href="#i-logo"/></svg></span>
+      <span class="brand-mark" aria-hidden="true"><img src="icons/brand/logo-mark-128.png" alt="" width="30" height="30" /></span>
       <span class="brand-text">Salaam<span class="g">Street</span></span>
     </a>
     <div class="nav-group">
@@ -146,7 +145,7 @@
   <!-- ═══════════ Top bar ═══════════ -->
   <header class="topbar">
     <a class="brand-sm" href="#/home" aria-label="SalaamStreet home">
-      <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 64 64"><use href="#i-logo"/></svg></span>
+      <span class="brand-mark" aria-hidden="true"><img src="icons/brand/logo-mark-128.png" alt="" width="30" height="30" /></span>
       <span>Salaam<span class="g">Street</span></span>
     </a>
     <span class="tb-title" id="tb-title" aria-hidden="true"></span>
@@ -315,6 +314,10 @@
           <div class="field mt-2">
             <label for="pt-school" data-i18n="prayer.asr">Asr method</label>
             <select class="input" id="pt-school"></select>
+          </div>
+          <div class="set-row compact mt-1">
+            <span id="pt-extra-l" data-i18n="prayer.extraTimes">Show Imsak, midnight &amp; last third</span>
+            <label class="switch"><input type="checkbox" id="pt-extra" aria-labelledby="pt-extra-l" /><span class="trk"></span><span class="th"></span></label>
           </div>
           <p class="tiny mt-2" data-i18n="prayer.methodNote">Scholars differ on calculation parameters — choose the method used by your local mosque or region.</p>
           <hr class="sep" />
@@ -497,7 +500,11 @@
               <span class="num"><span id="dk-count" aria-live="polite">0</span><small id="dk-of">/ 33</small></span>
               <span class="visually-hidden" data-i18n="dhikr.tap">Tap to count</span>
             </button>
-            <p class="tiny" id="dk-target-line"><span data-i18n="dhikr.tapHint">Tap the circle, or press Space</span> · <span data-i18n="dhikr.target">Target</span> <b id="dk-target">33</b></p>
+            <div class="dk-meta" id="dk-target-line">
+              <span class="tiny" data-i18n="dhikr.tapHint">Tap the circle, or press Space</span>
+              <label class="dk-target"><span data-i18n="dhikr.target">Target</span>
+                <select class="input input-sm" id="dk-target-sel"></select></label>
+            </div>
             <div class="row center-row">
               <button class="btn btn-ghost btn-sm" id="dk-undo" type="button"><svg class="ic" aria-hidden="true"><use href="#i-undo"/></svg><span data-i18n="dhikr.undo">Undo</span></button>
               <button class="btn btn-ghost btn-sm" id="dk-reset" type="button"><svg class="ic" aria-hidden="true"><use href="#i-refresh"/></svg><span data-i18n="dhikr.reset">Reset</span></button>
@@ -612,12 +619,8 @@
         <button class="chip" id="mq-loc" type="button"><svg class="ic" aria-hidden="true"><use href="#i-pin"/></svg><span id="mq-loc-label">—</span></button>
         <span class="spacer"></span>
         <label class="visually-hidden" for="mq-radius" data-i18n="mosques.radius">Search radius</label>
-        <select class="input input-sm" id="mq-radius" style="inline-size:auto">
-          <option value="2000">2 km</option>
-          <option value="5000" selected>5 km</option>
-          <option value="10000">10 km</option>
-          <option value="25000">25 km</option>
-        </select>
+        <select class="input input-sm" id="mq-radius" style="inline-size:auto"></select>
+        <button class="btn btn-ghost btn-sm" id="mq-units" type="button"></button>
       </div>
       <p class="note mt-1" id="mq-note" hidden></p>
       <p class="tiny mt-1" id="mq-count" aria-live="polite"></p>
@@ -649,7 +652,7 @@
     <!-- ═══════════ ABOUT & UPDATES ═══════════ -->
     <section class="view view-narrow" id="view-about" hidden aria-labelledby="ab-h">
       <header class="about-head">
-        <img class="about-logo" src="icons/icon.svg" alt="" width="88" height="88" />
+        <img class="about-logo" src="icons/brand/logo-mark-256.png" alt="SalaamStreet logo" width="88" height="88" />
         <div>
           <h1 id="ab-h" tabindex="-1">Salaam<span class="gold">Street</span></h1>
           <p class="muted" data-i18n="app.tagline">Your Islamic Companion</p>
@@ -698,11 +701,26 @@
       </div>
 
       <div id="ab-updates" role="tabpanel" aria-labelledby="ab-tab-updates" hidden>
-        <h2 class="h-sm mb-1" data-i18n="updates.comingTitle">Coming next</h2>
-        <div class="roadmap" id="ab-roadmap"></div>
-        <p class="tiny mt-1" data-i18n="updates.comingNote">These are hopes and plans, not promises with dates — and the core will always stay free.</p>
-        <h2 class="h-sm mt-3 mb-1" data-i18n="updates.historyTitle">Version history</h2>
-        <ol class="timeline" id="ab-history"></ol>
+        <div class="card up-hero" id="ab-uptodate"></div>
+        <nav class="up-jump" aria-label="Updates sections">
+          <a href="#ab-roadmap-h" data-jump="ab-roadmap-h"><svg class="ic" aria-hidden="true"><use href="#i-target"/></svg><span data-i18n="updates.comingTitle">Coming next</span></a>
+          <a href="#ab-history-h" data-jump="ab-history-h"><svg class="ic" aria-hidden="true"><use href="#i-clock"/></svg><span data-i18n="updates.historyTitle">Version history</span></a>
+        </nav>
+        <section class="up-section" aria-labelledby="ab-roadmap-h">
+          <div class="up-head">
+            <h2 id="ab-roadmap-h" tabindex="-1" data-i18n="updates.comingTitle">Coming next</h2>
+            <span class="badge badge-src" data-i18n="updates.planned">Planned</span>
+          </div>
+          <p class="note" data-i18n="updates.comingNote">These are hopes and plans, not promises with dates — and the core will always stay free.</p>
+          <ol class="road-track" id="ab-roadmap"></ol>
+        </section>
+        <section class="up-section" aria-labelledby="ab-history-h">
+          <div class="up-head">
+            <h2 id="ab-history-h" tabindex="-1" data-i18n="updates.historyTitle">Version history</h2>
+            <span class="badge badge-src" id="ab-history-count"></span>
+          </div>
+          <ol class="timeline" id="ab-history"></ol>
+        </section>
       </div>
     </section>
 
@@ -710,7 +728,7 @@
     <section class="view view-narrow" id="view-settings" hidden aria-labelledby="st-h">
       <header class="page-head"><h1 id="st-h" tabindex="-1" data-i18n="settings.title">Settings</h1></header>
 
-      <h2 class="group-label" data-i18n="settings.appearance">Appearance</h2>
+      <h2 class="group-label with-ic"><svg class="ic" aria-hidden="true"><use href="#i-contrast"/></svg><span data-i18n="settings.appearance">Appearance</span></h2>
       <div class="card settings-group">
         <div class="set-row">
           <label for="st-locale" data-i18n="settings.language">Language</label>
@@ -727,7 +745,7 @@
         </div>
       </div>
 
-      <h2 class="group-label" data-i18n="settings.reading">Qur'an reading</h2>
+      <h2 class="group-label with-ic"><svg class="ic" aria-hidden="true"><use href="#i-book"/></svg><span data-i18n="settings.reading">Qur'an reading</span></h2>
       <div class="card settings-group">
         <div class="set-row">
           <label for="st-reciter" data-i18n="quran.reciter">Reciter</label>
@@ -745,9 +763,13 @@
           <span id="st-translit-l" data-i18n="settings.transliteration">Show transliteration</span>
           <label class="switch"><input type="checkbox" id="st-translit" aria-labelledby="st-translit-l" /><span class="trk"></span><span class="th"></span></label>
         </div>
+        <div class="set-row">
+          <span id="st-continuous-l" data-i18n="settings.continuous">Keep playing into the next surah</span>
+          <label class="switch"><input type="checkbox" id="st-continuous" aria-labelledby="st-continuous-l" /><span class="trk"></span><span class="th"></span></label>
+        </div>
       </div>
 
-      <h2 class="group-label" data-i18n="settings.prayer">Prayer &amp; location</h2>
+      <h2 class="group-label with-ic"><svg class="ic" aria-hidden="true"><use href="#i-clock"/></svg><span data-i18n="settings.prayer">Prayer &amp; location</span></h2>
       <div class="card settings-group">
         <div class="set-row set-row-stack">
           <div><b data-i18n="settings.location">Location</b><p class="tiny" id="st-loc-status"></p></div>
@@ -764,9 +786,25 @@
           <label for="st-school" data-i18n="prayer.asr">Asr method</label>
           <select class="input" id="st-school"></select>
         </div>
+        <div class="set-row">
+          <label for="st-timefmt" data-i18n="settings.timeFormat">Time format</label>
+          <select class="input" id="st-timefmt">
+            <option value="auto" data-i18n="settings.auto">Automatic</option>
+            <option value="12" data-i18n="settings.time12">12-hour (5:41 PM)</option>
+            <option value="24" data-i18n="settings.time24">24-hour (17:41)</option>
+          </select>
+        </div>
+        <div class="set-row">
+          <label for="st-units" data-i18n="settings.units">Distance</label>
+          <select class="input" id="st-units">
+            <option value="auto" data-i18n="settings.auto">Automatic</option>
+            <option value="km" data-i18n="settings.unitsKm">Kilometres</option>
+            <option value="mi" data-i18n="settings.unitsMi">Miles</option>
+          </select>
+        </div>
       </div>
 
-      <h2 class="group-label" id="reminders" data-i18n="rem.title">Prayer reminders</h2>
+      <h2 class="group-label with-ic" id="reminders"><svg class="ic" aria-hidden="true"><use href="#i-bell"/></svg><span data-i18n="rem.title">Prayer reminders</span></h2>
       <div class="card settings-group">
         <div class="set-row">
           <span id="st-rem-l" data-i18n="rem.enable">Remind me at prayer times</span>
@@ -796,7 +834,7 @@
       </div>
       <p class="tiny mt-1" id="st-rem-note" data-i18n="rem.note">Reminders work while SalaamStreet is open in a tab or installed on your home screen. Phones may pause the app in the background, so keep your phone's own alarm for anything you can't miss.</p>
 
-      <h2 class="group-label" data-i18n="settings.data">Your data</h2>
+      <h2 class="group-label with-ic"><svg class="ic" aria-hidden="true"><use href="#i-download"/></svg><span data-i18n="settings.data">Your data</span></h2>
       <div class="card settings-group">
         <div class="set-row">
           <span data-i18n="settings.export">Export my data</span>
@@ -808,7 +846,7 @@
         </div>
       </div>
 
-      <h2 class="group-label" data-i18n="settings.mosques">For mosques &amp; communities</h2>
+      <h2 class="group-label with-ic"><svg class="ic" aria-hidden="true"><use href="#i-mosque"/></svg><span data-i18n="settings.mosques">For mosques &amp; communities</span></h2>
       <a class="card widget" href="widget/">
         <span class="w-ic"><svg aria-hidden="true"><use href="#i-mosque"/></svg></span>
         <span class="w-body">

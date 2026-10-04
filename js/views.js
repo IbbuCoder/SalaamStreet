@@ -267,6 +267,8 @@
         prayerReload();
       });
     };
+    $("pt-extra").checked = !!s.extraTimes;
+    $("pt-extra").onchange = function () { SS.store.saveSettings({ extraTimes: this.checked }); prayerReload(); };
     $("pt-tab-daily").onclick = function () { prayerTab(true); };
     $("pt-tab-monthly").onclick = function () { prayerTab(false); };
     $("pt-tab-daily").onkeydown = $("pt-tab-monthly").onkeydown = function (e) {
@@ -324,6 +326,13 @@
             (SS.i18n.isAr() ? "" : '<span class="ar" lang="ar">' + esc(p.ar) + "</span>") +
             (p.key === nk ? ' <span class="badge">' + esc(t("prayer.next")) + "</span>" : "") +
             '</span><span class="t">' + esc(SS.formatTime(r.timings[p.key])) + "</span></div>";
+        }
+        if (s.extraTimes) {
+          var extra = function (key) {
+            return r.timings[key] ? '<div class="time-row extra"><span class="pray-check-spacer" aria-hidden="true"></span><span class="name">' + esc(t("prayer." + key)) +
+              '</span><span class="t">' + esc(SS.formatTime(r.timings[key])) + "</span></div>" : "";
+          };
+          html = extra("Imsak") + html + extra("Midnight") + extra("Lastthird");
         }
         list.innerHTML = html;
         list.removeAttribute("aria-busy");
@@ -467,8 +476,7 @@
       $("qb-needle").style.transform = "rotate(" + qbBearing + "deg)";
       $("qb-compass").setAttribute("aria-label", f("qibla.compassLabel", { deg: qbBearing.toFixed(0) }));
       var km = distanceKm(loc.lat, loc.lng);
-      try { $("qb-dist").textContent = Math.round(km).toLocaleString(SS.i18n.dateLocale()) + " " + t("qibla.km"); }
-      catch (e) { $("qb-dist").textContent = Math.round(km) + " km"; }
+      $("qb-dist").textContent = SS.formatDistance(km, true);
       $("qb-coords").textContent = loc.lat.toFixed(2) + ", " + loc.lng.toFixed(2);
       if (!qbHasCompass) qbRender(0);
       var hint = loc.isFallback ? t("dash.setLocation") : loc.approx ? t("loc.approx") : "";
@@ -486,8 +494,8 @@
     return '<a class="surah-card" href="#/surah/' + s.n + '">' +
       '<span class="surah-num" aria-hidden="true"><span>' + s.n + "</span></span>" +
       '<span class="names"><span class="en">' + (SS.i18n.isAr() ? "" : '<span class="visually-hidden">' + s.n + ". </span>") + esc(surahName(s)) + "</span>" +
-      '<span class="meta">' + esc(SS.i18n.isAr() ? s.en : s.meaning) + " · " + s.ayahs + " " +
-      esc(t("quran.verses")) + " · " + esc(type) + "</span></span>" +
+      '<span class="meta"><bdi>' + esc(SS.i18n.isAr() ? s.en : s.meaning) + "</bdi> · <bdi>" + s.ayahs + " " +
+      esc(t("quran.verses")) + "</bdi> · <bdi>" + esc(type) + "</bdi></span></span>" +
       '<span class="arname" lang="ar" aria-hidden="true">' + esc(s.ar) + "</span></a>";
   }
 
@@ -960,6 +968,8 @@
 
   function dkKey() { return "dhikr:day:" + SS.localDate(); }
   function dkLoad() { var d = SS.store.get(dkKey(), {}); dkCount = d[dkPreset.id] || 0; }
+  /** A preset's target — the sourced default, unless the user chose their own. */
+  function dkTarget(p) { var c = SS.store.get("dhikr:targets", {})[p.id]; return c > 0 ? c : p.target; }
   function dkSave() { var d = SS.store.get(dkKey(), {}); d[dkPreset.id] = dkCount; SS.store.set(dkKey(), d); }
 
   function dkStreakBump() {
@@ -983,7 +993,7 @@
       var p = SS.DHIKR_PRESETS[i];
       var on = p.id === dkPreset.id;
       html += '<button class="chip" role="radio" aria-checked="' + on + '" tabindex="' + (on ? 0 : -1) + '" data-preset="' + esc(p.id) + '" type="button">' +
-        "<bdi>" + esc(SS.i18n.isAr() ? p.ar : p.en) + "</bdi> · " + p.target + "</button>";
+        "<bdi>" + esc(SS.i18n.isAr() ? p.ar : p.en) + "</bdi> · " + dkTarget(p) + "</button>";
     }
     $("dk-presets").innerHTML = html;
   }
@@ -992,7 +1002,7 @@
     var html = "";
     for (var i = 0; i < SS.DHIKR_PRESETS.length; i++) {
       var p = SS.DHIKR_PRESETS[i], c = d[p.id] || 0;
-      html += '<li class="' + (c >= p.target ? "done" : "") + '"><bdi>' + esc(SS.i18n.isAr() ? p.ar : p.en) + "</bdi><b>" + c + " / " + p.target + "</b></li>";
+      html += '<li class="' + (c >= dkTarget(p) ? "done" : "") + '"><bdi>' + esc(SS.i18n.isAr() ? p.ar : p.en) + '</bdi><b dir="ltr">' + c + " / " + dkTarget(p) + "</b></li>";
     }
     $("dk-today").innerHTML = html;
   }
@@ -1001,13 +1011,18 @@
     $("dk-meaning").textContent = SS.i18n.isAr() ? "" : dkPreset.en + " — " + dkPreset.meaning;
     $("dk-meaning").hidden = SS.i18n.isAr();
     $("dk-source").textContent = t("duas.source") + ": " + dkPreset.source;
-    $("dk-target").textContent = dkPreset.target;
-    $("dk-of").textContent = "/ " + dkPreset.target;
+    var tg = dkTarget(dkPreset);
+    var opts = [dkPreset.target, 33, 34, 99, 100, 300, 500, 1000].filter(function (v, i, a) { return a.indexOf(v) === i; });
+    if (opts.indexOf(tg) === -1) opts.push(tg);
+    $("dk-target-sel").innerHTML = opts.map(function (v) {
+      return '<option value="' + v + '"' + (v === tg ? " selected" : "") + ">" + v + (v === dkPreset.target ? " · " + esc(t("dhikr.default")) : "") + "</option>";
+    }).join("");
+    $("dk-of").textContent = "/ " + tg;
     $("dk-count").textContent = dkCount;
-    var prog = Math.min(dkCount / dkPreset.target, 1);
+    var prog = Math.min(dkCount / tg, 1);
     $("dk-prog").style.strokeDashoffset = String(CIRC * (1 - prog));
     $("dk-undo").disabled = dkCount === 0;
-    $("dk-ring").setAttribute("aria-label", f("dhikr.ringLabel", { n: dkCount, target: dkPreset.target }));
+    $("dk-ring").setAttribute("aria-label", f("dhikr.ringLabel", { n: dkCount, target: tg }));
   }
   function dkSelect(id) {
     for (var i = 0; i < SS.DHIKR_PRESETS.length; i++) if (SS.DHIKR_PRESETS[i].id === id) dkPreset = SS.DHIKR_PRESETS[i];
@@ -1020,7 +1035,7 @@
     var num = $("dk-count");
     num.classList.remove("bump"); void num.offsetWidth; num.classList.add("bump");
     vibrate(10);
-    if (dkCount === dkPreset.target) {
+    if (dkCount === dkTarget(dkPreset)) {
       dkStreakBump(); dkRenderStreak();
       $("dk-ring").classList.add("completed-pulse");
       setTimeout(function () { $("dk-ring").classList.remove("completed-pulse"); }, 1600);
@@ -1058,6 +1073,12 @@
       if (b) { b.focus(); b.scrollIntoView({ block: "nearest", inline: "nearest" }); }
     };
     $("dk-ring").onclick = dkTap;
+    $("dk-target-sel").onchange = function () {
+      var all = SS.store.get("dhikr:targets", {});
+      if (+this.value === dkPreset.target) delete all[dkPreset.id]; else all[dkPreset.id] = +this.value;
+      SS.store.set("dhikr:targets", all);
+      dkRenderPresets(); dkRenderCounter(); dkRenderToday();
+    };
     $("dk-undo").onclick = function () {
       if (dkCount > 0) { dkCount--; dkSave(); dkRenderCounter(); dkRenderToday(); }
     };
@@ -1150,11 +1171,13 @@
     var html = "";
     for (var i = 0; i < SS.HADITH_COLLECTIONS.length; i++) {
       var c = SS.HADITH_COLLECTIONS[i];
-      html += '<a class="cat" href="#/hadith/' + c.id + '">' +
-        '<span class="q-ic">' + icon("scroll") + "</span>" +
+      html += '<a class="cat hd-coll" href="#/hadith/' + c.id + '">' +
+        '<span class="hd-top"><span class="q-ic">' + icon("scroll") + "</span>" +
+        '<span class="badge badge-src">' + esc(t(c.bounded ? "hadith.tagComplete" : "hadith.tagBrowse")) + "</span></span>" +
         '<span class="c-title">' + esc(ar ? c.ar : c.en) + "</span>" +
         (ar ? "" : '<span class="c-ar" lang="ar">' + esc(c.ar) + "</span>") +
-        '<span class="c-sub">' + esc(t(c.bounded ? "hadith.boundedDesc" : "hadith.browseDesc")) + "</span></a>";
+        '<span class="hd-about">' + esc(t("hadith.about_" + c.id)) + "</span>" +
+        '<span class="c-sub">' + esc(t(c.bounded ? "hadith.boundedDesc" : "hadith.browseDesc")) + ' <svg class="ic flip" aria-hidden="true"><use href="#i-chev-r"/></svg></span></a>';
     }
     $("hd-cats").innerHTML = html;
   }

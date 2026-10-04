@@ -131,6 +131,10 @@
     audio.addEventListener("ended", function () {
       if (repeatLeft > 1) { repeatLeft--; return SS.audio.start(curSurah, curAyah, curMeta, true); }
       if (curMeta && curAyah < curMeta.ayahs) SS.audio.start(curSurah, curAyah + 1, curMeta);
+      else if (SS.store.settings().continuousPlay && curSurah < 114) {
+        // Optional: carry on into the next surah.
+        SS.audio.start(curSurah + 1, 1, SS.SURAHS[curSurah]);
+      }
       else { setPlayingUI(false); clearHighlight(); }
     });
     // A reciter not hosted at the current bitrate 404s → try the next bitrate.

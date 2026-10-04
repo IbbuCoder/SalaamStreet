@@ -142,8 +142,8 @@ body.scrolled .topbar{border-block-end-color:var(--border)}
 .brand-sm:hover{text-decoration:none}
 .brand-sm .g,.brand .g{color:var(--gold)}
 @media (min-width:768px){.brand-sm{display:none}}
-.brand-mark{display:inline-grid;place-items:center;inline-size:30px;block-size:30px;border-radius:9px;background:linear-gradient(140deg,var(--em-600),var(--em-900));color:#fff;flex-shrink:0}
-.brand-mark svg{inline-size:22px;block-size:22px}
+.brand-mark{display:inline-grid;place-items:center;inline-size:30px;block-size:30px;border-radius:8px;overflow:hidden;flex-shrink:0;box-shadow:0 1px 3px rgb(0 0 0/.18)}
+.brand-mark img{inline-size:100%;block-size:100%;display:block}
 .tb-title{display:none;font-weight:700;color:var(--text-2);font-size:.95rem}
 @media (min-width:768px){.tb-title{display:block}}
 .spacer{flex:1}
@@ -175,8 +175,7 @@ body.scrolled .topbar{border-block-end-color:var(--border)}
 @media (min-width:768px){.sidenav{display:flex}}
 .brand{display:flex;align-items:center;justify-content:center;gap:10px;padding:4px 6px 14px;color:var(--primary-strong);font-size:1.3rem;font-weight:800;letter-spacing:-.02em}
 .brand:hover{text-decoration:none}
-.brand .brand-mark{inline-size:38px;block-size:38px;border-radius:12px}
-.brand .brand-mark svg{inline-size:28px;block-size:28px}
+.brand .brand-mark{inline-size:38px;block-size:38px;border-radius:10px}
 .brand-text{display:none}
 .nav-group{display:flex;flex-direction:column;gap:3px}
 .nav-bottom{margin-block-start:auto;padding-block-start:10px}
@@ -978,6 +977,106 @@ mark{background:color-mix(in srgb,var(--gold-bright) 35%,transparent);color:inhe
 .tl-item .card{padding:16px}
 .tl-title{font-weight:600;color:var(--text-2);margin-block:4px 6px}
 .tl-item ul{padding-inline-start:18px;display:grid;gap:4px;color:var(--text-2);font-size:.92rem}
+
+/* ════════════ 2.4.1 polish ════════════ */
+/* RTL: English text inside an Arabic/Urdu page keeps its own direction and punctuation. */
+[dir="rtl"] :is(.transliteration,.translation,.dua-card h3,.badge-src,.tafsir-text p,.dk-meaning,.ak-card .h-sm,.e-note,.hd-about,.tl-list span,.road-desc,.mq-card .w-title,.mq-card .w-sub){unicode-bidi:plaintext;text-align:start}
+/* Counters and fractions always read left-to-right ("1 / 8", "0 / 33"). */
+#ak-step,.ak-num,.ring .num,#dk-of,.today-list b,.ver-pill,.wk-head span{direction:ltr;unicode-bidi:isolate}
+
+/* Settings: section headers with icons; compact switch rows */
+.group-label.with-ic{display:flex;align-items:center;gap:8px}
+.group-label.with-ic .ic{inline-size:16px;block-size:16px;color:var(--primary-strong)}
+.set-row.compact{min-block-size:48px;padding-block:6px;border-block-start:1px solid var(--border)}
+.set-row.compact > span{font-size:.9rem;font-weight:600}
+
+/* Prayer: optional extra times (Imsak, midnight, last third) */
+.time-row.extra{background:transparent;border-style:dashed;box-shadow:none;min-block-size:52px;padding-block:10px}
+.time-row.extra .name{font-weight:600;color:var(--text-2)}
+.time-row.extra .t{font-size:1rem;color:var(--text-2)}
+
+/* Dhikr: tap hint + adjustable target */
+.dk-meta{display:flex;align-items:center;justify-content:center;gap:10px 16px;flex-wrap:wrap}
+.dk-target{display:inline-flex;align-items:center;gap:8px;font-size:.85rem;font-weight:700;color:var(--text-2)}
+.dk-target select.input{inline-size:auto;min-inline-size:0;padding-inline:12px 34px}
+
+/* Adhkar start cards: richer, with time window and a clear call to action */
+.ak-choice{position:relative;overflow:hidden;display:grid;gap:6px;align-content:start;padding:22px;min-block-size:220px;isolation:isolate}
+.ak-choice.morning{background:linear-gradient(160deg,color-mix(in srgb,var(--gold-bright) 13%,var(--surface)),var(--surface) 65%)}
+.ak-choice.evening{background:linear-gradient(160deg,color-mix(in srgb,var(--primary) 14%,var(--surface)),var(--surface) 65%)}
+.ak-choice .ak-top{display:flex;align-items:center;justify-content:space-between;margin-block-end:6px}
+.ak-choice .w-title{font-size:1.2rem;font-weight:800}
+.ak-when{font-size:.85rem;font-weight:700;color:var(--primary-strong)}
+.ak-choice.morning .ak-when{color:var(--gold)}
+.ak-incl{font-size:.82rem;color:var(--text-3);line-height:1.5}
+.ak-go{justify-self:start;margin-block-start:8px;pointer-events:none}
+.ak-go .ic{inline-size:16px;block-size:16px}
+.ak-deco{position:absolute;inset-block-start:-18px;inset-inline-end:-18px;inline-size:132px;block-size:132px;opacity:.07;color:var(--text);z-index:-1}
+.ak-deco svg{inline-size:100%;block-size:100%;stroke-width:1.2}
+.ak-choice.is-done{border-color:color-mix(in srgb,var(--primary) 45%,var(--border))}
+.ak-choice:hover{transform:translateY(-1px)}
+@media (prefers-reduced-motion:reduce){.ak-choice:hover{transform:none}}
+
+/* Hadith collections */
+.hd-coll{gap:8px;min-block-size:170px}
+.hd-top{display:flex;align-items:center;justify-content:space-between;inline-size:100%}
+.hd-about{font-size:.86rem;color:var(--text-2);line-height:1.5}
+.hd-coll .c-sub{display:inline-flex;align-items:center;gap:4px;color:var(--primary-strong);font-weight:700}
+.hd-coll .c-sub .ic{inline-size:15px;block-size:15px}
+
+/* Empty states: a soft framed panel instead of floating text */
+.state:not(.state-inline):not(.error){
+  border:1.5px dashed var(--border);border-radius:var(--radius);
+  background:radial-gradient(circle at 1.5px 1.5px,color-mix(in srgb,var(--primary) 14%,transparent) 1.2px,transparent 0) 0 0/22px 22px,var(--surface);
+}
+.state .s-ic{background:var(--primary-soft);color:var(--primary-strong)}
+
+/* ── Updates tab: changelog + roadmap ─────────────────────────── */
+.up-hero{display:flex;align-items:center;gap:16px;background:linear-gradient(140deg,var(--primary-soft),var(--surface) 70%);border-color:color-mix(in srgb,var(--primary) 30%,var(--border))}
+.up-hero img{border-radius:14px;flex-shrink:0;box-shadow:var(--shadow)}
+.up-kicker{display:inline-flex;align-items:center;gap:6px;font-size:.78rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--primary-strong)}
+html:is([lang="ar"],[lang="ur"],[lang="bn"]) .up-kicker{letter-spacing:0;text-transform:none}
+.up-kicker .ic{inline-size:15px;block-size:15px;stroke-width:2.6}
+.up-title{font-size:1.15rem;font-weight:800}
+.up-jump{display:flex;gap:8px;flex-wrap:wrap;margin-block:16px 4px}
+.up-jump a{display:inline-flex;align-items:center;gap:6px;min-block-size:40px;padding:6px 14px;border-radius:999px;border:1px solid var(--border);background:var(--surface);color:var(--text-2);font-weight:700;font-size:.88rem}
+.up-jump a:hover{text-decoration:none;border-color:var(--primary);color:var(--primary-strong)}
+.up-jump .ic{inline-size:16px;block-size:16px}
+@media (pointer:coarse){.up-jump a{min-block-size:44px}}
+.up-section{margin-block-start:26px;scroll-margin-block-start:calc(var(--topbar-h) + var(--safe-t) + 12px)}
+.up-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-block-end:6px}
+.up-head h2{font-size:1.15rem;scroll-margin-block-start:calc(var(--topbar-h) + var(--safe-t) + 16px)}
+.ver-pill{display:inline-flex;align-items:center;padding:3px 10px;border-radius:999px;font-weight:800;font-size:.78rem;font-variant-numeric:tabular-nums;background:var(--surface-2);color:var(--text);border:1px solid var(--border)}
+.ver-pill::before{content:"v";opacity:.55;margin-inline-end:1px}
+.ver-pill.solid{background:var(--primary);border-color:var(--primary);color:var(--on-primary)}
+.ver-pill.gold{background:color-mix(in srgb,var(--gold-bright) 20%,var(--surface));border-color:color-mix(in srgb,var(--gold-bright) 55%,transparent);color:var(--gold)}
+.status-pill{display:inline-flex;align-items:center;padding:3px 10px;border-radius:999px;font-size:.72rem;font-weight:800;background:var(--surface-2);color:var(--text-3);text-transform:uppercase;letter-spacing:.05em}
+html:is([lang="ar"],[lang="ur"],[lang="bn"]) .status-pill{letter-spacing:0;text-transform:none}
+.status-pill.next{background:var(--primary-soft);color:var(--primary-strong)}
+.road-track{list-style:none;padding:0;margin:14px 0 0;display:grid;gap:12px;position:relative}
+.road-track::before{content:"";position:absolute;inset-block:22px;inset-inline-start:21px;inline-size:2px;background:repeating-linear-gradient(to bottom,var(--border) 0 6px,transparent 6px 11px)}
+.road-item{position:relative;display:grid;grid-template-columns:44px minmax(0,1fr);gap:12px;align-items:start}
+.road-node{position:relative;z-index:1;display:grid;place-items:center;inline-size:44px;block-size:44px;border-radius:14px;background:var(--surface);border:1.5px solid var(--border);color:var(--text-2)}
+.road-node .ic,.road-node svg{inline-size:20px;block-size:20px}
+.road-item.next .road-node{background:var(--primary);border-color:var(--primary);color:var(--on-primary)}
+.road-item.milestone .road-node{background:color-mix(in srgb,var(--gold-bright) 18%,var(--surface));border-color:var(--gold-bright);color:var(--gold)}
+.road-card{padding:14px 16px}
+.road-item.next .road-card{border-color:color-mix(in srgb,var(--primary) 45%,var(--border));box-shadow:var(--shadow)}
+.road-item.milestone .road-card{background:linear-gradient(150deg,color-mix(in srgb,var(--gold-bright) 10%,var(--surface)),var(--surface) 70%)}
+.road-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.road-title{display:block;font-size:1.02rem;margin-block-start:8px}
+.road-desc{color:var(--text-2);font-size:.9rem;line-height:1.55;margin-block-start:2px}
+.timeline{margin-block-start:14px}
+.tl-card{padding:16px 18px}
+.tl-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tl-top time{margin-inline-start:auto}
+.tl-item .tl-title{font-size:1rem;font-weight:800;color:var(--text);margin-block:10px 8px}
+.tl-list{list-style:none;padding:0;display:grid;gap:6px}
+.tl-list li{display:flex;gap:8px;align-items:flex-start;color:var(--text-2);font-size:.92rem;line-height:1.5}
+.tl-list .ic{inline-size:16px;block-size:16px;color:var(--primary);margin-block-start:3px;stroke-width:2.4}
+.tl-item.current .tl-card{border-color:color-mix(in srgb,var(--primary) 40%,var(--border));box-shadow:var(--shadow)}
+.tl-dot{inset-block-start:22px}
+@media (min-width:900px){.road-track{grid-template-columns:1fr}.road-card{padding:16px 20px}}
 
 /* ── Standalone pages (SEO pages, widget builder) ──────────────── */
 .standalone .main{margin-inline-start:0;padding-block:20px 48px;min-block-size:auto}

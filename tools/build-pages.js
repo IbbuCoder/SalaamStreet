@@ -54,11 +54,11 @@ function page({ rel, title, description, h1, lead, body, jsonld, extraHead = "" 
   <meta property="og:description" content="${esc(description)}" />
   <meta property="og:url" content="${canonical}" />
   <meta property="og:type" content="article" />
-  <meta property="og:image" content="${SITE}/icons/icon-512.png" />
+  <meta property="og:image" content="${SITE}/icons/og-image.png" />
   <meta name="theme-color" content="#f6faf7" media="(prefers-color-scheme: light)" />
   <meta name="theme-color" content="#0a100d" media="(prefers-color-scheme: dark)" />
-  <link rel="icon" href="${up}icons/favicon.svg" type="image/svg+xml" />
   <link rel="icon" href="${up}icons/favicon-32.png" type="image/png" sizes="32x32" />
+  <link rel="icon" href="${up}icons/favicon-16.png" type="image/png" sizes="16x16" />
   <link rel="apple-touch-icon" href="${up}icons/apple-touch-icon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -68,7 +68,7 @@ function page({ rel, title, description, h1, lead, body, jsonld, extraHead = "" 
 ${jsonld ? `  <script type="application/ld+json">${JSON.stringify(jsonld)}</script>\n` : ""}${extraHead}</head>
 <body class="standalone">
   <header class="site-head">
-    <a class="brand-sm" href="${up}#/home"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 64 64"><path d="M17 54V30c0-8 6-13.5 15-18 9 4.5 15 10 15 18v24" fill="none" stroke="#e9c766" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M35.5 21a9 9 0 1 0 0 17 7.2 7.2 0 1 1 0-17z" fill="#e9c766" stroke="none"/></svg></span><span>Salaam<span class="g">Street</span></span></a>
+    <a class="brand-sm" href="${up}#/home"><span class="brand-mark" aria-hidden="true"><img src="${up}icons/brand/logo-mark-128.png" alt="" width="30" height="30" /></span><span>Salaam<span class="g">Street</span></span></a>
     <nav class="site-links" aria-label="Main">
       <a href="${up}prayer-times/">Prayer times</a>
       <a href="${up}surah/">Qur'an</a>
@@ -282,7 +282,7 @@ write("prayer-times", page({
         </ul>
       </article>
       <h2 class="mt-3 mb-1">Coming next</h2>
-      <div class="roadmap">${R.map((r) => `<div class="card road"><div class="w-body"><b class="w-title">${esc(r.en)}</b><span class="w-sub wrap-text">${esc(r.den)}</span></div></div>`).join("")}</div>
+      <div class="roadmap">${R.map((r) => `<div class="card road"><div class="w-body"><b class="w-title"><span class="ver-pill" dir="ltr">${esc(r.v)}</span> ${esc(r.en)}</b><span class="w-sub wrap-text">${esc(r.den)}</span></div></div>`).join("")}</div>
       <h2 class="mt-3 mb-1">Version history</h2>
       <ol class="timeline">${C.map((c, i) => `<li class="tl-item${i === 0 ? " current" : ""}"><span class="tl-dot" aria-hidden="true"></span><div class="card"><b>Version ${esc(c.v)}</b><p class="tl-title">${esc(c.en)}</p><ul>${c.items.map((it) => `<li>${esc(it.en)}</li>`).join("")}</ul></div></li>`).join("")}</ol>
       <article class="card dua-ask mt-3"><div><h2 class="h-sm">A small request</h2><p class="muted mt-1">We hope SalaamStreet becomes a sadaqah jariyah — a charity whose reward continues for everyone who benefits. If it has helped you, please remember Ibrahim and our family in your du'as.</p></div></article>

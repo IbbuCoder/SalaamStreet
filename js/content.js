@@ -224,8 +224,18 @@
   ];
 
   /* ── Version & release notes (newest first) ──────────────────────── */
-  SS.VERSION = "2.4.0";
+  SS.VERSION = "2.4.1";
   SS.CHANGELOG = [
+    {
+      v: "2.4.1", date: "2026-10-04",
+      en: "Polish, flexibility & UI quality", ar: "تحسينات ومرونة وجودة الواجهة",
+      items: [
+        { en: "The official SalaamStreet logo everywhere — app icon, browser tab, home screen, launch screens and share images", ar: "شعار سلام ستريت الرسمي في كل مكان — أيقونة التطبيق والمتصفح والشاشة الرئيسية وشاشات البدء وصور المشاركة" },
+        { en: "Choose miles or kilometres, 12- or 24-hour time, and your own dhikr targets", ar: "اختر الأميال أو الكيلومترات، وصيغة ١٢ أو ٢٤ ساعة، وأهداف الذكر الخاصة بك" },
+        { en: "Optional Imsak, midnight and last-third times, and keep playing into the next surah", ar: "أوقات اختيارية للإمساك ومنتصف الليل والثلث الأخير، ومتابعة التشغيل إلى السورة التالية" },
+        { en: "A clearer Updates tab, richer Adhkar and Hadith pages, and Arabic layout fixes", ar: "تبويب تحديثات أوضح، وصفحات أذكار وحديث أغنى، وإصلاحات في تخطيط العربية" },
+      ],
+    },
     {
       v: "2.4.0", date: "2026-10-04",
       en: "Our story, a new look and home-screen support", ar: "قصتنا وهوية جديدة ودعم الشاشة الرئيسية",
@@ -279,17 +289,25 @@
       ],
     },
   ];
-  /* What's planned — honest "hopes", not promises with dates. */
+  /* What's planned — honest plans in order, never dates. Nothing here is released yet. */
   SS.ROADMAP = [
-    { icon: "check", en: "Free sync across your devices", ar: "مزامنة مجانية بين أجهزتك",
-      den: "Sign in to keep your bookmarks, streaks and settings on every device — free.", dar: "سجّل الدخول لتبقى إشاراتك وسلاسلك وإعداداتك على كل أجهزتك — مجانًا." },
-    { icon: "bell", en: "Reminders even when the app is closed", ar: "تنبيهات حتى عند إغلاق التطبيق",
-      den: "Prayer notifications sent from a server, so they arrive reliably on phones.", dar: "إشعارات صلاة تُرسل من خادم لتصل بثبات على الهواتف." },
-    { icon: "globe", en: "Reviewed translations", ar: "ترجمات مُراجَعة",
-      den: "Native speakers checking the Urdu, Bengali, Indonesian, Turkish and French versions.", dar: "مراجعة متحدثين أصليين للنسخ الأردية والبنغالية والإندونيسية والتركية والفرنسية." },
-    { icon: "heart", en: "The SalaamStreet shop returns", ar: "عودة متجر سلام ستريت",
-      den: "Islamic products — while the app itself stays free.", dar: "منتجات إسلامية — ويبقى التطبيق نفسه مجانيًا." },
-    { icon: "sparkle", en: "Optional paid extras", ar: "إضافات مدفوعة اختيارية",
-      den: "Only for things that genuinely cost money, like an AI Arabic tutor or live courses — by subscription or a one-time purchase you own forever.", dar: "فقط لما يكلّف مالًا فعلًا، مثل مدرّس عربية بالذكاء الاصطناعي أو دورات مباشرة — باشتراك أو بشراء لمرة واحدة تملكه للأبد." },
+    { v: "2.5.0", icon: "check", en: "Accounts + Guest Mode", ar: "الحسابات ووضع الضيف",
+      den: "Optional free accounts to keep your bookmarks, streaks and settings on all your devices — and everything keeps working without one in guest mode.",
+      dar: "حسابات مجانية اختيارية لتبقى إشاراتك وسلاسلك وإعداداتك على كل أجهزتك — ويبقى كل شيء يعمل دونها في وضع الضيف." },
+    { v: "2.6.0", icon: "book", en: "Qur'an+", ar: "القرآن+",
+      den: "Deeper Qur'an study tools, building on the reader, recitation and memorize mode.",
+      dar: "أدوات أعمق لدراسة القرآن، مبنية على القارئ والتلاوة ووضع الحفظ." },
+    { v: "2.7.0", icon: "scroll", en: "Hadith + Knowledge", ar: "الحديث والمعرفة",
+      den: "More hadith and authentic Islamic knowledge — always clearly sourced.",
+      dar: "مزيد من الأحاديث والمعرفة الإسلامية الموثوقة — مع ذكر المصدر دائمًا." },
+    { v: "2.8.0", icon: "letters", en: "Learn", ar: "تعلّم",
+      den: "Step-by-step learning that grows from today's Arabic letters lessons.",
+      dar: "تعلّم خطوة بخطوة ينطلق من دروس الحروف العربية الحالية." },
+    { v: "2.9.0", icon: "mosque", en: "MSA + Community", ar: "رابطة الطلاب المسلمين والمجتمع",
+      den: "Tools for Muslim Student Associations and local communities.",
+      dar: "أدوات لروابط الطلاب المسلمين والمجتمعات المحلية." },
+    { v: "3.0.0", icon: "sparkle", en: "Major SalaamStreet Milestone", ar: "محطة كبرى لسلام ستريت",
+      den: "A major milestone for SalaamStreet. Plans may change as we learn from you.",
+      dar: "محطة كبرى في مسيرة سلام ستريت. قد تتغير الخطط بحسب ما نتعلمه منكم." },
   ];
 })();

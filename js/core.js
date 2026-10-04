@@ -49,7 +49,7 @@
   SS.DEFAULTS = {
     locale: "en", theme: "system", method: 3, school: 0,
     reciter: "ar.alafasy", showTranslation: true, showTransliteration: false, location: null,
-    translation: "en.sahih",
+    translation: "en.sahih", timeFormat: "auto", units: "auto", extraTimes: false, continuousPlay: false,
     reminders: false, reminderOffset: 0, reminderSound: true, kahfReminder: true,
   };
   SS.FALLBACK_LOC = { lat: 21.4225, lng: 39.8262, label: "Makkah (default)", isFallback: true };
@@ -123,9 +123,36 @@
     var parts = String(hhmm).slice(0, 5).split(":");
     var d = new Date();
     d.setHours(+parts[0] || 0, +parts[1] || 0, 0, 0);
+    var fmt = store.settings().timeFormat;
+    var opts = { hour: "numeric", minute: "2-digit" };
+    if (fmt === "12") opts.hour12 = true;
+    if (fmt === "24") { opts.hour12 = false; opts.hour = "2-digit"; }
     try {
-      return d.toLocaleTimeString(SS.i18n.dateLocale(), { hour: "numeric", minute: "2-digit" });
+      return d.toLocaleTimeString(SS.i18n.dateLocale(), opts);
     } catch (e) { return String(hhmm).slice(0, 5); }
+  };
+  /** "km" or "mi" — Settings choice, or the usual unit for the device's region. */
+  SS.units = function () {
+    var u = store.settings().units;
+    if (u === "km" || u === "mi") return u;
+    var lang = (navigator.languages && navigator.languages[0]) || navigator.language || "";
+    return /-(US|GB|LR|MM)\b/i.test(lang) ? "mi" : "km";
+  };
+  /** Distance in km → localized "3.2 km" / "2 mi" / "450 m" / "800 ft". */
+  SS.formatDistance = function (km, coarse) {
+    var mi = SS.units() === "mi", loc = SS.i18n.dateLocale();
+    var v = mi ? km * 0.621371 : km;
+    var unit;
+    if (!coarse && v < (mi ? 0.1 : 1)) {
+      v = mi ? Math.round(km * 3280.84 / 10) * 10 : Math.round(km * 1000 / 10) * 10;
+      unit = SS.i18n.t(mi ? "units.ft" : "units.m");
+    } else {
+      v = coarse || v >= 10 ? Math.round(v) : Math.round(v * 10) / 10;
+      unit = SS.i18n.t(mi ? "units.mi" : "units.km");
+    }
+    var n;
+    try { n = v.toLocaleString(loc); } catch (e) { n = String(v); }
+    return n + "\u00a0" + unit;
   };
   /** YYYY-MM-DD in the device's local time zone (toISOString would use UTC). */
   SS.localDate = function (d) {
