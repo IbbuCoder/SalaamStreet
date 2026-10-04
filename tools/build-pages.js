@@ -57,6 +57,10 @@ function page({ rel, title, description, h1, lead, body, jsonld, extraHead = "" 
   <meta property="og:image" content="${SITE}/icons/og-image.png" />
   <meta name="theme-color" content="#f6faf7" media="(prefers-color-scheme: light)" />
   <meta name="theme-color" content="#0a100d" media="(prefers-color-scheme: dark)" />
+  <meta name="color-scheme" content="light dark" />
+  <!-- Saved theme before any stylesheet loads, so there is no light/dark flash. -->
+  <style>html{background:#f6faf7;color-scheme:light}html[data-theme="dark"]{background:#0a100d;color-scheme:dark}</style>
+  <script>(function(){var d=document.documentElement,t="system";try{t=(JSON.parse(localStorage.getItem("salaamstreet:settings")||"{}")||{}).theme||"system"}catch(e){}var k=t==="dark"||(t!=="light"&&!!window.matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light";d.setAttribute("data-theme",k);var m=document.querySelectorAll('meta[name="theme-color"]');for(var i=0;i<m.length;i++){m[i].setAttribute("content",k==="dark"?"#0a100d":"#f6faf7");m[i].removeAttribute("media")}var c=document.querySelector('meta[name="color-scheme"]');if(c)c.setAttribute("content",k)})();</script>
   <link rel="icon" href="${up}icons/favicon-32.png" type="image/png" sizes="32x32" />
   <link rel="icon" href="${up}icons/favicon-16.png" type="image/png" sizes="16x16" />
   <link rel="apple-touch-icon" href="${up}icons/apple-touch-icon.png" />
@@ -64,7 +68,6 @@ function page({ rel, title, description, h1, lead, body, jsonld, extraHead = "" 
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;600;700;800&family=Scheherazade+New:wght@400;700&family=Amiri:wght@400;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="${up}css/styles.css" />
-  <script>try{var s=JSON.parse(localStorage.getItem("salaamstreet:settings")||"{}"),t=s.theme||"system";document.documentElement.setAttribute("data-theme",t==="dark"||(t==="system"&&matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light")}catch(e){}</script>
 ${jsonld ? `  <script type="application/ld+json">${JSON.stringify(jsonld)}</script>\n` : ""}${extraHead}</head>
 <body class="standalone">
   <header class="site-head">
@@ -85,7 +88,7 @@ ${body}
     </article>
   </main>
   <footer class="site-foot">
-    <p>SalaamStreet — free prayer times, Qibla, Qur'an, hadith, duas and more. No ads, no accounts; your data stays on your device.</p>
+    <p>SalaamStreet — free prayer times, Qibla, Qur'an, hadith, duas and more. No ads, no account needed; your data stays on your device unless you choose to sync it.</p>
     <p><a href="${up}#/home">Open SalaamStreet</a> · <a href="${up}widget/">Prayer times widget for mosques</a></p>
   </footer>
 </body>
@@ -270,7 +273,7 @@ write("prayer-times", page({
         <p>SalaamStreet didn't start as an app. When Ibrahim was 12, it was an Islamic-themed online shop he built on Shopify. It didn't take off. His next attempt didn't either.</p>
         <p>But Ibrahim kept the name and changed the idea. Instead of selling things to Muslims, what if SalaamStreet gave them something — every day, for free?</p>
         <p>Today Ibrahim is a student at Neuqua Valley High School, where he's part of the Muslim Student Association.</p>
-        <p>SalaamStreet is one calm place to find prayer times, face the Qibla, read and listen to the Qur'an, learn authentic duas, track your prayers, start learning Arabic and remember Allah — with no ads, and with your data staying on your device.</p>
+        <p>SalaamStreet is one calm place to find prayer times, face the Qibla, read and listen to the Qur'an, learn authentic duas, track your prayers, start learning Arabic and remember Allah — with no ads, no account required, and your data staying on your device unless you choose to sign in and sync it.</p>
         <p class="story-sign">Ibrahim had the idea; his father helped bring it to life.</p>
       </article>
       <article class="card promise mt-2">
@@ -284,7 +287,9 @@ write("prayer-times", page({
       <h2 class="mt-3 mb-1">Coming next</h2>
       <div class="roadmap">${R.map((r) => `<div class="card road"><div class="w-body"><b class="w-title"><span class="ver-pill" dir="ltr">${esc(r.v)}</span> ${esc(r.en)}</b><span class="w-sub wrap-text">${esc(r.den)}</span></div></div>`).join("")}</div>
       <h2 class="mt-3 mb-1">Version history</h2>
-      <ol class="timeline">${C.map((c, i) => `<li class="tl-item${i === 0 ? " current" : ""}"><span class="tl-dot" aria-hidden="true"></span><div class="card"><b>Version ${esc(c.v)}</b><p class="tl-title">${esc(c.en)}</p><ul>${c.items.map((it) => `<li>${esc(it.en)}</li>`).join("")}</ul></div></li>`).join("")}</ol>
+      <ol class="timeline">${C.map((c, i) => `<li class="tl-item${i === 0 ? " current" : ""}"><span class="tl-dot" aria-hidden="true"></span><div class="card"><b>Version ${esc(c.v)}</b><p class="tl-title">${esc(c.en)}</p>${c.den ? `<p class="tl-desc">${esc(c.den)}</p>` : ""}${c.groups
+        ? c.groups.map((g) => `<h3 class="tl-group">${esc(g.en)}</h3><ul>${g.items.map((it) => `<li>${esc(it.en)}</li>`).join("")}</ul>`).join("")
+        : `<ul>${c.items.map((it) => `<li>${esc(it.en)}</li>`).join("")}</ul>`}</div></li>`).join("")}</ol>
       <article class="card dua-ask mt-3"><div><h2 class="h-sm">A small request</h2><p class="muted mt-1">We hope SalaamStreet becomes a sadaqah jariyah — a charity whose reward continues for everyone who benefits. If it has helped you, please remember Ibrahim and our family in your du'as.</p></div></article>
       <p class="mt-2"><a class="btn" href="../#/home">Open SalaamStreet</a></p>`,
   }));

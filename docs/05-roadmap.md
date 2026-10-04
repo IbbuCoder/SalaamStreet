@@ -25,12 +25,18 @@ laptops and large monitors. Core worship features are, and will stay, free.
 - 2.4.0: About page, Updates tab with version history, new logo and iOS home-screen support
 - 2.4.1: 12/24-hour time, km/miles, optional Imsak/Midnight/Last-third times, custom dhikr targets,
   continuous Qur'an play across surahs, richer Updates tab, provided logo used everywhere
+- **2.5.0 — Accounts + Guest Mode:** optional free accounts (Apple, Google, phone, email) with
+  cross-device sync of bookmarks, streaks, Qur'an progress and settings; guest mode with no account
+  required and guest-data migration on sign-in; personal Account dashboard (streaks, Continue Reading,
+  progress, recently read, bookmark collections/notes/search, saved duas); Qibla direction fix
+  (magnetic-declination correction, full 3-D orientation, no direction without a real location) and
+  Qibla Camera Mode; Tafsir fix (correct files, no stale commentary, previous/next ayah); startup
+  theme fix (no light/dark flash, dark iOS launch screens)
 
 ## Planned (no release dates; plans may change)
 
 The same list appears in the app under About → Updates (`SS.ROADMAP` in `js/content.js`).
 
-- **2.5.0 — Accounts + Guest Mode:** optional sign-in with free sync; guest mode keeps working with no account
 - **2.6.0 — Qur'an+:** deeper Qur'an study and reading tools
 - **2.7.0 — Hadith + Knowledge:** more hadith collections and learning content
 - **2.8.0 — Learn:** structured lessons beyond the Arabic alphabet
@@ -44,4 +50,5 @@ review of the draft Urdu, Bengali, Indonesian, Turkish and French translations.
 
 Qur'an, hadith and tafsir always come from established sources with citations
 shown; nothing is generated. Scholarly differences (calculation method, Asr)
-are user choices. Personal data stays on the device unless the user opts in.
+are user choices. Personal data stays on the device unless the user opts in by
+signing in; even then, location and reminders stay on each device.

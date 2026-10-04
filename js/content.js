@@ -224,8 +224,43 @@
   ];
 
   /* ── Version & release notes (newest first) ──────────────────────── */
-  SS.VERSION = "2.4.1";
+  SS.VERSION = "2.5.0";
   SS.CHANGELOG = [
+    {
+      v: "2.5.0", date: "2026-10-04",
+      en: "Accounts + Guest Mode", ar: "الحسابات ووضع الضيف",
+      den: "Optional free accounts to keep your bookmarks, streaks and settings on all your devices — and everything keeps working without one in guest mode.",
+      dar: "حسابات مجانية اختيارية لتبقى إشاراتك وسلاسلك وإعداداتك على كل أجهزتك — ويبقى كل شيء يعمل دونها في وضع الضيف.",
+      groups: [
+        { en: "Accounts", ar: "الحسابات", items: [
+          { en: "Added free SalaamStreet accounts", ar: "حسابات سلام ستريت المجانية" },
+          { en: "Added Apple, Google, Phone, and Email sign-in", ar: "تسجيل الدخول عبر Apple وGoogle والهاتف والبريد الإلكتروني" },
+          { en: "Added cross-device synchronization", ar: "المزامنة بين الأجهزة" },
+          { en: "Added synced bookmarks, streaks, settings, and Qur'an progress", ar: "مزامنة الإشارات والسلاسل والإعدادات والتقدّم في القرآن" },
+          { en: "Added personalized account dashboard", ar: "لوحة شخصية لحسابك" },
+          { en: "Added Continue Reading", ar: "متابعة القراءة" },
+          { en: "Improved bookmark management", ar: "إدارة أفضل للإشارات" },
+        ] },
+        { en: "Guest Mode", ar: "وضع الضيف", items: [
+          { en: "SalaamStreet can still be used without an account", ar: "يمكن استخدام سلام ستريت دون حساب" },
+          { en: "No account is required for core features", ar: "لا حاجة إلى حساب للميزات الأساسية" },
+          { en: "Guest data can be migrated when creating an account", ar: "تُنقل بيانات الضيف عند إنشاء حساب" },
+        ] },
+        { en: "Qibla", ar: "القبلة", items: [
+          { en: "Fixed Qibla direction and compass issues", ar: "إصلاح اتجاه القبلة ومشكلات البوصلة" },
+          { en: "Added Qibla Camera Mode", ar: "وضع الكاميرا للقبلة" },
+        ] },
+        { en: "Qur'an", ar: "القرآن", items: [
+          { en: "Fixed Qur'an Tafsir issues", ar: "إصلاح مشكلات التفسير" },
+          { en: "Improved Tafsir loading and ayah synchronization", ar: "تحسين تحميل التفسير ومطابقته للآية" },
+        ] },
+        { en: "UI & Stability", ar: "الواجهة والثبات", items: [
+          { en: "Fixed loading screen theme mismatch", ar: "إصلاح اختلاف مظهر شاشة التحميل" },
+          { en: "Improved startup theme handling", ar: "تحسين تطبيق المظهر عند البدء" },
+          { en: "General bug fixes and stability improvements", ar: "إصلاحات عامة وتحسينات في الثبات" },
+        ] },
+      ],
+    },
     {
       v: "2.4.1", date: "2026-10-04",
       en: "Polish, flexibility & UI quality", ar: "تحسينات ومرونة وجودة الواجهة",
@@ -289,11 +324,12 @@
       ],
     },
   ];
+  // Releases with grouped notes also expose a flat `items` list.
+  SS.CHANGELOG.forEach(function (c) {
+    if (c.groups && !c.items) c.items = [].concat.apply([], c.groups.map(function (g) { return g.items; }));
+  });
   /* What's planned — honest plans in order, never dates. Nothing here is released yet. */
   SS.ROADMAP = [
-    { v: "2.5.0", icon: "check", en: "Accounts + Guest Mode", ar: "الحسابات ووضع الضيف",
-      den: "Optional free accounts to keep your bookmarks, streaks and settings on all your devices — and everything keeps working without one in guest mode.",
-      dar: "حسابات مجانية اختيارية لتبقى إشاراتك وسلاسلك وإعداداتك على كل أجهزتك — ويبقى كل شيء يعمل دونها في وضع الضيف." },
     { v: "2.6.0", icon: "book", en: "Qur'an+", ar: "القرآن+",
       den: "Deeper Qur'an study tools, building on the reader, recitation and memorize mode.",
       dar: "أدوات أعمق لدراسة القرآن، مبنية على القارئ والتلاوة ووضع الحفظ." },

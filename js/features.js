@@ -1137,8 +1137,15 @@
         '<div class="tl-top"><span class="ver-pill' + (i === 0 ? " solid" : "") + '" dir="ltr">' + esc(c.v) + "</span>" +
         (i === 0 ? '<span class="status-pill next">' + esc(t("updates.current")) + "</span>" : "") +
         (date ? '<time class="tiny" datetime="' + esc(c.date) + '">' + esc(date) + "</time>" : "") + "</div>" +
-        '<h3 class="tl-title">' + esc(ar ? c.ar : c.en) + "</h3><ul class=\"tl-list\">" +
-        c.items.map(function (it) { return "<li>" + icon("check") + "<span>" + esc(ar ? it.ar : it.en) + "</span></li>"; }).join("") + "</ul></article></li>";
+        '<h3 class="tl-title">' + esc(ar ? c.ar : c.en) + "</h3>" +
+        (c.den ? '<p class="tl-desc">' + esc(ar ? c.dar : c.den) + "</p>" : "") +
+        (c.groups
+          ? c.groups.map(function (g) {
+            return '<h4 class="tl-group">' + esc(ar ? g.ar : g.en) + '</h4><ul class="tl-list">' +
+              g.items.map(function (it) { return "<li>" + icon("check") + "<span>" + esc(ar ? it.ar : it.en) + "</span></li>"; }).join("") + "</ul>";
+          }).join("")
+          : '<ul class="tl-list">' + c.items.map(function (it) { return "<li>" + icon("check") + "<span>" + esc(ar ? it.ar : it.en) + "</span></li>"; }).join("") + "</ul>") +
+        "</article></li>";
     });
     $("ab-history").innerHTML = hist;
     $("ab-history-count").textContent = f("updates.releases", { n: SS.CHANGELOG.length });

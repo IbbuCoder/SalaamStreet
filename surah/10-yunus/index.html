@@ -13,6 +13,10 @@
   <meta property="og:image" content="https://salaamstreet.com/icons/og-image.png" />
   <meta name="theme-color" content="#f6faf7" media="(prefers-color-scheme: light)" />
   <meta name="theme-color" content="#0a100d" media="(prefers-color-scheme: dark)" />
+  <meta name="color-scheme" content="light dark" />
+  <!-- Saved theme before any stylesheet loads, so there is no light/dark flash. -->
+  <style>html{background:#f6faf7;color-scheme:light}html[data-theme="dark"]{background:#0a100d;color-scheme:dark}</style>
+  <script>(function(){var d=document.documentElement,t="system";try{t=(JSON.parse(localStorage.getItem("salaamstreet:settings")||"{}")||{}).theme||"system"}catch(e){}var k=t==="dark"||(t!=="light"&&!!window.matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light";d.setAttribute("data-theme",k);var m=document.querySelectorAll('meta[name="theme-color"]');for(var i=0;i<m.length;i++){m[i].setAttribute("content",k==="dark"?"#0a100d":"#f6faf7");m[i].removeAttribute("media")}var c=document.querySelector('meta[name="color-scheme"]');if(c)c.setAttribute("content",k)})();</script>
   <link rel="icon" href="../../icons/favicon-32.png" type="image/png" sizes="32x32" />
   <link rel="icon" href="../../icons/favicon-16.png" type="image/png" sizes="16x16" />
   <link rel="apple-touch-icon" href="../../icons/apple-touch-icon.png" />
@@ -20,7 +24,6 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;600;700;800&family=Scheherazade+New:wght@400;700&family=Amiri:wght@400;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="../../css/styles.css" />
-  <script>try{var s=JSON.parse(localStorage.getItem("salaamstreet:settings")||"{}"),t=s.theme||"system";document.documentElement.setAttribute("data-theme",t==="dark"||(t==="system"&&matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light")}catch(e){}</script>
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebPage","name":"Surah Yunus","description":"Surah 10 of the Qur'an — Jonah"}</script>
 </head>
 <body class="standalone">
@@ -61,7 +64,7 @@
     </article>
   </main>
   <footer class="site-foot">
-    <p>SalaamStreet — free prayer times, Qibla, Qur'an, hadith, duas and more. No ads, no accounts; your data stays on your device.</p>
+    <p>SalaamStreet — free prayer times, Qibla, Qur'an, hadith, duas and more. No ads, no account needed; your data stays on your device unless you choose to sync it.</p>
     <p><a href="../../#/home">Open SalaamStreet</a> · <a href="../../widget/">Prayer times widget for mosques</a></p>
   </footer>
 </body>

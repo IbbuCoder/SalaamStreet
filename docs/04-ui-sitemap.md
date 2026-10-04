@@ -2,7 +2,7 @@
 
 **Version:** 1.0 · **Status:** Awaiting approval
 
-> **Note:** this is the original planning document. The shipped product is a static, web-only app (no accounts or server yet) — see `README.md` and `docs/02-architecture.md` for how it is actually built.
+> **Note:** this is the original planning document. The shipped product is a static, web-only app with optional Supabase accounts for sync (since 2.5) — see `README.md` and `docs/02-architecture.md` for how it is actually built.
 
 ## 1. Design Language
 

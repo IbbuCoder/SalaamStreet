@@ -11,16 +11,46 @@
   }
 
   /* ── Theme ──────────────────────────────────────────────────── */
+  var THEME_BG = { light: "#f6faf7", dark: "#0a100d" };
+  /** The theme to show right now: the saved choice, or the system's for "system". */
+  SS.resolvedTheme = function (pref) {
+    if (pref === "light" || pref === "dark") return pref;
+    try { return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"; } catch (e) { return "light"; }
+  };
+  /** Paint a theme everywhere the startup script in index.html does — page,
+      browser chrome, iOS status bar and launch images — so a theme change
+      (by the user, the system, or account sync) is the same as a fresh load. */
+  SS.paintTheme = function (mode) {
+    var d = document.documentElement;
+    var changed = d.getAttribute("data-theme") !== mode;
+    if (changed) {
+      // Switch instantly: no half-light/half-dark frame from CSS transitions.
+      d.classList.add("theme-switching");
+      d.setAttribute("data-theme", mode);
+      void d.offsetWidth;
+      setTimeout(function () { d.classList.remove("theme-switching"); }, 60);
+    }
+    var tc = document.querySelectorAll('meta[name="theme-color"]'), i;
+    for (i = 0; i < tc.length; i++) { tc[i].setAttribute("content", THEME_BG[mode]); tc[i].removeAttribute("media"); }
+    var cs = document.querySelector('meta[name="color-scheme"]');
+    if (cs) cs.setAttribute("content", mode);
+    var st = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
+    if (st) st.setAttribute("content", mode === "dark" ? "black" : "default");
+    var sp = document.querySelectorAll('link[rel="apple-touch-startup-image"][data-dark]');
+    for (i = 0; i < sp.length; i++) {
+      var light = sp[i].getAttribute("data-light") || sp[i].getAttribute("href");
+      sp[i].setAttribute("data-light", light);
+      sp[i].setAttribute("href", mode === "dark" ? sp[i].getAttribute("data-dark") : light);
+    }
+  };
   SS.applyTheme = function () {
     var s = SS.store.settings();
-    var dark = s.theme === "dark";
-    if (s.theme === "system" && window.matchMedia) {
-      try { dark = window.matchMedia("(prefers-color-scheme: dark)").matches; } catch (e) { /* noop */ }
-    }
-    document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
-    var label = SS.i18n.t("settings.theme") + ": " + SS.i18n.t("settings.theme" + s.theme.charAt(0).toUpperCase() + s.theme.slice(1));
+    var pref = s.theme === "light" || s.theme === "dark" ? s.theme : "system";
+    SS.paintTheme(SS.resolvedTheme(pref));
+    var label = SS.i18n.t("settings.theme") + ": " + SS.i18n.t("settings.theme" + pref.charAt(0).toUpperCase() + pref.slice(1));
     var tb = $("theme-toggle");
     if (tb) { tb.setAttribute("aria-label", label); tb.title = label; }
+    if (currentView === "settings" && $("st-theme") && $("st-theme").value !== pref) $("st-theme").value = pref;
   };
 
   function cycleTheme() {
@@ -267,15 +297,16 @@
 
   /* ── Router ─────────────────────────────────────────────────── */
   var VIEWS = ["home", "prayer", "qibla", "quran", "surah", "hadith", "duas", "dhikr", "calendar", "settings",
-    "adhkar", "names", "mosques", "learn", "about"];
+    "adhkar", "names", "mosques", "learn", "about", "account"];
   // Which nav item to highlight for views that aren't themselves nav items.
   var NAV_ALIAS = { surah: "quran" };
   // Destinations that live in the phone "More" sheet light up the More tab.
-  var IN_MORE = { hadith: 1, duas: 1, dhikr: 1, calendar: 1, settings: 1, adhkar: 1, names: 1, mosques: 1, learn: 1, about: 1 };
+  var IN_MORE = { hadith: 1, duas: 1, dhikr: 1, calendar: 1, settings: 1, adhkar: 1, names: 1, mosques: 1, learn: 1, about: 1, account: 1 };
   var TITLE_KEY = {
     home: "nav.dashboard", prayer: "prayer.title", qibla: "qibla.title", quran: "quran.title", surah: "quran.title",
     hadith: "hadith.title", duas: "duas.title", dhikr: "dhikr.title", calendar: "cal.title", settings: "settings.title",
     adhkar: "adhkar.title", names: "names.title", mosques: "mosques.title", learn: "learn.title", about: "about.title",
+    account: "account.title",
   };
   var currentView = "", currentHash = "";
   SS.currentView = function () { return currentView; };
@@ -405,11 +436,22 @@
     registerServiceWorker();
     if (SS.reminders) SS.reminders.init();
     if (SS.aboutBoot) SS.aboutBoot();
+    if (SS.accountBoot) SS.accountBoot();
     window.addEventListener("hashchange", function () { navigate(); });
     if (!location.hash) {
       try { history.replaceState(null, "", "#/home"); } catch (e) { location.hash = "#/home"; }
     }
     navigate();
+    hideBoot();
+  }
+  /** Fade out the boot screen once the first view has rendered. */
+  function hideBoot() {
+    var b = $("boot");
+    if (!b) return;
+    requestAnimationFrame(function () {
+      b.className = "done";
+      setTimeout(function () { if (b.parentNode) b.parentNode.removeChild(b); }, 400);
+    });
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);

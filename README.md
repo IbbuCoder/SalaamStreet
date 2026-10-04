@@ -10,20 +10,22 @@ SalaamStreet began as an Islamic-themed Shopify shop that Ibrahim built when he 
 
 **Our promise:** everything you need — prayer times, Qibla, Qur'an, duas, dhikr, the prayer tracker, Arabic learning and (when it arrives) sync — stays free forever. Any future paid extras (subscription or one-time) will only be for things that genuinely cost money to provide.
 
-Current version: **2.4.1** (see `SS.VERSION` / `SS.CHANGELOG` in `js/content.js`).
+Current version: **2.5.0 — Accounts + Guest Mode** (see `SS.VERSION` / `SS.CHANGELOG` in `js/content.js`).
 
 ## Features
 
+- **Free accounts (optional) + Guest Mode** — use everything without an account, or sign in with Apple, Google, phone or email to keep bookmarks, streaks, Qur'an progress and settings in sync on all your devices. Guest data is merged in when you sign in; nothing is lost. Setup: [`backend/README-backend.md`](backend/README-backend.md)
+- **Your SalaamStreet (Account page)** — prayer and dhikr streaks (current and best), Continue Reading across devices, Qur'an progress, recently read, bookmark collections with notes and search, saved duas, sign-in methods and sync status
 - **Prayer times** — device location or a city you type in, 7 calculation methods, Standard/Hanafi Asr, today's times and a monthly timetable (AlAdhan API, cached for offline)
-- **Qibla finder** — live compass on phones and tablets that have one; bearing and distance to Makkah everywhere (computed on your device)
+- **Qibla finder** — live compass corrected from magnetic to true north (WMM2025), works flat or upright and in any screen rotation; **Camera Mode** overlays the direction on your camera view; bearing and distance to Makkah everywhere (computed on your device)
 - **Qur'an reader** — all 114 surahs in Uthmani script with Saheeh International translation, optional transliteration, adjustable Arabic text size, bookmarks, resume where you left off, copy an ayah
 - **Recitation** — 4 reciters, per-ayah or continuous playback, speed and repeat controls, lock-screen/media-key controls
-- **Tafsir** — Ibn Kathir (English) for any ayah, in a bottom sheet on phones
+- **Tafsir** — Ibn Kathir (English) for any ayah, with previous/next ayah, in a bottom sheet on phones
 - **Hadith library** — 40 Hadith Nawawi & Qudsi in full, plus browse-by-number for Sahih al-Bukhari and Muslim, with Arabic, English, grading and reference
 - **Dua library** — authentic supplications with Arabic, transliteration, translation and a source on every dua; favourites and copy
 - **Dhikr counter** — big tap target (or Space bar on desktop), presets with sourced targets, undo, today's totals, daily streaks, haptic feedback
 - **Islamic calendar** — today's Hijri date and approximate countdowns to key dates
-- **Prayer tracker** — tick off each prayer, see the last 7 days and your streak (stays on your device)
+- **Prayer tracker** — tick off each prayer, see the last 7 days and your streak (on your device; synced only if you sign in)
 - **Prayer reminders** — opt-in notifications at (or before) each prayer, a soft chime, and a Friday Al-Kahf reminder
 - **Morning & evening adhkar** — a guided routine with a counter for each remembrance and automatic progress
 - **Ramadan mode** — appears automatically in Ramadan: suhoor/iftar times and countdown, plus a fasting log
@@ -41,7 +43,7 @@ Current version: **2.4.1** (see `SS.VERSION` / `SS.CHANGELOG` in `js/content.js`
 ## Principles
 
 - **Authenticity:** Qur'an text comes from Tanzil (Uthmani) via AlQuran Cloud; every dua and dhikr preset carries its source. Nothing is invented or generated.
-- **Privacy-first:** everything personal stays in your browser's localStorage. Location is used only after you choose an option, is rounded to ~1 km, and is sent only to the prayer-times API. Export or delete everything in Settings.
+- **Privacy-first:** no account needed — as a guest everything personal stays in your browser's localStorage. If you choose to sign in, your bookmarks, streaks, progress and settings sync to your own account (protected by Row-Level Security); your location never does. Location is used only after you choose an option, is rounded to ~1 km, and is sent only to the prayer-times API. Export or delete everything in Settings; delete your account in Account.
 - **Respect for scholarly difference:** calculation method and Asr madhhab are your choice, never presented as the single correct view.
 - **Free:** no ads, and the essentials are never behind a paywall.
 
@@ -68,9 +70,14 @@ Safe-area insets (iPhone notch / home indicator), 16px form inputs (no iOS zoom)
 │   ├── content.js        99 Names, juz boundaries, adhkar sequence, Arabic letters, translations
 │   ├── i18n.js           English/Arabic strings, language loading, RTL switching
 │   ├── lang/             Draft interface languages (ur, bn, id, tr, fr), loaded on demand
-│   ├── core.js           Config, storage, API clients with caching, location flow, Qibla math
+│   ├── core.js           Config, storage (+ sync hooks), API clients with caching, location flow, Qibla bearing
 │   ├── views.js          One controller per view
 │   ├── features.js       Tracker, reminders, adhkar, Names, mosques, Arabic, plans, share cards
+│   ├── qibla.js          Qibla compass + camera mode, WMM2025 declination, orientation maths
+│   ├── config.js         Supabase URL + key for optional accounts (empty = guest-only)
+│   ├── sync.js           Cross-device sync engine
+│   ├── account.js        Sign-in, account linking, sync wiring, Account dashboard
+│   ├── vendor/supabase.js  supabase-js (MIT), loaded only when someone uses accounts
 │   └── app.js            Router, theme, dialogs, audio player, boot
 ├── sw.js                 Service worker (offline app shell)
 ├── manifest.webmanifest  PWA manifest · icons/ app icons
@@ -78,7 +85,9 @@ Safe-area insets (iPhone notch / home indicator), 16px form inputs (no iOS zoom)
 ├── widget/               Prayer-times widget: builder (index.html) + iframe (embed.html)
 ├── surah/ duas/ names-of-allah/ prayer-times/   Generated SEO pages (see below)
 ├── tools/build-pages.js  Generator for the SEO pages + sitemap.xml
-├── backend/              Optional future account-sync schema (not connected)
+├── tools/build-splash.js Generator for the light/dark iOS launch screens
+├── backend/              Supabase schema + setup guide for optional accounts
+├── tests/                Unit, database (PGlite) and browser (Playwright) tests
 └── docs/                 Product, architecture and design notes
 ```
 
@@ -91,6 +100,27 @@ The pages under `surah/`, `duas/`, `names-of-allah/` and `prayer-times/`, plus `
 ```bash
 node tools/build-pages.js
 ```
+
+## Accounts (optional)
+
+Accounts need a free Supabase project. Until `js/config.js` is filled in, the
+site runs in guest mode only (fully working). Step-by-step setup, including
+Apple, Google, SMS and email templates: [`backend/README-backend.md`](backend/README-backend.md).
+
+## Tests
+
+The site has no build step; `package.json` only holds developer tooling.
+
+```bash
+npm install          # Playwright + PGlite (dev only)
+npm test             # all tests
+npm run lint         # ESLint
+```
+
+- `tests/sync.test.js` — sync engine across simulated devices (conflicts, offline, guest migration)
+- `tests/schema.test.js` — `backend/supabase-schema.sql` in a real Postgres (RLS, newest-wins, delete account)
+- `tests/qibla.test.js` — Qibla bearings vs published values, WMM2025 declination, orientation maths
+- `tests/e2e.test.js` — the app in Chromium: startup theme, Tafsir, Qibla compass/camera, guest mode, and every sign-in method driven through the real supabase-js client against a mock Supabase API
 
 ## Run locally
 
@@ -108,17 +138,18 @@ The repo is deployed from the `main` branch root:
 2. `CNAME` points the site at `salaamstreet.com`; `.nojekyll` makes Pages serve files as-is.
 3. All asset paths are relative, so the site also works from a `username.github.io/repo/` subpath.
 
-## External services (all free, no keys)
+## External services (all free)
 
 | Service | Used for |
 |---|---|
 | [AlAdhan API](https://aladhan.com/prayer-times-api) | Prayer times, Hijri date, city lookup |
 | [AlQuran Cloud API](https://alquran.cloud/api) | Qur'an text, translation, transliteration |
 | [Islamic Network CDN](https://cdn.islamic.network) | Per-ayah recitation audio |
-| [tafsir_api (spa5k)](https://github.com/spa5k/tafsir_api) via jsDelivr | Tafsir Ibn Kathir |
+| [tafsir_api (spa5k)](https://github.com/spa5k/tafsir_api) via jsDelivr (GitHub raw as fallback) | Tafsir Ibn Kathir |
 | [hadith-api (fawazahmed0)](https://github.com/fawazahmed0/hadith-api) via jsDelivr | Hadith collections |
 | [OpenStreetMap Overpass API](https://overpass-api.de) | Mosque finder |
 | Google Fonts | Figtree, IBM Plex Sans Arabic, Scheherazade New, Amiri |
+| [Supabase](https://supabase.com) (only when signed in) | Optional accounts and sync (needs your project URL + anon key) |
 
 Responses are cached in localStorage, so surahs you've read and today's prayer times keep working offline.
 
