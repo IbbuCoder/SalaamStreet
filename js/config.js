@@ -20,8 +20,8 @@
   SS.CONFIG = {
     supabaseUrl: "https://aqyanyrmxjjofhyxodzm.supabase.co",
     supabaseAnonKey: "sb_publishable_tgu8mvHZ9RwiXz7tcKjnyg_5fRzsvvh",
-    // Only email is switched on in Supabase so far. Add "google", "apple" and
-    // "phone" back here once each is set up (backend/README-backend.md).
-    signInMethods: ["email"],
+    // Google and email are switched on in Supabase. Add "apple" and "phone"
+    // back here once each is set up (backend/README-backend.md).
+    signInMethods: ["google", "email"],
   };
 })();
