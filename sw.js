@@ -3,12 +3,12 @@
    network-first (so a new deploy is picked up immediately) and fall back to
    the cache; Google Fonts are cached after first use. API responses are
    cached by the app itself in localStorage, so they are not handled here. */
-var VERSION = "ss-v4";
+var VERSION = "ss-v5";
 var SHELL = [
   "./", "index.html", "css/styles.css",
   "js/surahs.js", "js/duas.js", "js/extras.js", "js/content.js", "js/i18n.js", "js/core.js",
   "js/views.js", "js/features.js", "js/app.js",
-  "manifest.webmanifest", "icons/icon.svg", "icons/icon-192.png",
+  "manifest.webmanifest", "icons/icon.svg", "icons/favicon.svg", "icons/icon-192.png", "icons/apple-touch-icon.png",
 ];
 
 self.addEventListener("install", function (e) {

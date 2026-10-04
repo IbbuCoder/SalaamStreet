@@ -1015,9 +1015,115 @@
     },
   };
 
+  /* ═══════════ ABOUT, UPDATES & INSTALL ═══════════ */
+  var deferredInstall = null;
+  window.addEventListener("beforeinstallprompt", function (e) {
+    // Chrome/Edge/Android: keep the prompt so our own "Install app" button can show it.
+    e.preventDefault();
+    deferredInstall = e;
+    renderInstall();
+  });
+  window.addEventListener("appinstalled", function () { deferredInstall = null; renderInstall(); });
+
+  function isSafariIOS() {
+    var ua = navigator.userAgent;
+    return isIOS() && /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS/.test(ua);
+  }
+  function renderInstall() {
+    var slots = document.querySelectorAll("[data-install]");
+    if (!slots.length) return;
+    var html;
+    if (isStandalone()) {
+      html = '<div class="card install done"><span class="w-ic">' + icon("check") + '</span><p class="muted">' + esc(t("install.done")) + "</p></div>";
+    } else {
+      var how;
+      if (deferredInstall) how = '<button class="btn" type="button" data-install-btn>' + icon("download") + "<span>" + esc(t("install.btn")) + "</span></button>";
+      else if (isIOS()) {
+        how = '<ol class="install-steps"><li>' + icon("share") + "<span>" + esc(t("install.ios")) + "</span></li></ol>";
+      } else how = '<p class="note">' + esc(t("install.other")) + "</p>";
+      html = '<div class="card install"><img src="icons/icon.svg" alt="" width="56" height="56" />' +
+        '<div class="w-body"><b class="w-title">' + esc(t("install.title")) + '</b><span class="w-sub wrap-text">' + esc(t("install.sub")) + "</span>" +
+        '<div class="mt-1">' + how + "</div></div></div>";
+    }
+    for (var i = 0; i < slots.length; i++) slots[i].innerHTML = html;
+    var btns = document.querySelectorAll("[data-install-btn]");
+    for (var j = 0; j < btns.length; j++) {
+      btns[j].onclick = function () {
+        if (!deferredInstall) return;
+        deferredInstall.prompt();
+        Promise.resolve(deferredInstall.userChoice).then(function () { deferredInstall = null; renderInstall(); });
+      };
+    }
+  }
+  void isSafariIOS;
+
+  var abTab = "story";
+  function aboutInit(params) {
+    if (params && params[0] === "updates") abTab = "updates";
+    else if (params && params[0] === "story") abTab = "story";
+    $("ab-version").textContent = f("about.version", { v: SS.VERSION });
+    ["story", "updates"].forEach(function (k) {
+      var b = $("ab-tab-" + k);
+      b.onclick = function () { aboutTab(k); };
+      b.onkeydown = function (e) {
+        if (e.key === "ArrowLeft" || e.key === "ArrowRight") { var o = k === "story" ? "updates" : "story"; $("ab-tab-" + o).focus(); aboutTab(o); }
+      };
+    });
+    aboutTab(abTab);
+    renderInstall();
+    SS.store.set("seenVersion", SS.VERSION);
+  }
+  function aboutTab(k) {
+    abTab = k;
+    ["story", "updates"].forEach(function (x) {
+      $("ab-tab-" + x).setAttribute("aria-selected", String(x === k));
+      $("ab-tab-" + x).tabIndex = x === k ? 0 : -1;
+      $("ab-" + x).hidden = x !== k;
+    });
+    if (k === "updates") renderUpdates();
+  }
+  function renderUpdates() {
+    var ar = isAr(), html = "";
+    SS.ROADMAP.forEach(function (r) {
+      html += '<div class="card road"><span class="w-ic">' + icon(r.icon) + '</span><div class="w-body"><b class="w-title">' + esc(ar ? r.ar : r.en) +
+        '</b><span class="w-sub wrap-text">' + esc(ar ? r.dar : r.den) + "</span></div></div>";
+    });
+    $("ab-roadmap").innerHTML = html;
+    var hist = "";
+    SS.CHANGELOG.forEach(function (c, i) {
+      var date = "";
+      if (c.date) {
+        try { var p = c.date.split("-"); date = new Date(+p[0], +p[1] - 1, +p[2]).toLocaleDateString(SS.i18n.dateLocale(), { day: "numeric", month: "long", year: "numeric" }); }
+        catch (e) { date = c.date; }
+      }
+      hist += '<li class="tl-item' + (i === 0 ? " current" : "") + '"><span class="tl-dot" aria-hidden="true"></span><div class="card">' +
+        '<div class="row-between wrap"><b>' + esc(f("about.version", { v: c.v })) + "</b>" +
+        (i === 0 ? '<span class="badge">' + esc(t("updates.current")) + "</span>" : date ? '<span class="tiny">' + esc(date) + "</span>" : "") + "</div>" +
+        '<p class="tl-title">' + esc(ar ? c.ar : c.en) + "</p><ul>" +
+        c.items.map(function (it) { return "<li>" + esc(ar ? it.ar : it.en) + "</li>"; }).join("") + "</ul></div></li>";
+    });
+    $("ab-history").innerHTML = hist;
+  }
+
+  onHook("settingsInit", function () {
+    $("st-version").textContent = f("settings.version", { v: SS.VERSION });
+    renderInstall();
+  });
+
+  /** On start: a one-time note when a returning visitor gets a new version. */
+  SS.aboutBoot = function () {
+    var seen = SS.store.get("seenVersion");
+    if (!seen) { SS.store.set("seenVersion", SS.VERSION); return; } // first visit: nothing to announce
+    if (seen !== SS.VERSION) {
+      SS.store.set("seenVersion", SS.VERSION);
+      setTimeout(function () { SS.toast(f("updates.newVersion", { v: SS.VERSION })); }, 1200);
+    }
+  };
+
   /* ═══════════ Register views ═══════════ */
   SS.views.adhkar = adhkarInit;
   SS.views.names = namesInit;
   SS.views.mosques = mosquesInit;
   SS.views.learn = learnInit;
+  SS.views.about = aboutInit;
 })();

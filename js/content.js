@@ -222,4 +222,74 @@
     { mark: "بِي", name: "Long i (ya)", ar: "مد بالياء", sound: "bee", hint: "Kasra followed by ya makes a long ‘ee’." },
     { mark: "بُو", name: "Long u (waw)", ar: "مد بالواو", sound: "boo", hint: "Damma followed by waw makes a long ‘oo’." },
   ];
+
+  /* ── Version & release notes (newest first) ──────────────────────── */
+  SS.VERSION = "2.4.0";
+  SS.CHANGELOG = [
+    {
+      v: "2.4.0", date: "2026-10-04",
+      en: "Our story, a new look and home-screen support", ar: "قصتنا وهوية جديدة ودعم الشاشة الرئيسية",
+      items: [
+        { en: "New About page with the story behind SalaamStreet and our promise", ar: "صفحة «من نحن» الجديدة مع قصة سلام ستريت ووعدنا" },
+        { en: "Updates tab with version history and what's coming next", ar: "تبويب التحديثات مع سجل الإصدارات وما هو قادم" },
+        { en: "New SalaamStreet logo", ar: "شعار جديد لسلام ستريت" },
+        { en: "Better “Add to Home Screen” support on iPhone and iPad, with launch screens", ar: "دعم أفضل لـ«الإضافة إلى الشاشة الرئيسية» على iPhone وiPad مع شاشات البدء" },
+      ],
+    },
+    {
+      v: "2.3.0", date: "2026-10-04",
+      en: "Five more languages", ar: "خمس لغات إضافية",
+      items: [
+        { en: "Urdu, Bengali, Indonesian, Turkish and French (drafts, pending native review)", ar: "الأردية والبنغالية والإندونيسية والتركية والفرنسية (مسودات بانتظار المراجعة)" },
+        { en: "Language picker in the top bar; Qur'an translation follows your language", ar: "اختيار اللغة من الشريط العلوي؛ وترجمة القرآن تتبع لغتك" },
+      ],
+    },
+    {
+      v: "2.2.0", date: "2026-10-04",
+      en: "For mosques, and easier to find", ar: "للمساجد، وأسهل في الوصول",
+      items: [
+        { en: "Free prayer-times widget for mosque websites", ar: "أداة مجانية لمواقيت الصلاة لمواقع المساجد" },
+        { en: "Pages for every surah, the duas, the 99 Names and 60 cities' prayer times", ar: "صفحات لكل سورة والأدعية والأسماء الحسنى ومواقيت ٦٠ مدينة" },
+      ],
+    },
+    {
+      v: "2.1.0", date: "2026-10-04",
+      en: "Daily habits and deeper study", ar: "عادات يومية ودراسة أعمق",
+      items: [
+        { en: "Prayer tracker, prayer reminders and a Friday Al-Kahf reminder", ar: "متابعة الصلاة وتنبيهات الصلاة وتذكير الكهف يوم الجمعة" },
+        { en: "Guided morning & evening adhkar, and Ramadan mode", ar: "أذكار الصباح والمساء الموجّهة ووضع رمضان" },
+        { en: "Qur'an reading plans, juz, memorize mode, search and 9 translations", ar: "خطط قراءة القرآن والأجزاء ووضع الحفظ والبحث و٩ ترجمات" },
+        { en: "99 Names of Allah, mosque finder, Learn Arabic and share-as-image", ar: "الأسماء الحسنى والبحث عن المساجد وتعلّم العربية والمشاركة كصورة" },
+      ],
+    },
+    {
+      v: "2.0.0", date: "2026-10-04",
+      en: "Rebuilt for every screen", ar: "إعادة بناء لكل الشاشات",
+      items: [
+        { en: "Redesigned for phones, tablets, laptops and large monitors", ar: "تصميم جديد للهواتف والأجهزة اللوحية والحواسيب والشاشات الكبيرة" },
+        { en: "Everything is free — the old paid plans were removed", ar: "كل شيء مجاني — أُزيلت الخطط المدفوعة القديمة" },
+        { en: "Works offline and can be installed like an app", ar: "يعمل دون اتصال ويمكن تثبيته كتطبيق" },
+      ],
+    },
+    {
+      v: "1.0.0", date: "",
+      en: "The first SalaamStreet web app", ar: "أول نسخة ويب من سلام ستريت",
+      items: [
+        { en: "Prayer times, Qibla, Qur'an with audio, hadith, duas, dhikr and the Islamic calendar", ar: "مواقيت الصلاة والقبلة والقرآن بالصوت والحديث والأدعية والذكر والتقويم الهجري" },
+      ],
+    },
+  ];
+  /* What's planned — honest "hopes", not promises with dates. */
+  SS.ROADMAP = [
+    { icon: "check", en: "Free sync across your devices", ar: "مزامنة مجانية بين أجهزتك",
+      den: "Sign in to keep your bookmarks, streaks and settings on every device — free.", dar: "سجّل الدخول لتبقى إشاراتك وسلاسلك وإعداداتك على كل أجهزتك — مجانًا." },
+    { icon: "bell", en: "Reminders even when the app is closed", ar: "تنبيهات حتى عند إغلاق التطبيق",
+      den: "Prayer notifications sent from a server, so they arrive reliably on phones.", dar: "إشعارات صلاة تُرسل من خادم لتصل بثبات على الهواتف." },
+    { icon: "globe", en: "Reviewed translations", ar: "ترجمات مُراجَعة",
+      den: "Native speakers checking the Urdu, Bengali, Indonesian, Turkish and French versions.", dar: "مراجعة متحدثين أصليين للنسخ الأردية والبنغالية والإندونيسية والتركية والفرنسية." },
+    { icon: "heart", en: "The SalaamStreet shop returns", ar: "عودة متجر سلام ستريت",
+      den: "Islamic products — while the app itself stays free.", dar: "منتجات إسلامية — ويبقى التطبيق نفسه مجانيًا." },
+    { icon: "sparkle", en: "Optional paid extras", ar: "إضافات مدفوعة اختيارية",
+      den: "Only for things that genuinely cost money, like an AI Arabic tutor or live courses — by subscription or a one-time purchase you own forever.", dar: "فقط لما يكلّف مالًا فعلًا، مثل مدرّس عربية بالذكاء الاصطناعي أو دورات مباشرة — باشتراك أو بشراء لمرة واحدة تملكه للأبد." },
+  ];
 })();

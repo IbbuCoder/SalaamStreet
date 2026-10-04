@@ -57,7 +57,8 @@ function page({ rel, title, description, h1, lead, body, jsonld, extraHead = "" 
   <meta property="og:image" content="${SITE}/icons/icon-512.png" />
   <meta name="theme-color" content="#f6faf7" media="(prefers-color-scheme: light)" />
   <meta name="theme-color" content="#0a100d" media="(prefers-color-scheme: dark)" />
-  <link rel="icon" href="${up}icons/icon.svg" type="image/svg+xml" />
+  <link rel="icon" href="${up}icons/favicon.svg" type="image/svg+xml" />
+  <link rel="icon" href="${up}icons/favicon-32.png" type="image/png" sizes="32x32" />
   <link rel="apple-touch-icon" href="${up}icons/apple-touch-icon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -67,12 +68,13 @@ function page({ rel, title, description, h1, lead, body, jsonld, extraHead = "" 
 ${jsonld ? `  <script type="application/ld+json">${JSON.stringify(jsonld)}</script>\n` : ""}${extraHead}</head>
 <body class="standalone">
   <header class="site-head">
-    <a class="brand-sm" href="${up}#/home"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m15.8 8.2-2.4 5.2-5.2 2.4 2.4-5.2z"/></svg></span><span>Salaam<span class="g">Street</span></span></a>
+    <a class="brand-sm" href="${up}#/home"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 64 64"><path d="M17 54V30c0-8 6-13.5 15-18 9 4.5 15 10 15 18v24" fill="none" stroke="#e9c766" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M35.5 21a9 9 0 1 0 0 17 7.2 7.2 0 1 1 0-17z" fill="#e9c766" stroke="none"/></svg></span><span>Salaam<span class="g">Street</span></span></a>
     <nav class="site-links" aria-label="Main">
       <a href="${up}prayer-times/">Prayer times</a>
       <a href="${up}surah/">Qur'an</a>
       <a href="${up}duas/">Duas</a>
       <a href="${up}names-of-allah/">99 Names</a>
+      <a href="${up}about/">About</a>
       <a class="btn btn-sm" href="${up}#/home">Open app</a>
     </nav>
   </header>
@@ -254,6 +256,39 @@ write("prayer-times", page({
   lead: `For your exact location, <a href="../#/prayer">open SalaamStreet</a>.`,
   body: `      <div class="city-grid">${CITIES.map((c) => `<a class="chip" href="${slug(c[0])}/">${esc(c[0])}<span class="tiny">${esc(c[1])}</span></a>`).join("")}</div>`,
 }));
+
+/* ── About (shareable story page) ────────────────────────────────── */
+{
+  const C = SS.CHANGELOG, R = SS.ROADMAP;
+  write("about", page({
+    rel: "about",
+    title: "About SalaamStreet — Ibrahim's Story | SalaamStreet",
+    description: "SalaamStreet began as a 12-year-old's Islamic-themed shop. Today it's a free, private Islamic web app — prayer times, Qibla, Qur'an, duas and more. Here's the story and our promise.",
+    h1: "The story behind SalaamStreet",
+    lead: `Version ${esc(SS.VERSION)}`,
+    body: `      <article class="card story">
+        <p>SalaamStreet didn't start as an app. When Ibrahim was 12, it was an Islamic-themed online shop he built on Shopify. It didn't take off. His next attempt didn't either.</p>
+        <p>But Ibrahim kept the name and changed the idea. Instead of selling things to Muslims, what if SalaamStreet gave them something — every day, for free?</p>
+        <p>Today Ibrahim is a student at Neuqua Valley High School, where he's part of the Muslim Student Association.</p>
+        <p>SalaamStreet is one calm place to find prayer times, face the Qibla, read and listen to the Qur'an, learn authentic duas, track your prayers, start learning Arabic and remember Allah — with no ads, and with your data staying on your device.</p>
+        <p class="story-sign">Ibrahim had the idea; his father helped bring it to life.</p>
+      </article>
+      <article class="card promise mt-2">
+        <h2>Our promise</h2>
+        <ul class="promise-list">
+          <li><span>Everything you need stays free, forever. Prayer times, Qibla, the Qur'an, duas, dhikr, the prayer tracker, Arabic learning and syncing across your devices will never be behind a paywall.</span></li>
+          <li><span>Paid extras will only ever be for things that genuinely cost money to provide — like an AI tutor or live courses — and you'll be able to choose a subscription or pay once and own it forever.</span></li>
+          <li><span>One day, the SalaamStreet shop may return too — while the app itself stays free.</span></li>
+        </ul>
+      </article>
+      <h2 class="mt-3 mb-1">Coming next</h2>
+      <div class="roadmap">${R.map((r) => `<div class="card road"><div class="w-body"><b class="w-title">${esc(r.en)}</b><span class="w-sub wrap-text">${esc(r.den)}</span></div></div>`).join("")}</div>
+      <h2 class="mt-3 mb-1">Version history</h2>
+      <ol class="timeline">${C.map((c, i) => `<li class="tl-item${i === 0 ? " current" : ""}"><span class="tl-dot" aria-hidden="true"></span><div class="card"><b>Version ${esc(c.v)}</b><p class="tl-title">${esc(c.en)}</p><ul>${c.items.map((it) => `<li>${esc(it.en)}</li>`).join("")}</ul></div></li>`).join("")}</ol>
+      <article class="card dua-ask mt-3"><div><h2 class="h-sm">A small request</h2><p class="muted mt-1">We hope SalaamStreet becomes a sadaqah jariyah — a charity whose reward continues for everyone who benefits. If it has helped you, please remember Ibrahim and our family in your du'as.</p></div></article>
+      <p class="mt-2"><a class="btn" href="../#/home">Open SalaamStreet</a></p>`,
+  }));
+}
 
 /* ── sitemap.xml & robots.txt ────────────────────────────────────────── */
 const today = new Date().toISOString().slice(0, 10);

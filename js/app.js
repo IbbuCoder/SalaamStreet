@@ -263,15 +263,15 @@
 
   /* ── Router ─────────────────────────────────────────────────── */
   var VIEWS = ["home", "prayer", "qibla", "quran", "surah", "hadith", "duas", "dhikr", "calendar", "settings",
-    "adhkar", "names", "mosques", "learn"];
+    "adhkar", "names", "mosques", "learn", "about"];
   // Which nav item to highlight for views that aren't themselves nav items.
   var NAV_ALIAS = { surah: "quran" };
   // Destinations that live in the phone "More" sheet light up the More tab.
-  var IN_MORE = { hadith: 1, duas: 1, dhikr: 1, calendar: 1, settings: 1, adhkar: 1, names: 1, mosques: 1, learn: 1 };
+  var IN_MORE = { hadith: 1, duas: 1, dhikr: 1, calendar: 1, settings: 1, adhkar: 1, names: 1, mosques: 1, learn: 1, about: 1 };
   var TITLE_KEY = {
     home: "nav.dashboard", prayer: "prayer.title", qibla: "qibla.title", quran: "quran.title", surah: "quran.title",
     hadith: "hadith.title", duas: "duas.title", dhikr: "dhikr.title", calendar: "cal.title", settings: "settings.title",
-    adhkar: "adhkar.title", names: "names.title", mosques: "mosques.title", learn: "learn.title",
+    adhkar: "adhkar.title", names: "names.title", mosques: "mosques.title", learn: "learn.title", about: "about.title",
   };
   var currentView = "", currentHash = "";
   SS.currentView = function () { return currentView; };
@@ -400,6 +400,7 @@
     wireNetwork();
     registerServiceWorker();
     if (SS.reminders) SS.reminders.init();
+    if (SS.aboutBoot) SS.aboutBoot();
     window.addEventListener("hashchange", function () { navigate(); });
     if (!location.hash) {
       try { history.replaceState(null, "", "#/home"); } catch (e) { location.hash = "#/home"; }

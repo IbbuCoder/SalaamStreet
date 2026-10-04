@@ -143,7 +143,7 @@ body.scrolled .topbar{border-block-end-color:var(--border)}
 .brand-sm .g,.brand .g{color:var(--gold)}
 @media (min-width:768px){.brand-sm{display:none}}
 .brand-mark{display:inline-grid;place-items:center;inline-size:30px;block-size:30px;border-radius:9px;background:linear-gradient(140deg,var(--em-600),var(--em-900));color:#fff;flex-shrink:0}
-.brand-mark svg{inline-size:18px;block-size:18px;stroke-width:2}
+.brand-mark svg{inline-size:22px;block-size:22px}
 .tb-title{display:none;font-weight:700;color:var(--text-2);font-size:.95rem}
 @media (min-width:768px){.tb-title{display:block}}
 .spacer{flex:1}
@@ -176,7 +176,7 @@ body.scrolled .topbar{border-block-end-color:var(--border)}
 .brand{display:flex;align-items:center;justify-content:center;gap:10px;padding:4px 6px 14px;color:var(--primary-strong);font-size:1.3rem;font-weight:800;letter-spacing:-.02em}
 .brand:hover{text-decoration:none}
 .brand .brand-mark{inline-size:38px;block-size:38px;border-radius:12px}
-.brand .brand-mark svg{inline-size:22px;block-size:22px}
+.brand .brand-mark svg{inline-size:28px;block-size:28px}
 .brand-text{display:none}
 .nav-group{display:flex;flex-direction:column;gap:3px}
 .nav-bottom{margin-block-start:auto;padding-block-start:10px}
@@ -941,6 +941,43 @@ mark{background:color-mix(in srgb,var(--gold-bright) 35%,transparent);color:inhe
 .lang-opt > span:first-child{flex:1}
 .lang-opt.on{background:var(--primary-soft);border-color:var(--primary);color:var(--primary-strong)}
 .set-note{margin-block:-4px 10px}
+
+/* ── About & updates ───────────────────────────────────────────── */
+.about-head{display:flex;align-items:center;gap:18px;margin-block-end:22px}
+.about-logo{inline-size:88px;block-size:88px;border-radius:22px;box-shadow:var(--shadow-lg);flex-shrink:0}
+.about-head h1{font-size:clamp(1.7rem,1.4rem + 1.2vw,2.2rem);color:var(--primary-strong)}
+@media (max-width:420px){.about-logo{inline-size:72px;block-size:72px;border-radius:18px}}
+.story p{margin-block-start:12px;line-height:1.75;color:var(--text);font-size:1.02rem}
+.story h2{margin-block-end:4px}
+.story-sign{font-style:italic;color:var(--text-2)!important}
+.promise{background:linear-gradient(150deg,var(--primary-soft),var(--surface) 70%);border-color:color-mix(in srgb,var(--primary) 30%,var(--border))}
+.promise-list{list-style:none;padding:0;display:grid;gap:14px;margin-block-start:14px}
+.promise-list li{display:flex;gap:12px;align-items:flex-start;line-height:1.6}
+.p-ic{display:grid;place-items:center;inline-size:32px;block-size:32px;border-radius:10px;background:var(--primary);color:var(--on-primary);flex-shrink:0}
+.p-ic svg{inline-size:17px;block-size:17px;stroke-width:2.2}
+.principles{display:grid;gap:10px}
+@media (min-width:600px){.principles{grid-template-columns:1fr 1fr}}
+.principles .card{display:flex;gap:12px;align-items:flex-start;padding:16px}
+.principles p{font-size:.94rem;line-height:1.55}
+.dua-ask{display:flex;gap:14px;align-items:flex-start;background:color-mix(in srgb,var(--gold-bright) 9%,var(--surface));border-color:color-mix(in srgb,var(--gold-bright) 35%,var(--border))}
+.install{display:flex;gap:14px;align-items:flex-start}
+.install img{border-radius:14px;flex-shrink:0;box-shadow:var(--shadow)}
+.install.done{align-items:center}
+.install-steps{list-style:none;padding:0;margin:0}
+.install-steps li{display:flex;gap:8px;align-items:flex-start;font-size:.9rem;color:var(--text-2)}
+.install-steps .ic{color:var(--primary-strong);inline-size:18px;block-size:18px;margin-block-start:2px}
+.roadmap{display:grid;gap:10px}
+@media (min-width:600px){.roadmap{grid-template-columns:1fr 1fr}}
+.road{display:flex;gap:12px;align-items:flex-start;padding:16px}
+.road .w-sub{line-height:1.5}
+.timeline{list-style:none;padding:0;margin:0;position:relative;display:grid;gap:12px}
+.timeline::before{content:"";position:absolute;inset-block:8px;inset-inline-start:7px;inline-size:2px;background:var(--border)}
+.tl-item{position:relative;padding-inline-start:30px}
+.tl-dot{position:absolute;inset-inline-start:0;inset-block-start:20px;inline-size:16px;block-size:16px;border-radius:50%;background:var(--surface);border:3px solid var(--border)}
+.tl-item.current .tl-dot{border-color:var(--primary);background:var(--primary)}
+.tl-item .card{padding:16px}
+.tl-title{font-weight:600;color:var(--text-2);margin-block:4px 6px}
+.tl-item ul{padding-inline-start:18px;display:grid;gap:4px;color:var(--text-2);font-size:.92rem}
 
 /* ── Standalone pages (SEO pages, widget builder) ──────────────── */
 .standalone .main{margin-inline-start:0;padding-block:20px 48px;min-block-size:auto}

@@ -4,6 +4,14 @@ A modern, peaceful Islamic web app — prayer times, Qibla, the Qur'an with audi
 
 Live at **[salaamstreet.com](https://salaamstreet.com)**.
 
+## The story
+
+SalaamStreet began as an Islamic-themed Shopify shop that Ibrahim built when he was 12. It didn't take off, and neither did his next attempt — so he kept the name and changed the idea: instead of selling to Muslims, give them something useful every day, for free. Ibrahim is now a student at Neuqua Valley High School and part of its Muslim Student Association; his father helps build it. The full story, our promise and the version history are on the in-app **About** page and at [salaamstreet.com/about](https://salaamstreet.com/about/).
+
+**Our promise:** everything you need — prayer times, Qibla, Qur'an, duas, dhikr, the prayer tracker, Arabic learning and (when it arrives) sync — stays free forever. Any future paid extras (subscription or one-time) will only be for things that genuinely cost money to provide.
+
+Current version: **2.4.0** (see `SS.VERSION` / `SS.CHANGELOG` in `js/content.js`).
+
 ## Features
 
 - **Prayer times** — device location or a city you type in, 7 calculation methods, Standard/Hanafi Asr, today's times and a monthly timetable (AlAdhan API, cached for offline)
@@ -35,7 +43,7 @@ Live at **[salaamstreet.com](https://salaamstreet.com)**.
 - **Authenticity:** Qur'an text comes from Tanzil (Uthmani) via AlQuran Cloud; every dua and dhikr preset carries its source. Nothing is invented or generated.
 - **Privacy-first:** everything personal stays in your browser's localStorage. Location is used only after you choose an option, is rounded to ~1 km, and is sent only to the prayer-times API. Export or delete everything in Settings.
 - **Respect for scholarly difference:** calculation method and Asr madhhab are your choice, never presented as the single correct view.
-- **Free:** no accounts, no ads, no paywalls.
+- **Free:** no ads, and the essentials are never behind a paywall.
 
 ## Built for every screen
 

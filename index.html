@@ -18,8 +18,24 @@
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://salaamstreet.com/" />
   <meta property="og:image" content="https://salaamstreet.com/icons/icon-512.png" />
-  <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+  <link rel="icon" href="icons/favicon.svg" type="image/svg+xml" />
+  <link rel="icon" href="icons/favicon-32.png" type="image/png" sizes="32x32" />
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <link rel="apple-touch-icon" sizes="152x152" href="icons/apple-touch-icon-152.png" />
+  <link rel="apple-touch-icon" sizes="167x167" href="icons/apple-touch-icon-167.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png" />
+  <link rel="apple-touch-startup-image" href="icons/splash/430x932@3x.png" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
+  <link rel="apple-touch-startup-image" href="icons/splash/393x852@3x.png" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
+  <link rel="apple-touch-startup-image" href="icons/splash/390x844@3x.png" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
+  <link rel="apple-touch-startup-image" href="icons/splash/428x926@3x.png" media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
+  <link rel="apple-touch-startup-image" href="icons/splash/414x896@2x.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" />
+  <link rel="apple-touch-startup-image" href="icons/splash/375x812@3x.png" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
+  <link rel="apple-touch-startup-image" href="icons/splash/375x667@2x.png" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" />
+  <link rel="apple-touch-startup-image" href="icons/splash/414x736@3x.png" media="(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
+  <link rel="apple-touch-startup-image" href="icons/splash/820x1180@2x.png" media="(device-width: 820px) and (device-height: 1180px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" />
+  <link rel="apple-touch-startup-image" href="icons/splash/834x1194@2x.png" media="(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" />
+  <link rel="apple-touch-startup-image" href="icons/splash/1024x1366@2x.png" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" />
+  <link rel="apple-touch-startup-image" href="icons/splash/768x1024@2x.png" media="(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -47,6 +63,9 @@
     <defs>
       <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9v11.5h13V9"/><path d="M10 20.5v-6h4v6"/></symbol>
       <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/></symbol>
+      <symbol id="i-logo" viewBox="0 0 64 64"><path d="M17 54V30c0-8 6-13.5 15-18 9 4.5 15 10 15 18v24" fill="none" stroke="#e9c766" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M35.5 21a9 9 0 1 0 0 17 7.2 7.2 0 1 1 0-17z" fill="#e9c766" stroke="none"/></symbol>
+      <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5h.01"/></symbol>
+      <symbol id="i-plus-square" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="4"/><path d="M12 8v8M8 12h8"/></symbol>
       <symbol id="i-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m15.8 8.2-2.4 5.2-5.2 2.4 2.4-5.2z"/></symbol>
       <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></symbol>
       <symbol id="i-scroll" viewBox="0 0 24 24"><path d="M8 21h11a2 2 0 0 0 2-2v-2H10v2a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v3h4"/><path d="M19 17V5a2 2 0 0 0-2-2H4"/><path d="M15 8h-5M15 12h-5"/></symbol>
@@ -98,7 +117,7 @@
   <!-- ═══════════ Side navigation (tablet rail / desktop sidebar) ═══════════ -->
   <nav class="sidenav" aria-label="Main">
     <a class="brand" href="#/home" aria-label="SalaamStreet home">
-      <span class="brand-mark" aria-hidden="true"><svg><use href="#i-compass"/></svg></span>
+      <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 64 64"><use href="#i-logo"/></svg></span>
       <span class="brand-text">Salaam<span class="g">Street</span></span>
     </a>
     <div class="nav-group">
@@ -118,6 +137,7 @@
       <a class="navlink" href="#/learn" data-nav="learn"><svg class="ic" aria-hidden="true"><use href="#i-letters"/></svg><span data-i18n="nav.learn">Learn Arabic</span></a>
     </div>
     <div class="nav-group nav-bottom">
+      <a class="navlink" href="#/about" data-nav="about"><svg class="ic" aria-hidden="true"><use href="#i-info"/></svg><span data-i18n="nav.about">About</span></a>
       <a class="navlink" href="#/settings" data-nav="settings"><svg class="ic" aria-hidden="true"><use href="#i-settings"/></svg><span data-i18n="nav.settings">Settings</span></a>
       <p class="foot" data-i18n="nav.foot">Verified sources. Your data stays on your device.</p>
     </div>
@@ -126,7 +146,7 @@
   <!-- ═══════════ Top bar ═══════════ -->
   <header class="topbar">
     <a class="brand-sm" href="#/home" aria-label="SalaamStreet home">
-      <span class="brand-mark" aria-hidden="true"><svg><use href="#i-compass"/></svg></span>
+      <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 64 64"><use href="#i-logo"/></svg></span>
       <span>Salaam<span class="g">Street</span></span>
     </a>
     <span class="tb-title" id="tb-title" aria-hidden="true"></span>
@@ -626,6 +646,66 @@
       <div class="view-narrow" id="ln-quiz" role="tabpanel" aria-labelledby="ln-tab-quiz" hidden></div>
     </section>
 
+    <!-- ═══════════ ABOUT & UPDATES ═══════════ -->
+    <section class="view view-narrow" id="view-about" hidden aria-labelledby="ab-h">
+      <header class="about-head">
+        <img class="about-logo" src="icons/icon.svg" alt="" width="88" height="88" />
+        <div>
+          <h1 id="ab-h" tabindex="-1">Salaam<span class="gold">Street</span></h1>
+          <p class="muted" data-i18n="app.tagline">Your Islamic Companion</p>
+          <span class="badge mt-1" id="ab-version"></span>
+        </div>
+      </header>
+      <div class="segmented mb-2" role="tablist" aria-label="About">
+        <button id="ab-tab-story" type="button" role="tab" aria-selected="true" aria-controls="ab-story" data-i18n="about.tabStory">Our story</button>
+        <button id="ab-tab-updates" type="button" role="tab" aria-selected="false" aria-controls="ab-updates" data-i18n="about.tabUpdates">Updates</button>
+      </div>
+
+      <div id="ab-story" role="tabpanel" aria-labelledby="ab-tab-story">
+        <article class="card story">
+          <h2 data-i18n="about.storyTitle">The story behind SalaamStreet</h2>
+          <p data-i18n="about.p1">SalaamStreet didn't start as an app. When Ibrahim was 12, it was an Islamic-themed online shop he built on Shopify. It didn't take off. His next attempt didn't either.</p>
+          <p data-i18n="about.p2">But Ibrahim kept the name and changed the idea. Instead of selling things to Muslims, what if SalaamStreet gave them something — every day, for free?</p>
+          <p data-i18n="about.p3">Today Ibrahim is a student at Neuqua Valley High School, where he's part of the Muslim Student Association.</p>
+          <p data-i18n="about.p3b">SalaamStreet is one calm place to find prayer times, face the Qibla, read and listen to the Qur'an, learn authentic duas, track your prayers, start learning Arabic and remember Allah — with no ads, and with your data staying on your device.</p>
+          <p class="story-sign" data-i18n="about.p4">Ibrahim had the idea; his father helped bring it to life.</p>
+        </article>
+
+        <article class="card promise mt-2">
+          <h2 data-i18n="about.promiseTitle">Our promise</h2>
+          <ul class="promise-list">
+            <li><span class="p-ic"><svg aria-hidden="true"><use href="#i-check"/></svg></span><span data-i18n="about.promiseFree">Everything you need stays free, forever.</span></li>
+            <li><span class="p-ic"><svg aria-hidden="true"><use href="#i-heart"/></svg></span><span data-i18n="about.promisePaid">Paid extras will only ever be for things that genuinely cost money to provide.</span></li>
+            <li><span class="p-ic"><svg aria-hidden="true"><use href="#i-sparkle"/></svg></span><span data-i18n="about.promiseShop">One day, the SalaamStreet shop may return too.</span></li>
+          </ul>
+        </article>
+
+        <h2 class="group-label" data-i18n="about.principlesTitle">What we stand for</h2>
+        <div class="principles">
+          <div class="card"><span class="w-ic"><svg aria-hidden="true"><use href="#i-book"/></svg></span><p data-i18n="about.pr1">Authentic sources</p></div>
+          <div class="card"><span class="w-ic"><svg aria-hidden="true"><use href="#i-pin"/></svg></span><p data-i18n="about.pr2">Privacy first</p></div>
+          <div class="card"><span class="w-ic"><svg aria-hidden="true"><use href="#i-scroll"/></svg></span><p data-i18n="about.pr3">Respect for scholarly difference</p></div>
+          <div class="card"><span class="w-ic"><svg aria-hidden="true"><use href="#i-globe"/></svg></span><p data-i18n="about.pr4">Built for everyone</p></div>
+        </div>
+
+        <div class="install-slot mt-2" data-install></div>
+
+        <article class="card dua-ask mt-2">
+          <span class="w-ic gold"><svg aria-hidden="true"><use href="#i-moon"/></svg></span>
+          <div><h2 class="h-sm" data-i18n="about.duaTitle">A small request</h2>
+          <p class="muted mt-1" data-i18n="about.dua">We hope SalaamStreet becomes a sadaqah jariyah.</p></div>
+        </article>
+      </div>
+
+      <div id="ab-updates" role="tabpanel" aria-labelledby="ab-tab-updates" hidden>
+        <h2 class="h-sm mb-1" data-i18n="updates.comingTitle">Coming next</h2>
+        <div class="roadmap" id="ab-roadmap"></div>
+        <p class="tiny mt-1" data-i18n="updates.comingNote">These are hopes and plans, not promises with dates — and the core will always stay free.</p>
+        <h2 class="h-sm mt-3 mb-1" data-i18n="updates.historyTitle">Version history</h2>
+        <ol class="timeline" id="ab-history"></ol>
+      </div>
+    </section>
+
     <!-- ═══════════ SETTINGS ═══════════ -->
     <section class="view view-narrow" id="view-settings" hidden aria-labelledby="st-h">
       <header class="page-head"><h1 id="st-h" tabindex="-1" data-i18n="settings.title">Settings</h1></header>
@@ -739,6 +819,15 @@
       </a>
 
       <p class="tiny mt-2" data-i18n="settings.privacyNote">All your data stays on this device. Your coordinates are sent only to the prayer-times service (AlAdhan) to calculate times, and are never stored on a server by us.</p>
+      <div class="install-slot mt-2" data-install></div>
+      <a class="card widget mt-2" href="#/about/updates">
+        <span class="w-ic"><svg aria-hidden="true"><use href="#i-sparkle"/></svg></span>
+        <span class="w-body">
+          <span class="w-title" id="st-version"></span>
+          <span class="w-sub" data-i18n="settings.whatsNew">What's new</span>
+        </span>
+        <svg class="ic chev" aria-hidden="true"><use href="#i-chev-r"/></svg>
+      </a>
       <p class="tiny mt-1" data-i18n="settings.credits">Sources: AlAdhan (prayer times), AlQuran Cloud &amp; Tanzil (Qur'an), Islamic Network (audio), tafsir_api (Ibn Kathir), hadith-api (hadith).</p>
     </section>
   </main>
@@ -790,6 +879,7 @@
         <a href="#/calendar" data-nav="calendar"><span class="q-ic"><svg aria-hidden="true"><use href="#i-calendar"/></svg></span><span data-i18n="nav.calendar">Calendar</span></a>
         <a href="#/learn" data-nav="learn"><span class="q-ic"><svg aria-hidden="true"><use href="#i-letters"/></svg></span><span data-i18n="nav.learn">Learn Arabic</span></a>
         <a href="#/settings" data-nav="settings"><span class="q-ic"><svg aria-hidden="true"><use href="#i-settings"/></svg></span><span data-i18n="nav.settings">Settings</span></a>
+        <a href="#/about" data-nav="about"><span class="q-ic"><svg aria-hidden="true"><use href="#i-info"/></svg></span><span data-i18n="nav.about">About</span></a>
       </nav>
     </div>
   </dialog>
