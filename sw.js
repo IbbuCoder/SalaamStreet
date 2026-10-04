@@ -6,12 +6,12 @@
    The account client (js/vendor/supabase.js) is cached the first time
    someone signs in, so guests never download it; Supabase API calls are
    never cached. */
-var VERSION = "ss-v7";
+var VERSION = "ss-v8";
 var SHELL = [
   "./", "index.html", "css/styles.css",
   "js/surahs.js", "js/duas.js", "js/extras.js", "js/content.js", "js/i18n.js", "js/core.js",
   "js/views.js", "js/features.js", "js/qibla.js", "js/config.js", "js/sync.js", "js/account.js", "js/app.js",
-  "manifest.webmanifest", "icons/icon-192.png", "icons/apple-touch-icon.png", "icons/favicon-32.png",
+  "manifest.webmanifest", "manifest-dark.webmanifest", "icons/icon-192.png", "icons/apple-touch-icon.png", "icons/favicon-32.png",
   "icons/brand/logo-mark-128.png", "icons/brand/logo-mark-256.png",
 ];
 

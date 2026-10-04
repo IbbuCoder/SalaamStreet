@@ -10,14 +10,14 @@ SalaamStreet began as an Islamic-themed Shopify shop that Ibrahim built when he 
 
 **Our promise:** everything you need — prayer times, Qibla, Qur'an, duas, dhikr, the prayer tracker, Arabic learning and (when it arrives) sync — stays free forever. Any future paid extras (subscription or one-time) will only be for things that genuinely cost money to provide.
 
-Current version: **2.5.0 — Accounts + Guest Mode** (see `SS.VERSION` / `SS.CHANGELOG` in `js/content.js`).
+Current version: **2.5.5 — Quality of Life + Bug Fixes** (see `SS.VERSION` / `SS.CHANGELOG` in `js/content.js`).
 
 ## Features
 
 - **Free accounts (optional) + Guest Mode** — use everything without an account, or sign in with Apple, Google, phone or email to keep bookmarks, streaks, Qur'an progress and settings in sync on all your devices. Guest data is merged in when you sign in; nothing is lost. Setup: [`backend/README-backend.md`](backend/README-backend.md)
 - **Your SalaamStreet (Account page)** — prayer and dhikr streaks (current and best), Continue Reading across devices, Qur'an progress, recently read, bookmark collections with notes and search, saved duas, sign-in methods and sync status
 - **Prayer times** — device location or a city you type in, 7 calculation methods, Standard/Hanafi Asr, today's times and a monthly timetable (AlAdhan API, cached for offline)
-- **Qibla finder** — live compass corrected from magnetic to true north (WMM2025), works flat or upright and in any screen rotation; **Camera Mode** overlays the direction on your camera view; bearing and distance to Makkah everywhere (computed on your device)
+- **Qibla finder** — live compass corrected from magnetic to true north (WMM2025), works flat or upright and in any screen rotation; **Camera Mode** overlays the direction on your camera view with turn-left/right guidance, and both lock on with a short vibration when you face the Qibla; bearing and distance to Makkah everywhere (computed on your device)
 - **Qur'an reader** — all 114 surahs in Uthmani script with Saheeh International translation, optional transliteration, adjustable Arabic text size, bookmarks, resume where you left off, copy an ayah
 - **Recitation** — 4 reciters, per-ayah or continuous playback, speed and repeat controls, lock-screen/media-key controls
 - **Tafsir** — Ibn Kathir (English) for any ayah, with previous/next ayah, in a bottom sheet on phones
@@ -34,6 +34,8 @@ Current version: **2.5.0 — Accounts + Guest Mode** (see `SS.VERSION` / `SS.CHA
 - **Juz navigation, translation search, 9 translation languages** (English, Urdu, Indonesian, Turkish, Bengali, French, Malay, Spanish, German)
 - **Share as image** — turn any ayah, dua or hadith into a ready-to-post card
 - **99 Names of Allah** — with a Name of the day on the home screen
+- **Ayah of the Day** — on the home screen, with audio in your chosen reciter
+- **MSA tab (opening soon)** — tools for Muslim Student Associations, starting with the Neuqua Valley High School MSA
 - **Mosque finder** — nearby mosques from OpenStreetMap with one-tap directions
 - **Learn to read Arabic** — the 28 letters and their shapes, the vowel marks, and a quick quiz
 - **Prayer-times widget for mosques** — a free embed builder at [`/widget/`](https://salaamstreet.com/widget/): pick a location, method and style, copy one line of code

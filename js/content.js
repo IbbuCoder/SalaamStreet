@@ -224,8 +224,36 @@
   ];
 
   /* ── Version & release notes (newest first) ──────────────────────── */
-  SS.VERSION = "2.5.0";
+  SS.VERSION = "2.5.5";
   SS.CHANGELOG = [
+    {
+      v: "2.5.5", date: "2026-10-04",
+      en: "Quality of Life + Bug Fixes", ar: "تحسينات الاستخدام وإصلاح الأخطاء",
+      den: "A redesigned Qibla with a smoother Camera Mode, Ayah of the Day audio, and a first look at SalaamStreet for MSAs.",
+      dar: "قبلة بتصميم جديد ووضع كاميرا أكثر سلاسة، وتلاوة لآية اليوم، ولمحة أولى عن سلام ستريت لروابط الطلاب المسلمين.",
+      groups: [
+        { en: "Qibla", ar: "القبلة", items: [
+          { en: "Redesigned Qibla compass, in light and dark mode", ar: "تصميم جديد لبوصلة القبلة في الوضعين الفاتح والداكن" },
+          { en: "Smoother Camera Mode — no more lag", ar: "وضع كاميرا أكثر سلاسة — دون تأخير" },
+          { en: "Clear “Turn left / Turn right” guidance and a heading strip in Camera Mode", ar: "إرشاد واضح «استدر يسارًا / يمينًا» وشريط اتجاه في وضع الكاميرا" },
+          { en: "Lock-on animation and a short vibration when you face the Qibla", ar: "حركة تثبيت واهتزاز قصير عندما تتجه إلى القبلة" },
+        ] },
+        { en: "Home", ar: "الرئيسية", items: [
+          { en: "Listen to the Ayah of the Day", ar: "استمع إلى آية اليوم" },
+        ] },
+        { en: "MSA", ar: "رابطة الطلاب المسلمين", items: [
+          { en: "New MSA tab — opening soon, starting with the Neuqua Valley High School MSA", ar: "تبويب جديد لرابطة الطلاب المسلمين — قريبًا، بدءًا برابطة مدرسة Neuqua Valley الثانوية" },
+        ] },
+        { en: "Accounts", ar: "الحسابات", items: [
+          { en: "Continue with Google is now switched on", ar: "تفعيل تسجيل الدخول عبر Google" },
+          { en: "Create an account with email and password, and reset a forgotten password", ar: "إنشاء حساب بالبريد الإلكتروني وكلمة المرور، واستعادة كلمة مرور منسية" },
+        ] },
+        { en: "Bug fixes", ar: "إصلاح الأخطاء", items: [
+          { en: "Fixed the wrong colour flashing for a moment when the app opens", ar: "إصلاح ظهور لون خاطئ للحظة عند فتح التطبيق" },
+          { en: "General bug fixes and stability improvements", ar: "إصلاحات عامة وتحسينات في الثبات" },
+        ] },
+      ],
+    },
     {
       v: "2.5.0", date: "2026-10-04",
       en: "Accounts + Guest Mode", ar: "الحسابات ووضع الضيف",
@@ -340,8 +368,8 @@
       den: "Step-by-step learning that grows from today's Arabic letters lessons.",
       dar: "تعلّم خطوة بخطوة ينطلق من دروس الحروف العربية الحالية." },
     { v: "2.9.0", icon: "mosque", en: "MSA + Community", ar: "رابطة الطلاب المسلمين والمجتمع",
-      den: "Tools for Muslim Student Associations and local communities.",
-      dar: "أدوات لروابط الطلاب المسلمين والمجتمعات المحلية." },
+      den: "Tools for Muslim Student Associations and local communities. The MSA tab is already open as a preview.",
+      dar: "أدوات لروابط الطلاب المسلمين والمجتمعات المحلية. تبويب الرابطة متاح الآن كمعاينة." },
     { v: "3.0.0", icon: "sparkle", en: "Major SalaamStreet Milestone", ar: "محطة كبرى لسلام ستريت",
       den: "A major milestone for SalaamStreet. Plans may change as we learn from you.",
       dar: "محطة كبرى في مسيرة سلام ستريت. قد تتغير الخطط بحسب ما نتعلمه منكم." },
