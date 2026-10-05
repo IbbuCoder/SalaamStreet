@@ -38,10 +38,30 @@ function write(rel, html) {
   written.push("/" + rel.replace(/\\/g, "/") + "/");
 }
 
+/* Section names for breadcrumbs ("SalaamStreet › Prayer times › Chicago" in Google). */
+const SECTIONS = { surah: "Qur'an", "prayer-times": "Prayer times", duas: "Duas", "names-of-allah": "99 Names of Allah", qibla: "Qibla direction", about: "About", widget: "Widget" };
+function structuredData(rel, canonical, h1, description, jsonld) {
+  const parts = rel.split("/");
+  const crumbs = [{ name: "SalaamStreet", url: SITE + "/" }];
+  if (parts.length > 1) crumbs.push({ name: SECTIONS[parts[0]] || parts[0], url: SITE + "/" + parts[0] + "/" });
+  crumbs.push({ name: h1, url: canonical });
+  const pageLd = Object.assign({ "@type": "WebPage", name: h1, description }, jsonld || {}, {
+    "@id": canonical + "#webpage", url: canonical, inLanguage: "en",
+    isPartOf: { "@type": "WebSite", "@id": SITE + "/#website", name: "SalaamStreet", url: SITE + "/" },
+    primaryImageOfPage: { "@type": "ImageObject", url: SITE + "/icons/og-image.png" },
+  });
+  delete pageLd["@context"];
+  return { "@context": "https://schema.org", "@graph": [pageLd, {
+    "@type": "BreadcrumbList",
+    itemListElement: crumbs.map((c, i) => ({ "@type": "ListItem", position: i + 1, name: c.name, item: c.url })),
+  }] };
+}
+
 function page({ rel, title, description, h1, lead, body, jsonld, extraHead = "" }) {
   const depth = rel.split("/").length;
   const up = "../".repeat(depth);
   const canonical = SITE + "/" + rel + "/";
+  jsonld = structuredData(rel, canonical, h1, description, jsonld);
   return `<!DOCTYPE html>
 <html lang="en" dir="ltr">
 <head>
@@ -55,12 +75,20 @@ function page({ rel, title, description, h1, lead, body, jsonld, extraHead = "" 
   <meta property="og:url" content="${canonical}" />
   <meta property="og:type" content="article" />
   <meta property="og:image" content="${SITE}/icons/og-image.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:site_name" content="SalaamStreet" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="${esc(title)}" />
+  <meta name="twitter:description" content="${esc(description)}" />
+  <meta name="twitter:image" content="${SITE}/icons/og-image.png" />
   <meta name="theme-color" content="#f6faf7" media="(prefers-color-scheme: light)" />
   <meta name="theme-color" content="#0a100d" media="(prefers-color-scheme: dark)" />
   <meta name="color-scheme" content="light dark" />
   <!-- Saved theme before any stylesheet loads, so there is no light/dark flash. -->
   <style>html{background:#f6faf7;color-scheme:light}html[data-theme="dark"]{background:#0a100d;color-scheme:dark}</style>
   <script>(function(){var d=document.documentElement,t="system";try{t=(JSON.parse(localStorage.getItem("salaamstreet:settings")||"{}")||{}).theme||"system"}catch(e){}var k=t==="dark"||(t!=="light"&&!!window.matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light";d.setAttribute("data-theme",k);var m=document.querySelectorAll('meta[name="theme-color"]');for(var i=0;i<m.length;i++){m[i].setAttribute("content",k==="dark"?"#0a100d":"#f6faf7");m[i].removeAttribute("media")}var c=document.querySelector('meta[name="color-scheme"]');if(c)c.setAttribute("content",k)})();</script>
+  <link rel="icon" href="${up}icons/icon-192.png" type="image/png" sizes="192x192" />
   <link rel="icon" href="${up}icons/favicon-32.png" type="image/png" sizes="32x32" />
   <link rel="icon" href="${up}icons/favicon-16.png" type="image/png" sizes="16x16" />
   <link rel="apple-touch-icon" href="${up}icons/apple-touch-icon.png" />
@@ -74,6 +102,7 @@ ${jsonld ? `  <script type="application/ld+json">${JSON.stringify(jsonld)}</scri
     <a class="brand-sm" href="${up}#/home"><span class="brand-mark" aria-hidden="true"><img src="${up}icons/brand/logo-mark-128.png" alt="" width="30" height="30" /></span><span>Salaam<span class="g">Street</span></span></a>
     <nav class="site-links" aria-label="Main">
       <a href="${up}prayer-times/">Prayer times</a>
+      <a href="${up}qibla/">Qibla</a>
       <a href="${up}surah/">Qur'an</a>
       <a href="${up}duas/">Duas</a>
       <a href="${up}names-of-allah/">99 Names</a>
@@ -211,6 +240,19 @@ const CITIES = [
   ["Houston", "United States", 29.7604, -95.3698, 2], ["Dallas", "United States", 32.7767, -96.797, 2], ["Los Angeles", "United States", 34.0522, -118.2437, 2], ["Dearborn", "United States", 42.3223, -83.1763, 2],
   ["Toronto", "Canada", 43.6532, -79.3832, 2], ["Montreal", "Canada", 45.5017, -73.5673, 2], ["Sydney", "Australia", -33.8688, 151.2093, 3], ["Melbourne", "Australia", -37.8136, 144.9631, 3],
 ];
+/* Qibla direction from a place: great-circle bearing to the Kaaba (true north), as js/core.js computes it. */
+const KAABA = { lat: 21.4225, lng: 39.8262 }; // SS.KAABA in js/core.js
+const rad = Math.PI / 180;
+function qibla(lat, lng) {
+  const p1 = lat * rad, p2 = KAABA.lat * rad, dl = (KAABA.lng - lng) * rad;
+  const y = Math.sin(dl) * Math.cos(p2), x = Math.cos(p1) * Math.sin(p2) - Math.sin(p1) * Math.cos(p2) * Math.cos(dl);
+  const deg = (Math.atan2(y, x) / rad + 360) % 360;
+  const a = Math.sin((KAABA.lat - lat) * rad / 2) ** 2 + Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) ** 2;
+  const km = 2 * 6371 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const point = ["north", "north-east", "east", "south-east", "south", "south-west", "west", "north-west"][Math.round(deg / 45) % 8];
+  return { deg, km, mi: km * 0.621371, point };
+}
+const fmtNum = (n) => Math.round(n).toLocaleString("en-US");
 const cityScript = (lat, lng, method) => `
   <script>
   (function () {
@@ -232,7 +274,7 @@ CITIES.forEach(([city, country, lat, lng, method]) => {
   write(rel, page({
     rel,
     title: `Prayer Times in ${city} Today — Fajr, Dhuhr, Asr, Maghrib, Isha | SalaamStreet`,
-    description: `Accurate prayer times for ${city}, ${country} today: Fajr, sunrise, Dhuhr, Asr, Maghrib and Isha (${METHOD_NAMES[method]} method). Plus the Qibla direction and monthly timetable.`,
+    description: `Accurate prayer times for ${city}, ${country} today: Fajr, sunrise, Dhuhr, Asr, Maghrib and Isha (${METHOD_NAMES[method]} method). Qibla direction from ${city}: ${qibla(lat, lng).deg.toFixed(1)}° ${qibla(lat, lng).point}.`,
     h1: `Prayer times in ${city}`,
     lead: `${esc(country)} · <span id="date">Today</span>`,
     body: `      <div class="times-list" id="times" aria-live="polite">
@@ -240,6 +282,8 @@ CITIES.forEach(([city, country, lat, lng, method]) => {
         <div class="skeleton row-sk"></div><div class="skeleton row-sk"></div><div class="skeleton row-sk"></div>
       </div>
       <p class="tiny mt-1">Calculation method: ${esc(METHOD_NAMES[method])}. Scholars differ on calculation methods — follow your local mosque's timetable where it differs.</p>
+      <h2 class="mt-3">Qibla direction in ${esc(city)}</h2>
+      ${city === "Makkah" ? `<p>You are in Makkah: face the Kaaba at Masjid al-Haram.</p>` : `<p>From central ${esc(city)}, the Qibla is <b>${qibla(lat, lng).deg.toFixed(1)}°</b> from true north (${qibla(lat, lng).point}). The Kaaba in Makkah is about <b>${fmtNum(qibla(lat, lng).km)} km</b> (${fmtNum(qibla(lat, lng).mi)} miles) away. For your exact spot, use the live compass in the app.</p>`}
       <div class="row wrap mt-2">
         <a class="btn" href="../../#/prayer">Monthly timetable &amp; reminders</a>
         <a class="btn btn-outline" href="../../#/qibla">Qibla direction</a>
@@ -248,7 +292,7 @@ CITIES.forEach(([city, country, lat, lng, method]) => {
       <h2 class="mt-3">Other cities</h2>
       <p class="city-links">${CITIES.filter((c) => c[0] !== city).map((c) => `<a href="../${slug(c[0])}/">${esc(c[0])}</a>`).join(" · ")}</p>
 ${cityScript(lat, lng, method)}`,
-    jsonld: { "@context": "https://schema.org", "@type": "WebPage", name: `Prayer times in ${city}`, about: { "@type": "City", name: city, geo: { "@type": "GeoCoordinates", latitude: lat, longitude: lng } } },
+    jsonld: { "@type": "WebPage", name: `Prayer times in ${city}`, about: { "@type": "City", name: city, containedInPlace: { "@type": "Country", name: country }, geo: { "@type": "GeoCoordinates", latitude: lat, longitude: lng } } },
   }));
 });
 write("prayer-times", page({
@@ -258,6 +302,32 @@ write("prayer-times", page({
   h1: "Prayer times by city",
   lead: `For your exact location, <a href="../#/prayer">open SalaamStreet</a>.`,
   body: `      <div class="city-grid">${CITIES.map((c) => `<a class="chip" href="${slug(c[0])}/">${esc(c[0])}<span class="tiny">${esc(c[1])}</span></a>`).join("")}</div>`,
+}));
+
+/* ── Qibla direction (landing page + table for every city) ───────────── */
+write("qibla", page({
+  rel: "qibla",
+  title: "Qibla Direction Finder — Find the Qibla From Anywhere | SalaamStreet",
+  description: "Find the Qibla direction from where you are with a live compass and camera mode, corrected to true north. Free, no ads. Plus the Qibla bearing for 60 cities worldwide.",
+  h1: "Qibla direction finder",
+  lead: `Face the Kaaba from anywhere. For your exact location, <a href="../#/qibla">open the Qibla finder</a>.`,
+  body: `      <p><a class="btn" href="../#/qibla">Find the Qibla now</a></p>
+      <h2 class="mt-3">How SalaamStreet finds the Qibla</h2>
+      <ol class="steps">
+        <li>It works out the great-circle direction from your location to the Kaaba in Makkah — the shortest path over the Earth's surface.</li>
+        <li>Your phone's compass points to magnetic north, which can be 15–20° away from true north in some places. SalaamStreet corrects for that with the World Magnetic Model (WMM2025).</li>
+        <li>Turn until the Kaaba marker reaches the pointer — or use Camera Mode, which shows the direction over your camera view and vibrates once you're facing the Qibla.</li>
+      </ol>
+      <p class="tiny mt-1">Everything is calculated on your device. Phone compasses can be thrown off by metal and magnets nearby — move away from them and wave the phone in a figure-8 to calibrate.</p>
+      <h2 class="mt-3">Qibla direction by city</h2>
+      <div class="card table-card"><div class="table-scroll"><table class="month-table">
+        <thead><tr><th scope="col">City</th><th scope="col">Qibla (from true north)</th><th scope="col">Distance to Makkah</th></tr></thead>
+        <tbody>${CITIES.filter((c) => c[0] !== "Makkah").map(([city, country, lat, lng]) => {
+          const q = qibla(lat, lng);
+          return `<tr><td><a href="../prayer-times/${slug(city)}/">${esc(city)}</a> <span class="tiny">${esc(country)}</span></td><td>${q.deg.toFixed(1)}° ${q.point}</td><td>${fmtNum(q.km)} km · ${fmtNum(q.mi)} mi</td></tr>`;
+        }).join("")}</tbody>
+      </table></div></div>`,
+  jsonld: { "@type": "WebPage", about: { "@type": "Thing", name: "Qibla" } },
 }));
 
 /* ── About (shareable story page) ────────────────────────────────── */

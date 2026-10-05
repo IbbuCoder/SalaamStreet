@@ -655,5 +655,11 @@ SS.i18n.register("tr", {
 "qibla.dir4": "G",
 "qibla.dir5": "GB",
 "qibla.dir6": "B",
-"qibla.dir7": "KB"
+"qibla.dir7": "KB",
+"home.h1": "SalaamStreet — namaz vakitleri, kıble, Kur'an ve dualar",
+"home.browse": "SalaamStreet'e göz atın",
+"home.browseTimes": "Şehirlere göre namaz vakitleri",
+"home.browseQibla": "Şehirlere göre kıble yönü",
+"home.browseQuran": "Kur'an oku",
+"home.browseWidget": "Camiler için namaz vakti aracı"
 });

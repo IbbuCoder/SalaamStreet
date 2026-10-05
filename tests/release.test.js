@@ -73,3 +73,33 @@ test("every interface language has every English line (drafts included)", () => 
     }
   }
 });
+
+test("search engines: every public page has a title, description, canonical URL, share image and valid structured data", () => {
+  const sitemap = read("sitemap.xml");
+  const urls = [...sitemap.matchAll(/<loc>https:\/\/salaamstreet\.com\/([^<]*)<\/loc>/g)].map((m) => m[1]);
+  assert.ok(urls.includes("qibla/"), "the Qibla landing page is in the sitemap");
+  for (const u of urls) {
+    const html = read(u + "index.html");
+    const where = "/" + u;
+    assert.match(html, /<title>[^<]{10,}<\/title>/, where + " title");
+    assert.match(html, /<meta name="description" content="[^"]{50,}"/, where + " description");
+    assert.match(html, new RegExp('<link rel="canonical" href="https://salaamstreet\\.com/' + u.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + '"'), where + " canonical");
+    assert.match(html, /property="og:image" content="https:\/\/salaamstreet\.com\/icons\/og-image\.png"/, where + " share image");
+    assert.match(html, /rel="icon" href="[^"]*icon-192\.png"/, where + " a favicon big enough for Google (48px+)");
+    const ld = [...html.matchAll(/<script type="application\/ld\+json">(.*?)<\/script>/gs)].map((m) => JSON.parse(m[1]));
+    assert.ok(ld.length, where + " structured data");
+  }
+  assert.match(read("404.html"), /<meta name="robots" content="noindex"/);
+});
+
+test("city pages show the same Qibla direction as the app's compass", () => {
+  const box = { localStorage: { getItem: () => null, setItem() {}, removeItem() {}, key: () => null, length: 0 }, console };
+  box.window = box;
+  vm.createContext(box);
+  vm.runInContext(read("js/core.js"), box);
+  const coords = { chicago: [41.8781, -87.6298], london: [51.5074, -0.1278], jakarta: [-6.2088, 106.8456], sydney: [-33.8688, 151.2093] };
+  for (const [city, [lat, lng]] of Object.entries(coords)) {
+    const shown = parseFloat(read("prayer-times/" + city + "/index.html").match(/the Qibla is <b>([\d.]+)°<\/b>/)[1]);
+    assert.ok(Math.abs(shown - box.SS.qiblaBearing(lat, lng)) < 0.06, city + ": " + shown);
+  }
+});

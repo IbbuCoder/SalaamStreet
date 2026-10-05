@@ -1319,3 +1319,5 @@ html[data-theme="dark"] .acct-method.acct-apple{background:#fff;color:#000;borde
 .msa-feature .q-ic{flex-shrink:0}
 .msa-feature h3{font-size:1rem;margin:0 0 2px}
 .msa-feature p{margin:0;font-size:.92rem}
+.browse-links{color:var(--text-2);font-size:.9rem;line-height:1.9}
+.browse-links p{margin:4px 0 0}

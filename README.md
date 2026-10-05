@@ -10,7 +10,7 @@ SalaamStreet began as an Islamic-themed Shopify shop that Ibrahim built when he 
 
 **Our promise:** everything you need — prayer times, Qibla, Qur'an, duas, dhikr, the prayer tracker, Arabic learning and (when it arrives) sync — stays free forever. Any future paid extras (subscription or one-time) will only be for things that genuinely cost money to provide.
 
-Current version: **2.5.6 — More languages, fewer rough edges** (see `SS.VERSION` / `SS.CHANGELOG` in `js/content.js`).
+Current version: **2.5.7 — Camera, launch screen & search fixes** (see `SS.VERSION` / `SS.CHANGELOG` in `js/content.js`).
 
 ## Features
 
@@ -39,7 +39,7 @@ Current version: **2.5.6 — More languages, fewer rough edges** (see `SS.VERSIO
 - **Mosque finder** — nearby mosques from OpenStreetMap with one-tap directions
 - **Learn to read Arabic** — the 28 letters and their shapes, the vowel marks, and a quick quiz
 - **Prayer-times widget for mosques** — a free embed builder at [`/widget/`](https://salaamstreet.com/widget/): pick a location, method and style, copy one line of code
-- **Search-friendly pages** — every surah, the dua library, the 99 Names and prayer times for 60 major cities have their own indexable page, plus `sitemap.xml`
+- **Search-friendly pages** — every surah, the dua library, the 99 Names, a Qibla direction page and prayer times (with the Qibla direction) for 60 major cities have their own indexable page, with structured data, breadcrumbs and a share card, plus `sitemap.xml`
 - **7 interface languages** — English and Arabic, plus draft Urdu, Bengali, Indonesian, Turkish and French (loaded only when chosen; pending native-speaker review) — with full right-to-left layout for Arabic and Urdu · **Light / dark / system theme** · **Installable** (add to home screen) · **Works offline** for anything you've already opened
 
 ## Principles

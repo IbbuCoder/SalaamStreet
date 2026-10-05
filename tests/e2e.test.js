@@ -124,7 +124,10 @@ test("startup uses the saved theme from the very first frame", async () => {
       htmlBg: getComputedStyle(document.documentElement).backgroundColor,
       bootBg: getComputedStyle(document.getElementById("boot")).backgroundColor,
       themeColor: [...document.querySelectorAll('meta[name="theme-color"]')].map((m) => m.content + "|" + (m.getAttribute("media") || "")),
-      splash: document.querySelector('link[rel="apple-touch-startup-image"]').getAttribute("href"),
+      // The launch image iOS would use now: the one whose media matches this screen's appearance.
+      splash: [...document.querySelectorAll('link[rel="apple-touch-startup-image"]')]
+        .find((l) => matchMedia("(prefers-color-scheme: " + l.dataset.scheme + ")").matches).getAttribute("href"),
+      splashes: [...document.querySelectorAll('link[rel="apple-touch-startup-image"]')].map((l) => l.dataset.scheme + ":" + l.getAttribute("href")),
       manifest: document.querySelector('link[rel="manifest"]').getAttribute("href"),
     }));
     const label = JSON.stringify(c);
@@ -133,6 +136,11 @@ test("startup uses the saved theme from the very first frame", async () => {
     assert.equal(early.bootBg, c.bg, label);
     assert.ok(early.themeColor.every((m) => m === (c.want === "dark" ? "#0a100d|" : "#f6faf7|")), label + " " + early.themeColor);
     assert.equal(/-dark\.png$/.test(early.splash), c.want === "dark", label + " " + early.splash);
+    // With the system theme, iOS gets a light and a dark image to choose from; a chosen theme uses it for both.
+    for (const l of early.splashes) {
+      const scheme = l.split(":")[0], dark = /-dark\.png$/.test(l);
+      assert.equal(dark, (c.saved === "light" || c.saved === "dark") ? c.want === "dark" : scheme === "dark", label + " " + l);
+    }
     // Installed apps take their launch-screen colour from the manifest.
     assert.equal(early.manifest, c.want === "dark" ? "manifest-dark.webmanifest" : "manifest.webmanifest", label);
     release();
@@ -149,7 +157,7 @@ test("changing theme in the app updates page, browser chrome colour and launch i
   await open(page, "#/home");
   await page.click("#theme-toggle"); // light → dark
   const s = await page.evaluate(() => [document.documentElement.getAttribute("data-theme"),
-    document.querySelector('meta[name="theme-color"]').content, document.querySelector('link[rel="apple-touch-startup-image"]').getAttribute("href"),
+    document.querySelector('meta[name="theme-color"]').content, document.querySelector('link[rel="apple-touch-startup-image"][data-scheme="light"]').getAttribute("href"),
     document.querySelector('link[rel="manifest"]').getAttribute("href")]);
   assert.deepEqual(s.slice(0, 2), ["dark", "#0a100d"]);
   assert.match(s[2], /-dark\.png$/);
@@ -304,6 +312,46 @@ test("qibla camera mode: live camera, real direction overlay, clear exit", async
   await page.waitForSelector("#qb-cam:not([hidden])");
   await page.goBack();
   await page.waitForSelector("#qb-cam", { state: "hidden" });
+  assert.deepEqual(page.errors, []);
+  await context.close();
+});
+
+test("qibla camera mode: the camera comes back after switching apps, and never stays on in the background", async () => {
+  const { page, context } = await device();
+  await context.grantPermissions(["camera"], { origin: base.slice(0, -1) });
+  await open(page, "#/qibla");
+  await page.waitForFunction(() => document.getElementById("qb-deg").textContent !== "—");
+  const live = () => page.waitForFunction(() => { const v = document.getElementById("qb-video"); return v.srcObject && v.srcObject.getVideoTracks()[0].readyState === "live"; });
+  const setHidden = (h) => page.evaluate((h) => {
+    Object.defineProperty(document, "hidden", { configurable: true, get: () => h });
+    Object.defineProperty(document, "visibilityState", { configurable: true, get: () => (h ? "hidden" : "visible") });
+    document.dispatchEvent(new Event("visibilitychange"));
+  }, h);
+  await page.click("#qb-mode-camera");
+  await live();
+  await setHidden(true); // switched to another app: camera off
+  assert.equal(await page.evaluate(() => document.getElementById("qb-video").srcObject), null);
+  await setHidden(false); // back: camera on again without a tap — not a black screen
+  await live();
+  assert.equal(await page.isVisible("#qb-cam-start"), false);
+  // Leave and come back into camera mode: live again.
+  await page.click("#qb-cam-exit");
+  await page.waitForSelector("#qb-cam", { state: "hidden" });
+  await page.click("#qb-mode-camera");
+  await live();
+  await page.click("#qb-cam-exit");
+  await page.waitForSelector("#qb-cam", { state: "hidden" });
+  // Slow camera + leaving the page before it starts: no surprise camera, no jump back.
+  await page.evaluate(() => {
+    const real = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+    window.__streams = [];
+    navigator.mediaDevices.getUserMedia = (c) => new Promise((r) => setTimeout(r, 600)).then(() => real(c)).then((s) => { window.__streams.push(s); return s; });
+  });
+  await page.click("#qb-mode-camera");
+  await page.evaluate(() => { location.hash = "#/home"; });
+  await page.waitForTimeout(1200);
+  assert.equal(new URL(page.url()).hash, "#/home");
+  assert.ok(await page.evaluate(() => window.__streams.length && window.__streams.every((s) => s.getTracks().every((t) => t.readyState === "ended"))), "camera stopped");
   assert.deepEqual(page.errors, []);
   await context.close();
 });

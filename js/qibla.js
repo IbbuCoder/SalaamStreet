@@ -524,6 +524,10 @@
   function camSupported() {
     return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) && window.isSecureContext !== false;
   }
+  // wantCam: camera mode is (about to be) on screen. A stream that arrives
+  // after the person has left is stopped at once, so the camera never stays
+  // on in the background; one request at a time, so taps can't race.
+  var wantCam = false, streamPending = null;
   function stopStream() {
     if (camStream) { camStream.getTracks().forEach(function (tr) { try { tr.stop(); } catch (e) { /* noop */ } }); }
     camStream = null;
@@ -531,9 +535,56 @@
     if (v) { try { v.srcObject = null; } catch (e) { /* noop */ } }
   }
   function getStream() {
-    if (camStream) return Promise.resolve(camStream);
-    return navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } } })
-      .then(function (s) { camStream = s; return s; });
+    if (camStream && camStream.getVideoTracks().some(function (tr) { return tr.readyState === "live"; })) return Promise.resolve(camStream);
+    if (streamPending) return streamPending;
+    camStream = null;
+    streamPending = navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } } })
+      .then(function (s) {
+        streamPending = null;
+        if (!wantCam) { s.getTracks().forEach(function (tr) { tr.stop(); }); throw Object.assign(new Error("closed"), { name: "AbortError" }); }
+        camStream = s;
+        // The system can take the camera away (a call, another app): bring it back when we can.
+        s.getVideoTracks().forEach(function (tr) {
+          tr.addEventListener("ended", function () { if (camStream === s && camOpen && !document.hidden) resumeCamera(); });
+        });
+        return s;
+      }, function (err) { streamPending = null; throw err; });
+    return streamPending;
+  }
+  /** Show the live stream in the video element (a fresh srcObject + play, so it's never left black). */
+  function attachStream() {
+    var v = $("qb-video");
+    if (v.srcObject !== camStream) v.srcObject = camStream;
+    var p = v.play();
+    if (p && p.catch) p.catch(function () { /* muted inline video normally plays; the start button covers the rest */ });
+    $("qb-cam-start").hidden = true;
+  }
+  /** Coming back to camera mode (from another app or tab): restart the camera without a tap when allowed. */
+  function resumeCamera() {
+    if (!camOpen || !camSupported()) return;
+    getStream().then(function () {
+      if (!camOpen) return;
+      attachStream();
+      var last = compass.last();
+      if (last) renderCamera(last); else $("qb-cam-msg").textContent = t("qibla.cameraHold");
+    }).catch(function (err) {
+      if (!camOpen || (err && err.name === "AbortError")) return;
+      // Some browsers only allow the camera from a tap: ask for one (a real denial is explained after it).
+      $("qb-cam-msg").textContent = t("qibla.cameraPaused");
+      showStartButton();
+    });
+  }
+  function showStartButton() {
+    var b = $("qb-cam-start");
+    b.hidden = false;
+    b.onclick = function () {
+      var motion = compass.needsPermission() ? compass.requestPermission() : Promise.resolve("granted");
+      Promise.all([motion, getStream()]).then(function () {
+        attachStream();
+        startSensors(true);
+        $("qb-cam-msg").textContent = t("qibla.cameraHold");
+      }).catch(function (err) { $("qb-cam-msg").textContent = camError(err); });
+    };
   }
   function camError(err) {
     var name = err && err.name;
@@ -568,10 +619,12 @@
   function enterCamera() {
     if (bearing === null) { askLocation(); return; }
     if (!camSupported()) { SS.toast(t("qibla.cameraUnsupported")); return; }
+    wantCam = true;
     var motion = compass.needsPermission() ? compass.requestPermission() : Promise.resolve("granted");
     var cam = getStream().then(function () { return null; }, function (err) { return err; });
     Promise.all([motion, cam]).then(function (res) {
-      if (res[1]) { SS.toast(camError(res[1])); return; }
+      if (!wantCam) return; // left the Qibla page while the camera was starting
+      if (res[1]) { wantCam = false; SS.toast(camError(res[1])); return; }
       camPushed = true;
       location.hash = "#/qibla/camera";
     });
@@ -580,6 +633,7 @@
     var el = $("qb-cam");
     if (camOpen) return;
     camOpen = true;
+    wantCam = true;
     aligned = false;
     resetAnim();
     el.hidden = false;
@@ -594,31 +648,10 @@
     $("qb-cam-done").hidden = true;
     $("qb-tape-l").hidden = $("qb-tape-r").hidden = true;
     buildTape();
-    var startBtn = $("qb-cam-start");
-    startBtn.hidden = true;
-    function attach() {
-      var v = $("qb-video");
-      v.srcObject = camStream;
-      var p = v.play();
-      if (p && p.catch) p.catch(function () { /* autoplay blocked; muted inline video normally plays */ });
-    }
-    if (!camSupported()) {
-      $("qb-cam-msg").textContent = t("qibla.cameraUnsupported");
-    } else if (camStream) {
-      attach();
-    } else {
-      // Opened from a link or after the tab was hidden: needs a tap to start.
-      startBtn.hidden = false;
-      startBtn.onclick = function () {
-        var motion = compass.needsPermission() ? compass.requestPermission() : Promise.resolve("granted");
-        Promise.all([motion, getStream()]).then(function () {
-          startBtn.hidden = true;
-          attach();
-          startSensors(true);
-          $("qb-cam-msg").textContent = t("qibla.cameraHold");
-        }).catch(function (err) { $("qb-cam-msg").textContent = camError(err); });
-      };
-    }
+    $("qb-cam-start").hidden = true;
+    if (!camSupported()) $("qb-cam-msg").textContent = t("qibla.cameraUnsupported");
+    else if (camStream) attachStream();
+    else resumeCamera(); // opened from a link or reloaded: start straight away if allowed, else offer a button
     startSensors(!compass.needsPermission());
     var last = compass.last();
     if (last) renderCamera(last);
@@ -627,6 +660,7 @@
   function closeCamera() {
     if (!camOpen) return;
     camOpen = false;
+    wantCam = false;
     aligned = false;
     resetAnim();
     stopStream();
@@ -688,22 +722,15 @@
     document.addEventListener("keydown", function (e) {
       if (camOpen && e.key === "Escape") { e.preventDefault(); exitCamera(); }
     });
+    // Leaving the app turns the camera off (privacy, battery); coming back turns it on again.
     document.addEventListener("visibilitychange", function () {
-      if (document.hidden && camOpen) { stopStream(); $("qb-cam-start").hidden = false; }
-      if (!document.hidden && camOpen && !camStream) openCameraResume();
+      if (!camOpen) return;
+      if (document.hidden) stopStream();
+      else resumeCamera();
     });
+    window.addEventListener("pageshow", function (e) { if (e.persisted && camOpen) resumeCamera(); });
   }
-  function openCameraResume() {
-    $("qb-cam-msg").textContent = t("qibla.cameraPaused");
-    $("qb-cam-start").hidden = false;
-    $("qb-cam-start").onclick = function () {
-      getStream().then(function () {
-        $("qb-cam-start").hidden = true;
-        $("qb-video").srcObject = camStream;
-        var p = $("qb-video").play(); if (p && p.catch) p.catch(function () {});
-      }).catch(function (err) { $("qb-cam-msg").textContent = camError(err); });
-    };
-  }
+
 
   var wired = false;
   function qiblaInit(params) {
@@ -719,6 +746,8 @@
   SS.leave = SS.leave || {};
   SS.leave.qibla = function () {
     closeCamera();
+    wantCam = false;
+    stopStream();
     camPushed = false;
     stopSensors();
     aligned = false;
