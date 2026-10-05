@@ -12,7 +12,7 @@ const browser = {
   alert: "readonly", self: "readonly", caches: "readonly", Image: "readonly", globalThis: "readonly",
   module: "writable", Promise: "readonly", Intl: "readonly", performance: "readonly", SS: "writable",
   speechSynthesis: "readonly", SpeechSynthesisUtterance: "readonly", File: "readonly",
-  indexedDB: "readonly", IDBKeyRange: "readonly", Response: "readonly",
+  indexedDB: "readonly", IDBKeyRange: "readonly", IDBObjectStore: "readonly", Response: "readonly", Cache: "readonly", DOMException: "readonly",
 };
 const node = { require: "readonly", module: "writable", process: "readonly", __dirname: "readonly", Buffer: "readonly", console: "readonly", setTimeout: "readonly", URL: "readonly", globalThis: "readonly" };
 module.exports = [

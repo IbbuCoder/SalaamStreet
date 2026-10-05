@@ -10,18 +10,26 @@ const fs = require("fs");
 const path = require("path");
 const { chromium } = require("playwright");
 const { createMock, URL_BASE } = require("./helpers/mock-supabase");
+const { routeQuranApis, testPdf } = require("./helpers/offline-fixtures");
 
 const ROOT = path.resolve(__dirname, "..");
 const VERSION = require("../package.json").version;
 const SHOTS = process.env.SS_SHOTS || "";
-const TYPES = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".png": "image/png", ".json": "application/json", ".webmanifest": "application/manifest+json", ".svg": "image/svg+xml" };
+const TYPES = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".pdf": "application/pdf", ".css": "text/css", ".png": "image/png", ".json": "application/json", ".webmanifest": "application/manifest+json", ".svg": "image/svg+xml" };
 let server, base, browser;
+const site = { pdf: null, down: false };
 
 /* ── Static server ── */
 function serve() {
   return new Promise((resolve) => {
     server = http.createServer((req, res) => {
+      if (site.down) return req.socket.destroy(); // "offline": the site can't be reached at all
       let p = decodeURIComponent(new URL(req.url, "http://x").pathname);
+      // A small test PDF stands in for the real Qur'an PDF during one test only.
+      if (p === "/files/quran-english-sher-ali.pdf" && site.pdf) {
+        res.writeHead(200, { "content-type": "application/pdf", "content-length": site.pdf.length, "cache-control": "no-store" });
+        return res.end(req.method === "HEAD" ? undefined : site.pdf);
+      }
       if (p.endsWith("/")) p += "index.html";
       const file = path.join(ROOT, p);
       if (!file.startsWith(ROOT) || !fs.existsSync(file)) { res.writeHead(404); return res.end("nf"); }
@@ -711,5 +719,134 @@ test("layout: no horizontal overflow on phone, tablet and desktop", async () => 
     if (vp.width >= 600) assert.ok(Math.abs(r.left + r.width / 2 - vp.width / 2) < 2 && r.top > 0, `dialog centred at ${vp.width}px: ${JSON.stringify(r)}`);
     else assert.ok(Math.abs(r.bottom - vp.height) < 2, `bottom sheet at ${vp.width}px: ${JSON.stringify(r)}`);
     await context.close();
+  }
+});
+
+/* ═══════════ Offline Qur'an (2.6.0) ═══════════ */
+async function offlineDevice(opts = {}) {
+  const context = await browser.newContext(Object.assign({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, serviceWorkers: "block" }, opts.context || {}));
+  const log = [];
+  const { net } = await routeQuranApis(context, { log });
+  await context.addInitScript(({ s, v }) => {
+    if (!sessionStorage.getItem("seeded")) {
+      sessionStorage.setItem("seeded", "1");
+      localStorage.setItem("salaamstreet:settings", JSON.stringify(s));
+      localStorage.setItem("salaamstreet:onboarded", "true");
+      localStorage.setItem("salaamstreet:seenVersion", JSON.stringify(v));
+    }
+  }, { s: Object.assign({ location: CHICAGO }, opts.settings || {}), v: VERSION });
+  const page = await context.newPage();
+  page.errors = [];
+  page.on("pageerror", (e) => page.errors.push(e.message));
+  page.on("dialog", (d) => d.accept());
+  return { context, page, log, net };
+}
+
+test("offline Qur'an: download text and audio, go offline, read a surah, play across surahs, remove it all", async () => {
+  const { context, page, log, net } = await offlineDevice({ settings: { continuousPlay: true } });
+  await open(page, "#/settings/offline");
+  await page.click('#st-offline [data-act="dl-text"]');
+  await page.waitForSelector('#st-offline [data-key="text"] .progress');
+  await page.waitForSelector('#st-offline [data-key="text"] .off-done', { timeout: 30000 });
+  await page.click('#st-offline details[data-key="surahs"] > summary');
+  for (const n of [113, 114]) {
+    await page.click(`#st-offline [data-act="dl-audio"][data-arg="${n}"]`);
+    await page.waitForSelector(`#st-offline [data-act="rm-audio"][data-arg="${n}"]`, { timeout: 15000 });
+  }
+  assert.match(await page.textContent('#st-offline [data-key="storage"]'), /Offline Qur'an uses [\d.]+ (KB|MB)/);
+  await page.evaluate(() => window.scrollTo(0, document.getElementById("offline-quran").offsetTop - 70));
+  await shot(page, "offline-settings-mobile");
+
+  // No connection from here on.
+  await context.setOffline(true);
+  net.offline = true;
+  log.length = 0;
+  await page.evaluate(() => { location.hash = "#/quran"; });
+  await page.waitForSelector('#qi-grid a[href="#/surah/113"] .off-mark-a');
+  await page.evaluate(() => { location.hash = "#/surah/113"; });
+  await page.waitForSelector("#ayah-5");
+  assert.match(await page.textContent("#ayah-1"), /en\.sahih 113:1/);
+  await page.evaluate(() => { location.hash = "#/surah/18"; });
+  await page.waitForSelector("#ayah-110");
+  await page.evaluate(() => { location.hash = "#/surah/113"; });
+  await page.waitForSelector("#ayah-5");
+  // Play the last ayah of Al-Falaq: it comes from the device and carries on into An-Nas.
+  await page.evaluate(() => SS.audio.start(113, 5, SS.SURAHS[112]));
+  await page.waitForFunction(() => document.getElementById("ab-now").textContent.includes("114:1"), null, { timeout: 15000 });
+  const playing = await page.evaluate(() => new Promise((resolve) => setTimeout(() => resolve(SS.audio.state(114, 1).playing || SS.audio.state(114, 2).playing), 300)));
+  assert.ok(playing, "An-Nas plays offline");
+  assert.equal(log.length, 0, "nothing fetched while offline");
+  assert.doesNotMatch(await page.textContent("#toast").catch(() => ""), /offline — showing|Couldn't play/);
+  await page.click("#ab-close");
+
+  // Remove everything.
+  await page.evaluate(() => { location.hash = "#/settings/offline"; });
+  await page.click('#st-offline [data-act="rm-all"]');
+  await page.waitForFunction(() => !SS.offline.used() && SS.offline.totalBytes() === 0);
+  assert.equal(await page.evaluate(() => caches.keys().then((k) => k.filter((n) => n.startsWith("ss-offline")).length)), 0);
+  assert.ok(!(await page.evaluate(() => indexedDB.databases().then((l) => l.map((d) => d.name)))).includes("salaamstreet-offline"));
+  await page.evaluate(() => { location.hash = "#/surah/18"; }); // read only from the download, never cached elsewhere
+  await page.waitForSelector("#sr-list .state.error");
+  assert.equal(await page.locator("#ayah-1").count(), 0, "gone from the device");
+  assert.deepEqual(page.errors, []);
+  await context.close();
+});
+
+test("Qur'an PDF: download it, go offline, open it in the viewer, then remove it", async () => {
+  site.pdf = testPdf(3);
+  try {
+    for (const scheme of ["light", "dark"]) {
+      const { context, page, net } = await offlineDevice({ context: { serviceWorkers: "allow", colorScheme: scheme } });
+      await open(page, "#/quran");
+      await page.waitForFunction(() => navigator.serviceWorker.controller || navigator.serviceWorker.ready.then(() => true), null, { timeout: 10000 });
+      if (!(await page.evaluate(() => !!navigator.serviceWorker.controller))) await open(page, "#/quran");
+      await page.waitForSelector("#qi-pdf .pdf-card");
+      assert.match(await page.textContent("#qi-pdf"), /Translated by Maulawi Sher Ali · PDF/);
+      const download = page.waitForEvent("download");
+      await page.click('#qi-pdf [data-act="pdf-dl"]');
+      assert.equal((await download).suggestedFilename(), "quran-english-sher-ali.pdf", "a copy is saved to the device");
+      await page.waitForSelector('#qi-pdf [data-act="pdf-open"]');
+      await page.waitForFunction(() => caches.open("ss-offline-pdf").then((c) => c.keys()).then((k) => k.length >= 4), null, { timeout: 10000 });
+
+      // Offline: the site itself can't be reached; the app comes from the service worker.
+      site.down = true;
+      net.offline = true;
+      await context.setOffline(true);
+      await page.reload();
+      await page.waitForFunction(() => !document.getElementById("boot"), null, { timeout: 10000 });
+      await page.waitForSelector('#qi-pdf [data-act="pdf-open"]');
+      await page.click('#qi-pdf [data-act="pdf-open"]');
+      await page.waitForFunction(() => document.getElementById("pdf-total").textContent === "3", null, { timeout: 15000 });
+      await page.waitForFunction(() => !document.getElementById("pdf-canvas").hidden && document.getElementById("pdf-canvas").width > 0);
+      assert.match(await page.textContent("#pdf-credit"), /Maulawi Sher Ali · Source: alislam\.org/);
+      await page.click("#pdf-next");
+      await page.waitForFunction(() => document.getElementById("pdf-num").value === "2");
+      await page.fill("#pdf-num", "3");
+      await page.press("#pdf-num", "Enter");
+      await page.waitForFunction(() => document.getElementById("pdf-num").value === "3" && document.getElementById("pdf-next").disabled);
+      await page.click("#pdf-zoom-in");
+      await page.waitForFunction(() => document.getElementById("pdf-zoom").textContent === "125%");
+      await page.click("#pdf-zoom");
+      await page.click("#pdf-prev");
+      await page.waitForTimeout(400);
+      await shot(page, "pdf-viewer-" + scheme);
+      await page.click("#pdf-close");
+      // The last page read is remembered on this device.
+      await page.click('#qi-pdf [data-act="pdf-open"]');
+      await page.waitForFunction(() => document.getElementById("pdf-num").value === "2", null, { timeout: 10000 });
+      await page.click("#pdf-close");
+
+      await page.click('#qi-pdf [data-act="pdf-remove"]');
+      await page.waitForFunction(() => !SS.offline.pdf.stored());
+      assert.equal(await page.evaluate(() => caches.has("ss-offline-pdf")), false, "the stored copy is gone");
+      await page.waitForTimeout(300);
+      assert.equal(await page.isHidden("#qi-pdf"), true, "offline and not stored: no card");
+      assert.deepEqual(page.errors, []);
+      site.down = false;
+      await context.close();
+    }
+  } finally {
+    site.pdf = null;
+    site.down = false;
   }
 });

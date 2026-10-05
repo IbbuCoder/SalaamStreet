@@ -68,7 +68,7 @@ test.after(async () => { await browser.close(); server.close(); });
 
 test("without a download nothing changes: no database, the API and localStorage cache as before", async () => {
   const log = [];
-  const { context, page } = await device({ log });
+  const { context, page, api } = await device({ log });
   await open(page, "#/surah/2");
   await page.waitForSelector("#ayah-286");
   assert.ok(log.includes("text 2 quran-uthmani,en.sahih,en.transliteration"), "fetched from the API");
@@ -76,6 +76,7 @@ test("without a download nothing changes: no database, the API and localStorage 
   assert.ok(!(await dbNames(page)).includes("salaamstreet-offline"), "no offline database for people who never download");
   // A surah already cached in localStorage still opens with no connection.
   await context.setOffline(true);
+  api.net.offline = true;
   await page.evaluate(() => { location.hash = "#/surah/1"; });
   await page.evaluate(() => { location.hash = "#/surah/2"; });
   await page.waitForSelector("#ayah-286");
@@ -137,17 +138,19 @@ test("text download: all 114 surahs into IndexedDB, at most 4 requests at a time
 test("a failed request is retried; a lost connection pauses with a message and carries on when back online", async () => {
   const log = [];
   let failed = 0;
-  const { context, page } = await device({ log, delay: 25, fail: (kind, key, attempt) => kind === "text" && key.startsWith("7 ") && attempt === 1 && ++failed });
+  const { context, page, api } = await device({ log, delay: 25, fail: (kind, key, attempt) => kind === "text" && key.startsWith("7 ") && attempt === 1 && ++failed });
   await open(page, "#/settings/offline");
   await page.evaluate(() => { SS.offline.config.retryDelay = 50; });
   await page.click('#st-offline [data-act="dl-text"]');
   await page.waitForFunction(() => SS.offline.packCount("text:quran-uthmani") >= 30);
   await context.setOffline(true);
+  api.net.offline = true;
   await page.waitForFunction(() => SS.offline.job("text") && SS.offline.job("text").status === "offline");
   await page.waitForSelector('#st-offline [data-key="text"] .off-job.is-error');
   assert.match(await page.textContent('#st-offline [data-key="text"]'), /Connection lost/);
   const before = await editionCount(page, "quran-uthmani");
   assert.ok(before < 114);
+  api.net.offline = false;
   await context.setOffline(false);
   await waitText(page, ["quran-uthmani", "en.sahih", "en.transliteration"]);
   assert.equal(failed, 1, "surah 7 failed once");
@@ -176,14 +179,13 @@ test("closing the tab mid-download: it resumes on the next visit where it stoppe
   await waitText(page2, ["quran-uthmani", "en.sahih", "en.transliteration"]);
   const total = log.filter((l) => l.startsWith("text ")).length;
   assert.ok(done >= 20 && total <= 114 + 4, `resumed rather than restarted (${done} then ${total})`);
-  await page2.waitForSelector("#qi-offline .off-widget");
-  assert.match(await page2.textContent("#qi-offline"), /available offline/);
+  await page2.waitForFunction(() => /available offline/.test(document.getElementById("qi-offline").textContent), null, { timeout: 5000 });
   assert.ok(await page2.locator('#qi-grid a[href="#/surah/2"] .off-mark-t').count(), "surah list shows downloaded ✓");
   await context.close();
 });
 
 test("pause, resume and cancel; cancel removes what wasn't finished", async () => {
-  const { context, page } = await device({ delay: 30 });
+  const { context, page, api } = await device({ delay: 30 });
   await open(page, "#/settings/offline");
   await page.click('#st-offline [data-act="dl-tafsir"]');
   await page.waitForFunction(() => SS.offline.packCount("tafsir") >= 5);
@@ -201,6 +203,7 @@ test("pause, resume and cancel; cancel removes what wasn't finished", async () =
   await page.click('#st-offline [data-act="dl-tafsir"]');
   await page.waitForFunction(() => SS.offline.packCount("tafsir") === 114 && !SS.offline.job("tafsir"), null, { timeout: 30000 });
   await context.setOffline(true);
+  api.net.offline = true;
   const r = await page.evaluate(() => SS.api.tafsir(2, 255));
   assert.equal(r.text, "Offline commentary for 2:255");
   assert.deepEqual(page.errors, []);

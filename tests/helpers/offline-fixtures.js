@@ -61,12 +61,16 @@ function edition(id, n) {
  * opts.log: array that receives "text n eds" / "tafsir n" / "audio g" for each successful response.
  * opts.delay: ms per request. opts.fail(kind, key, attempt) → true to answer 500.
  * opts.stats: { active, max } concurrency counters.
+ * Returns { attempts, stats, net }: set net.offline = true to fail every request
+ * (Playwright's context.setOffline() alone doesn't stop routed requests).
  */
 async function routeQuranApis(context, opts = {}) {
   const attempts = {};
   const stats = opts.stats || { active: 0, max: 0 };
   const mp3 = silentMp3();
+  const net = { offline: false };
   await context.route(/^https?:\/\/(?!127\.0\.0\.1)/, async (route) => {
+    if (net.offline) return route.abort("internetdisconnected");
     const u = new URL(route.request().url());
     let kind = null, key = null, body = null, type = "application/json";
     let m;
@@ -101,7 +105,7 @@ async function routeQuranApis(context, opts = {}) {
       await route.fulfill({ status: 200, contentType: type, body });
     } catch (e) { /* page went away mid-request */ } finally { stats.active--; }
   });
-  return { attempts, stats };
+  return { attempts, stats, net };
 }
 
 module.exports = { SURAHS, silentMp3, testPdf, routeQuranApis };
