@@ -53,3 +53,23 @@ test("every data-i18n key in the page has English text", () => {
   const missing = [...keys].filter((k) => SS.i18n.t(k) === k);
   assert.deepEqual(missing, []);
 });
+
+test("every interface language has every English line (drafts included)", () => {
+  const src = read("js/i18n.js");
+  const en = Object.keys(Object.fromEntries([...src.slice(src.indexOf("en: {"), src.indexOf("\n    ar: {"))
+    .matchAll(/"([a-zA-Z0-9_.]+)":/g)].map((m) => [m[1], 1])));
+  const ar = Object.keys(Object.fromEntries([...src.slice(src.indexOf("\n    ar: {"))
+    .matchAll(/"([a-zA-Z0-9_.]+)":/g)].map((m) => [m[1], 1])));
+  assert.deepEqual(en.filter((k) => !ar.includes(k)), [], "missing in Arabic");
+  for (const code of ["ur", "bn", "id", "tr", "fr"]) {
+    let dict = null;
+    const box = { SS: { i18n: { register: (c, d) => { dict = d; } } } };
+    vm.runInNewContext(read("js/lang/" + code + ".js"), box);
+    const missing = en.filter((k) => !(k in dict));
+    assert.deepEqual(missing, [], "missing in " + code);
+    for (const k of en) {
+      const ph = (s) => (s.match(/\{[a-z]+\}/g) || []).sort().join();
+      assert.equal(ph(dict[k]), ph(SS.i18n.t(k)), code + " " + k + " keeps its {placeholders}");
+    }
+  }
+});

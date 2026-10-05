@@ -34,8 +34,10 @@ laptops and large monitors. Core worship features are, and will stay, free.
   theme fix (no light/dark flash, dark iOS launch screens)
 - **2.5.5 — Quality of Life + Bug Fixes:** redesigned Qibla compass; smoother Camera Mode with
   turn-left/right guidance, a heading strip and a lock-on animation with a short vibration; Ayah of the
-  Day audio; an "Opening soon" MSA tab (starting with the Neuqua Valley High School MSA); Google sign-in
+  Day audio; an "Opening soon" MSA tab (starting with the Neuqua Valley High School (NVHS) MSA); Google sign-in
   switched on and email + password accounts; installed-app launch colour now matches the theme
+- **2.5.6:** the five draft interface languages now cover the whole app; MSA tab names the NVHS MSA;
+  Account page layout fix on small phones
 
 ## Planned (no release dates; plans may change)
 

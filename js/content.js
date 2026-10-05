@@ -224,8 +224,17 @@
   ];
 
   /* ── Version & release notes (newest first) ──────────────────────── */
-  SS.VERSION = "2.5.5";
+  SS.VERSION = "2.5.6";
   SS.CHANGELOG = [
+    {
+      v: "2.5.6", date: "2026-10-05",
+      en: "More languages, fewer rough edges", ar: "لغات أكثر وتحسينات صغيرة",
+      items: [
+        { en: "Urdu, Bengali, Indonesian, Turkish and French now cover the whole app — accounts, the new Qibla, the MSA tab and the About page (drafts, pending native review)", ar: "الأردية والبنغالية والإندونيسية والتركية والفرنسية تغطي الآن التطبيق كله — الحسابات والقبلة الجديدة وتبويب الرابطة وصفحة «من نحن» (مسودات بانتظار المراجعة)" },
+        { en: "The MSA tab now names our first school: the Neuqua Valley High School (NVHS) MSA", ar: "تبويب الرابطة يذكر الآن مدرستنا الأولى: رابطة مدرسة Neuqua Valley الثانوية (NVHS)" },
+        { en: "Fixed the Account page being slightly too wide on small phones in some languages", ar: "إصلاح اتساع صفحة الحساب قليلًا على الهواتف الصغيرة في بعض اللغات" },
+      ],
+    },
     {
       v: "2.5.5", date: "2026-10-04",
       en: "Quality of Life + Bug Fixes", ar: "تحسينات الاستخدام وإصلاح الأخطاء",
@@ -242,7 +251,7 @@
           { en: "Listen to the Ayah of the Day", ar: "استمع إلى آية اليوم" },
         ] },
         { en: "MSA", ar: "رابطة الطلاب المسلمين", items: [
-          { en: "New MSA tab — opening soon, starting with the Neuqua Valley High School MSA", ar: "تبويب جديد لرابطة الطلاب المسلمين — قريبًا، بدءًا برابطة مدرسة Neuqua Valley الثانوية" },
+          { en: "New MSA tab — opening soon, starting with the Neuqua Valley High School (NVHS) MSA", ar: "تبويب جديد لرابطة الطلاب المسلمين — قريبًا، بدءًا برابطة مدرسة Neuqua Valley الثانوية (NVHS)" },
         ] },
         { en: "Accounts", ar: "الحسابات", items: [
           { en: "Continue with Google is now switched on", ar: "تفعيل تسجيل الدخول عبر Google" },

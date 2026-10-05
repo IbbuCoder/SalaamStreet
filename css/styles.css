@@ -1221,8 +1221,8 @@ html:is([lang="ar"],[lang="ur"],[lang="bn"]) .status-pill{letter-spacing:0;text-
 .av-letters{font-size:.78rem;font-weight:800;letter-spacing:.02em}
 .tb-account:hover{text-decoration:none}
 
-.acct-grid{display:grid;gap:16px}
-.acct-col{display:grid;gap:16px;align-content:start;min-inline-size:0}
+.acct-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
+.acct-col{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;align-content:start;min-inline-size:0}
 @media (min-width:1000px){.acct-grid{grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:20px}.acct-col{gap:20px}}
 .acct-hero{background:linear-gradient(135deg,color-mix(in srgb,var(--primary) 9%,var(--surface)),var(--surface) 60%)}
 .acct-hero-top{display:flex;align-items:center;gap:14px}

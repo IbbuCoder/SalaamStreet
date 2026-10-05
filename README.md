@@ -10,7 +10,7 @@ SalaamStreet began as an Islamic-themed Shopify shop that Ibrahim built when he 
 
 **Our promise:** everything you need — prayer times, Qibla, Qur'an, duas, dhikr, the prayer tracker, Arabic learning and (when it arrives) sync — stays free forever. Any future paid extras (subscription or one-time) will only be for things that genuinely cost money to provide.
 
-Current version: **2.5.5 — Quality of Life + Bug Fixes** (see `SS.VERSION` / `SS.CHANGELOG` in `js/content.js`).
+Current version: **2.5.6 — More languages, fewer rough edges** (see `SS.VERSION` / `SS.CHANGELOG` in `js/content.js`).
 
 ## Features
 
@@ -35,7 +35,7 @@ Current version: **2.5.5 — Quality of Life + Bug Fixes** (see `SS.VERSION` / `
 - **Share as image** — turn any ayah, dua or hadith into a ready-to-post card
 - **99 Names of Allah** — with a Name of the day on the home screen
 - **Ayah of the Day** — on the home screen, with audio in your chosen reciter
-- **MSA tab (opening soon)** — tools for Muslim Student Associations, starting with the Neuqua Valley High School MSA
+- **MSA tab (opening soon)** — tools for Muslim Student Associations, starting with the Neuqua Valley High School (NVHS) MSA
 - **Mosque finder** — nearby mosques from OpenStreetMap with one-tap directions
 - **Learn to read Arabic** — the 28 letters and their shapes, the vowel marks, and a quick quiz
 - **Prayer-times widget for mosques** — a free embed builder at [`/widget/`](https://salaamstreet.com/widget/): pick a location, method and style, copy one line of code
