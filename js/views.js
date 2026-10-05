@@ -1132,29 +1132,102 @@
   }
 
   /* ═══════════ HADITH ═══════════ */
-  var hdGen = 0;
+  var hdGen = 0, hdTabKey = "coll";
 
   function hadithInit(params) {
-    if (params && params[0]) hdRenderCollection(params[0], params[1]);
+    if (params && params[0] === "knowledge") { hdTabKey = "know"; hdRenderHome(); }
+    else if (params && params[0]) hdRenderCollection(params[0], params[1]);
     else hdRenderHome();
+  }
+
+  function hdColl(id) {
+    for (var i = 0; i < SS.HADITH_COLLECTIONS.length; i++) if (SS.HADITH_COLLECTIONS[i].id === id) return SS.HADITH_COLLECTIONS[i];
+    return null;
+  }
+  function hdNum(n) {
+    try { return Number(n).toLocaleString(SS.i18n.dateLocale()); } catch (e) { return String(n); }
   }
 
   function hdRenderHome() {
     $("hd-detail").hidden = true;
     $("hd-home").hidden = false;
-    var ar = SS.i18n.isAr();
-    var html = "";
-    for (var i = 0; i < SS.HADITH_COLLECTIONS.length; i++) {
-      var c = SS.HADITH_COLLECTIONS[i];
-      html += '<a class="cat hd-coll" href="#/hadith/' + c.id + '">' +
-        '<span class="hd-top"><span class="q-ic">' + icon("scroll") + "</span>" +
-        '<span class="badge badge-src">' + esc(t(c.bounded ? "hadith.tagComplete" : "hadith.tagBrowse")) + "</span></span>" +
-        '<span class="c-title">' + esc(ar ? c.ar : c.en) + "</span>" +
-        (ar ? "" : '<span class="c-ar" lang="ar">' + esc(c.ar) + "</span>") +
-        '<span class="hd-about">' + esc(t("hadith.about_" + c.id)) + "</span>" +
-        '<span class="c-sub">' + esc(t(c.bounded ? "hadith.boundedDesc" : "hadith.browseDesc")) + ' <svg class="ic flip" aria-hidden="true"><use href="#i-chev-r"/></svg></span></a>';
-    }
+    ["coll", "know"].forEach(function (k) {
+      var b = $("hd-tab-" + k);
+      b.onclick = function () { hdTab(k); };
+      b.onkeydown = function (e) {
+        if (e.key === "ArrowLeft" || e.key === "ArrowRight") { var o = k === "coll" ? "know" : "coll"; $("hd-tab-" + o).focus(); hdTab(o); }
+      };
+    });
+    hdTab(hdTabKey);
+  }
+  function hdTab(k) {
+    hdTabKey = k;
+    ["coll", "know"].forEach(function (x) {
+      $("hd-tab-" + x).setAttribute("aria-selected", String(x === k));
+      $("hd-tab-" + x).tabIndex = x === k ? 0 : -1;
+      $("hd-" + x).hidden = x !== k;
+    });
+    if (k === "know") hdRenderKnowledge();
+    else { hdRenderCollections(); hdRenderDaily(); }
+  }
+
+  /** Collections as short grouped lists — ten collections without ten big cards. */
+  function hdRenderCollections() {
+    var ar = SS.i18n.isAr(), html = "";
+    SS.HADITH_GROUPS.forEach(function (g) {
+      var rows = "";
+      SS.HADITH_COLLECTIONS.forEach(function (c) {
+        if (c.group !== g.id) return;
+        var meta = f("hadith.count", { n: hdNum(c.last) }) + " · " + t(c.bounded ? "hadith.tagComplete" : "hadith.tagBrowse");
+        rows += '<a class="hd-row" href="#/hadith/' + c.id + '">' +
+          '<span class="hd-row-body"><span class="hd-row-title">' + esc(ar ? c.ar : c.en) +
+          (ar ? "" : ' <span class="hd-row-ar" lang="ar">' + esc(c.ar) + "</span>") + "</span>" +
+          '<span class="hd-about">' + esc(t("hadith.about_" + c.id)) + "</span>" +
+          '<span class="hd-row-meta">' + esc(meta) + "</span></span>" +
+          '<svg class="ic chev flip" aria-hidden="true"><use href="#i-chev-r"/></svg></a>';
+      });
+      html += '<h2 class="group-label">' + esc(t(g.key)) + '</h2><div class="card hd-group">' + rows + "</div>";
+    });
     $("hd-cats").innerHTML = html;
+  }
+
+  /** One hadith a day from An-Nawawi's forty (the edition is small and cached). */
+  function hdRenderDaily() {
+    var el = $("hd-daily"), coll = hdColl("nawawi");
+    var start = new Date(new Date().getFullYear(), 0, 0);
+    var doy = Math.floor((new Date() - start) / DAY);
+    var gen = hdGen;
+    var ar = SS.i18n.isAr();
+    SS.api.hadithEdition(ar ? coll.ara : coll.eng).then(function (d) {
+      if (gen !== hdGen || $("hd-home").hidden) return;
+      var list = d.hadiths.filter(function (h) { return h.text; });
+      var h = list[doy % list.length];
+      el.innerHTML = '<a class="card hd-daily" href="#/hadith/nawawi/' + h.hadithnumber + '">' +
+        '<span class="hd-daily-top"><span class="h-sm">' + esc(t("hadith.ofDay")) + '</span><span class="badge">' + esc((ar ? coll.ar : coll.en) + " · " + hdNum(h.hadithnumber)) + "</span></span>" +
+        '<span class="hd-daily-text"' + (ar ? ' lang="ar"' : "") + ">" + esc(hdClean(h.text).replace(/\s+/g, " ")) + "</span>" +
+        '<span class="hd-row-meta">' + esc(t("hadith.readFull")) + ' <svg class="ic flip" aria-hidden="true"><use href="#i-chev-r"/></svg></span></a>';
+    }).catch(function () { el.innerHTML = ""; });
+  }
+
+  /** Knowledge: foundations of the faith and the terms used in gradings. */
+  function hdRenderKnowledge() {
+    var ar = SS.i18n.isAr(), K = SS.KNOWLEDGE, html = "";
+    html += '<h2 class="group-label">' + esc(t("know.foundations")) + '</h2><p class="tiny know-sub">' + esc(t("know.foundationsSub")) + "</p><div class=\"card hd-group\">";
+    K.foundations.forEach(function (x, i) {
+      var body = x.items
+        ? "<ol class=\"know-list\">" + x.items.map(function (it) { return "<li>" + esc(ar ? it.ar : it.en) + "</li>"; }).join("") + "</ol>"
+        : '<p class="know-text">' + esc(ar ? x.text.ar : x.text.en) + "</p>";
+      html += '<details class="know-item"' + (i === 0 ? " open" : "") + "><summary>" + esc(ar ? x.ar : x.en) + "</summary>" + body +
+        '<p class="know-src"><span class="badge badge-src">' + esc(t("hadith.reference")) + ": " + esc(x.src) + '</span> <a href="' + x.link + '">' + esc(t("know.readHadith")) + "</a></p></details>";
+    });
+    html += "</div>";
+    html += '<h2 class="group-label">' + esc(t("know.terms")) + '</h2><p class="tiny know-sub">' + esc(t("know.termsSub")) + "</p><div class=\"card hd-group\">";
+    K.terms.forEach(function (x) {
+      html += '<details class="know-item"><summary>' + (ar ? esc(x.ar) : esc(x.term) + ' <span class="hd-row-ar" lang="ar">' + esc(x.ar) + "</span>") + "</summary>" +
+        '<p class="know-text">' + esc(ar ? x.dar : x.en) + "</p></details>";
+    });
+    html += "</div>";
+    $("hd-know").innerHTML = html;
   }
 
   /** hadith-api text is plain, but some entries carry <br> or stray tags. */
@@ -1168,24 +1241,37 @@
     }
     return out;
   }
-  function hdCard(en, ar, ref, grade, num) {
-    return '<article class="card dua-card">' +
+  /** Grade badge colour: accepted (sahih/hasan) green, weak or fabricated amber. */
+  function hdGradeCls(g) {
+    if (/da'?if|daif|munkar|mawdu|shadh|batil/i.test(g)) return " grade-weak";
+    if (/sahih|hasan|authentic|good/i.test(g)) return " grade-ok";
+    return "";
+  }
+  function hdGrades(grades) {
+    if (!grades || !grades.length) return "";
+    var g = grades[0];
+    var out = '<span class="badge' + hdGradeCls(g.grade) + '">' + esc(t("hadith.grade")) + ": " + esc(g.grade) + (g.name ? " — " + esc(g.name) : "") + "</span>";
+    if (grades.length > 1) {
+      out += '<details class="hd-grades"><summary>' + esc(f("hadith.allGrades", { n: grades.length })) + "</summary><ul>" +
+        grades.map(function (x) { return "<li><b>" + esc(x.grade) + "</b>" + (x.name ? " — " + esc(x.name) : "") + "</li>"; }).join("") + "</ul></details>";
+    }
+    return out;
+  }
+  function hdCard(en, ar, ref, grades, num, book) {
+    return '<article class="card dua-card"' + (num != null ? ' id="hd-n' + esc(num) + '"' : "") + ">" +
       (num != null ? '<div class="row-between"><span class="badge">#' + esc(num) + '</span><div class="card-actions"><button class="icon-btn" type="button" data-copy aria-label="' + esc(t("common.copy")) + '">' + icon("copy") + "</button>" +
         '<button class="icon-btn" type="button" data-share aria-label="' + esc(t("common.share")) + '">' + icon("share") + "</button></div></div>" : "") +
+      (book ? '<p class="tiny hd-bookname">' + esc(book) + "</p>" : "") +
       (ar ? hdParas(ar, "arabic-dua", "ar") : "") +
       (en ? hdParas(en, "translation mt-1") : "") +
       '<div class="card-foot"><span class="badge badge-src">' + esc(t("hadith.reference")) + ": " + esc(ref) + "</span>" +
-      (grade ? '<span class="badge">' + esc(t("hadith.grade")) + ": " + esc(grade) + "</span>" : "") + "</div></article>";
+      hdGrades(grades) + "</div></article>";
   }
 
   function hdRef(coll, h) {
     var r = h && h.reference;
     if (r && r.book != null) return coll.cite + " — " + f("hadith.bookRef", { book: r.book, hadith: r.hadith });
     return coll.cite + " #" + (h ? h.hadithnumber : "?");
-  }
-  function hdGrade(h) {
-    if (h && h.grades && h.grades.length) return h.grades[0].grade;
-    return "";
   }
   function hdWireCopy(list) {
     list.onclick = function (e) {
@@ -1207,15 +1293,43 @@
     };
   }
 
+  /* Book index for the large collections (js/hadith-books.js, loaded once on demand). */
+  var hdBooksP = null;
+  function hdBooks() {
+    if (SS.HADITH_BOOKS) return Promise.resolve(SS.HADITH_BOOKS);
+    if (hdBooksP) return hdBooksP;
+    hdBooksP = new Promise(function (resolve) {
+      var s = document.createElement("script");
+      var me = document.querySelector('script[src*="js/views.js"]');
+      s.src = (me ? me.getAttribute("src").replace(/views\.js.*$/, "") : "js/") + "hadith-books.js";
+      s.onload = function () { resolve(SS.HADITH_BOOKS || null); };
+      s.onerror = function () { hdBooksP = null; resolve(null); };
+      document.head.appendChild(s);
+    });
+    return hdBooksP;
+  }
+  /** The book a hadith number falls in: the last book that starts at or before it. */
+  function hdBookOf(books, num) {
+    var hit = null;
+    for (var i = 0; i < (books || []).length; i++) if (books[i][2] <= num) hit = books[i];
+    return hit;
+  }
+  function hdBookLabel(b) {
+    return b ? f("hadith.bookName", { n: b[0], name: b[1] }) : "";
+  }
+
   function hdRenderCollection(id, numParam) {
-    var coll = null;
-    for (var i = 0; i < SS.HADITH_COLLECTIONS.length; i++) if (SS.HADITH_COLLECTIONS[i].id === id) coll = SS.HADITH_COLLECTIONS[i];
+    var coll = hdColl(id);
     if (!coll) return hdRenderHome();
     var title = SS.i18n.isAr() ? coll.ar : coll.en;
     $("hd-home").hidden = true;
     $("hd-detail").hidden = false;
     $("hd-title").textContent = title;
     $("tb-title").textContent = title;
+    document.title = title + " — SalaamStreet";
+    $("hd-by").textContent = coll.by ? f("hadith.compiler", { name: SS.i18n.isAr() ? coll.by.ar : coll.by.en, year: hdNum(coll.by.d) }) : "";
+    $("hd-by").hidden = !coll.by;
+    $("hd-mixed").hidden = !coll.mixed;
     $("hd-browse").hidden = coll.bounded;
     var list = $("hd-list");
     hdWireCopy(list);
@@ -1233,23 +1347,40 @@
           for (var j = 0; j < en.length; j++) {
             var h = en[j];
             if (!h.text && !araMap[h.hadithnumber]) continue;
-            html += hdCard(h.text, araMap[h.hadithnumber] || "", hdRef(coll, h), hdGrade(h), h.hadithnumber);
+            html += hdCard(h.text, araMap[h.hadithnumber] || "", hdRef(coll, h), h.grades, h.hadithnumber);
           }
           list.innerHTML = html;
           list.removeAttribute("aria-busy");
+          // #/hadith/nawawi/2 opens the collection at that hadith.
+          var target = numParam && $("hd-n" + parseInt(numParam, 10));
+          if (target) target.scrollIntoView({ block: "start" });
         })
         .catch(function () { if (gen === hdGen) renderState(list, { kind: "error", retry: function () { hdRenderCollection(id, numParam); } }); });
     } else {
-      var num = Math.max(1, parseInt(numParam, 10) || 1);
+      var num = Math.min(coll.last, Math.max(1, parseInt(numParam, 10) || 1));
+      var go = function (n) { location.hash = "#/hadith/" + id + "/" + Math.min(coll.last, Math.max(1, n)); };
       $("hd-num").value = num;
+      $("hd-num").max = coll.last;
       $("hd-prev").disabled = num <= 1;
-      $("hd-browse").onsubmit = function (e) {
-        e.preventDefault();
-        var n = Math.max(1, parseInt($("hd-num").value, 10) || 1);
-        location.hash = "#/hadith/" + id + "/" + n;
-      };
-      $("hd-prev").onclick = function () { if (num > 1) location.hash = "#/hadith/" + id + "/" + (num - 1); };
-      $("hd-next").onclick = function () { location.hash = "#/hadith/" + id + "/" + (num + 1); };
+      $("hd-next").disabled = num >= coll.last;
+      $("hd-browse").onsubmit = function (e) { e.preventDefault(); go(parseInt($("hd-num").value, 10) || 1); };
+      $("hd-prev").onclick = function () { if (num > 1) go(num - 1); };
+      $("hd-next").onclick = function () { if (num < coll.last) go(num + 1); };
+      var sel = $("hd-book");
+      sel.hidden = true;
+      hdBooks().then(function (all) {
+        var books = all && all[coll.id];
+        if (gen !== hdGen || !books || !books.length) return;
+        var cur = hdBookOf(books, num), opts = "";
+        books.forEach(function (b, i) {
+          opts += '<option value="' + i + '"' + (b === cur ? " selected" : "") + ">" + esc(hdBookLabel(b)) + "</option>";
+        });
+        sel.innerHTML = opts;
+        sel.hidden = false;
+        sel.onchange = function () { go(books[+sel.value][2]); };
+        var card = list.querySelector("article");
+        if (card && !card.querySelector(".hd-bookname")) card.querySelector(".row-between").insertAdjacentHTML("afterend", '<p class="tiny hd-bookname">' + esc(hdBookLabel(cur)) + "</p>");
+      });
       hdLoadOne(coll, num, gen);
     }
   }
@@ -1267,7 +1398,8 @@
           renderState(list, { kind: "empty", icon: "scroll", text: f("hadith.notFound", { n: num }) });
           return;
         }
-        list.innerHTML = hdCard(en ? en.text : "", ar ? ar.text : "", hdRef(coll, en || ar), hdGrade(en), num);
+        var book = SS.HADITH_BOOKS && hdBookLabel(hdBookOf(SS.HADITH_BOOKS[coll.id], num));
+        list.innerHTML = hdCard(en ? en.text : "", ar ? ar.text : "", hdRef(coll, en || ar), (en && en.grades && en.grades.length ? en : ar || {}).grades, num, book);
         list.removeAttribute("aria-busy");
       })
       .catch(function () { if (gen === hdGen) renderState(list, { kind: "error", retry: function () { hdLoadOne(coll, num, ++hdGen); } }); });

@@ -235,10 +235,13 @@
     return html;
   }
 
+  /** Settings shows a summary card; the full section lives at #/settings/offline. */
+  var settingsSub = false;
   function renderSettings() {
     var el = $("st-offline");
     if (!el || !off() || SS.currentView() !== "settings") return;
     off().ready().then(function () {
+      if (!settingsSub) { setHtml($("st-offline-link"), summaryHtml("settings")); return; }
       patch(el, [
         { key: "intro", html: '<p class="note">' + esc(t("off.intro")) + "</p>" },
         { key: "text", cls: "card off-card", html: textPart() + removeBtn("text", !off().job("text") && baseComplete()) + translationsPart() },
@@ -348,26 +351,32 @@
       if (html) a.querySelector(".arname").insertAdjacentHTML("beforebegin", html);
     });
   }
+  /** The one-card summary shown on the Qur'an page and at the top of Settings. */
+  function summaryHtml(where) {
+    var job = off().job("text") || off().job("tr:" + SS.translation().id);
+    var open = '<a class="card widget off-widget" href="#/settings/offline"><span class="w-ic">', chev = '<svg class="ic chev" aria-hidden="true"><use href="#i-chev-r"/></svg></a>';
+    if (job) {
+      return open + icon("download") + '</span><span class="w-body">' +
+        '<span class="w-title">' + esc(job.status === "running" ? t("off.qDownloading") : statusText(job)) + "</span>" +
+        '<span class="w-sub">' + esc(job.total ? f("off.nSurahs", { done: num(job.done, 0), total: num(job.total, 0) }) : t("off.preparing")) + "</span>" +
+        bar(job.done || 0, job.total || 0) + "</span>" + chev;
+    }
+    if (off().hasText(1) && baseComplete() && textComplete(SS.translation().id)) {
+      return open + icon("check") + '</span><span class="w-body">' +
+        '<span class="w-title">' + esc(t("off.qReady")) + '</span><span class="w-sub">' + esc(t("off.qManage")) + "</span></span>" + chev;
+    }
+    return open + icon("download") + '</span><span class="w-body">' +
+      '<span class="w-title">' + esc(where === "settings" ? t("off.title") : t("off.qTitle")) + '</span><span class="w-sub wrap-text">' +
+      esc(where === "settings" ? t("off.stSub") : f("off.qSub", { size: approx(off().estimate.text(SS.translation().id)) })) + "</span></span>" + chev;
+  }
+  function setHtml(el, html) {
+    if (el && el.getAttribute("data-html") !== html) { el.innerHTML = html; el.setAttribute("data-html", html); }
+  }
   function renderQuranCard() {
     var el = $("qi-offline");
     if (!el || !off() || SS.currentView() !== "quran") return;
     off().ready().then(function () {
-      var job = off().job("text") || off().job("tr:" + SS.translation().id), html;
-      if (job) {
-        html = '<a class="card widget off-widget" href="#/settings/offline"><span class="w-ic">' + icon("download") + '</span><span class="w-body">' +
-          '<span class="w-title">' + esc(job.status === "running" ? t("off.qDownloading") : statusText(job)) + "</span>" +
-          '<span class="w-sub">' + esc(job.total ? f("off.nSurahs", { done: num(job.done, 0), total: num(job.total, 0) }) : t("off.preparing")) + "</span>" +
-          bar(job.done || 0, job.total || 0) + '</span><svg class="ic chev" aria-hidden="true"><use href="#i-chev-r"/></svg></a>';
-      } else if (off().hasText(1) && baseComplete() && textComplete(SS.translation().id)) {
-        html = '<a class="card widget off-widget" href="#/settings/offline"><span class="w-ic">' + icon("check") + '</span><span class="w-body">' +
-          '<span class="w-title">' + esc(t("off.qReady")) + '</span><span class="w-sub">' + esc(t("off.qManage")) + "</span></span>" +
-          '<svg class="ic chev" aria-hidden="true"><use href="#i-chev-r"/></svg></a>';
-      } else {
-        html = '<a class="card widget off-widget" href="#/settings/offline"><span class="w-ic">' + icon("download") + '</span><span class="w-body">' +
-          '<span class="w-title">' + esc(t("off.qTitle")) + '</span><span class="w-sub wrap-text">' + esc(f("off.qSub", { size: approx(off().estimate.text(SS.translation().id)) })) + "</span></span>" +
-          '<svg class="ic chev" aria-hidden="true"><use href="#i-chev-r"/></svg></a>';
-      }
-      if (el.getAttribute("data-html") !== html) { el.innerHTML = html; el.setAttribute("data-html", html); }
+      setHtml(el, summaryHtml("quran"));
       updateMarks();
     });
     renderPdfCard($("qi-pdf"));
@@ -661,13 +670,14 @@
   SS.offlineUI = { mark: markHtml, render: render, viewer: viewer, size: size };
 
   onHook("settingsInit", function (params) {
-    renderSettings();
-    if (params && params[0] === "offline") {
-      setTimeout(function () {
-        var h = $("offline-quran");
-        if (h) h.scrollIntoView({ block: "start" });
-      }, 0);
+    settingsSub = !!(params && params[0] === "offline");
+    var view = $("view-settings");
+    if (view) view.classList.toggle("st-sub", settingsSub);
+    if (settingsSub) {
+      $("tb-title").textContent = t("off.title");
+      document.title = t("off.title") + " — SalaamStreet";
     }
+    renderSettings();
   });
   onHook("quranInit", renderQuranCard);
 

@@ -377,7 +377,7 @@ const FACTS = {
     "Prayer times for your location, with 7 calculation methods and Standard or Hanafi Asr, plus a monthly timetable",
     "Qibla finder with a live compass corrected to true north (World Magnetic Model WMM2025) and a Camera Mode that locks on when you face the Qibla",
     "The full Qur'an (Uthmani script) with translation, transliteration, recitation by 4 reciters, Tafsir Ibn Kathir, bookmarks, reading plans and a memorize mode",
-    "Hadith collections (40 Hadith Nawawi and Qudsi, plus Sahih al-Bukhari and Sahih Muslim) and a dua library — every text shows its source",
+    "A hadith library of 10 collections — the 40 Hadith of an-Nawawi, Qudsi and Shah Waliullah, the Six Books (Bukhari, Muslim, Abu Dawud, Tirmidhi, Nasa'i, Ibn Majah) and the Muwatta of Imam Malik — with every grading shown, plus a dua library; every text shows its source",
     "Dhikr counter, morning and evening adhkar, prayer tracker with streaks, prayer reminders and Ramadan mode",
     "Islamic (Hijri) calendar, the 99 Names of Allah, a mosque finder and Learn to Read Arabic lessons",
     "Optional free account to sync bookmarks, streaks and settings across devices",

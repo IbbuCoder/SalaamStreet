@@ -25,7 +25,8 @@ account (guest mode) everything works exactly the same.
 ```
 surahs.js   114-surah metadata, global ayah numbering
 duas.js     dua library + dhikr presets (all with sources)
-extras.js   Islamic calendar events, hadith collection list
+extras.js   Islamic calendar events, hadith collection list, Knowledge content
+hadith-books.js  Book index for the large hadith collections (generated; loaded on demand)
 i18n.js     English/Arabic strings, RTL switching
 core.js     constants, storage (+ sync write hooks), cached fetch, API clients, location flow, Qibla bearing
 views.js    one controller per view (+ optional "leave" hooks)
@@ -48,7 +49,7 @@ Each file attaches to a single `window.SS` namespace.
 | Islamic Network CDN | per-ayah recitation audio | browser cache |
 | tafsir_api (jsDelivr, GitHub raw fallback) | Tafsir Ibn Kathir (English), `/{surah}/{ayah}.json` | 30 days |
 | Supabase (only if signed in) | auth + synced records | — |
-| hadith-api (jsDelivr) | Nawawi 40, Qudsi 40, Bukhari, Muslim | 30 days |
+| hadith-api (jsDelivr) | 40 Nawawi, Qudsi, Shah Waliullah; Bukhari, Muslim, Abu Dawud, Tirmidhi, Nasa'i, Ibn Majah, Muwatta Malik | 30 days |
 
 Requests time out after 15 seconds; if the network fails, the last cached copy
 is shown and every view offers a "Try again" action.

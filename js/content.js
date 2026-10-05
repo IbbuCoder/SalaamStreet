@@ -224,8 +224,31 @@
   ];
 
   /* ── Version & release notes (newest first) ──────────────────────── */
-  SS.VERSION = "2.6.0";
+  SS.VERSION = "2.7.0";
   SS.CHANGELOG = [
+    {
+      v: "2.7.0", date: "2026-10-05",
+      en: "Hadith + Knowledge", ar: "الحديث والمعرفة",
+      den: "Ten hadith collections with every grading shown, a new Knowledge tab, and a calmer, less crowded app.",
+      dar: "عشر مجموعات حديثية مع ذكر كل درجة، وتبويب جديد للمعرفة، وتطبيق أهدأ وأقل ازدحامًا.",
+      groups: [
+        { en: "Hadith", ar: "الحديث", items: [
+          { en: "Six new collections: Sunan Abu Dawud, Jami' at-Tirmidhi, Sunan an-Nasa'i, Sunan Ibn Majah, Muwatta Malik and the 40 Hadith of Shah Waliullah — ten in all", ar: "ست مجموعات جديدة: سنن أبي داود وجامع الترمذي وسنن النسائي وسنن ابن ماجه وموطأ مالك وأربعون الدهلوي — عشر مجموعات في المجموع" },
+          { en: "Jump straight to any book (chapter) of Bukhari, Muslim, the Sunan and the Muwatta, and see which book you're reading", ar: "انتقل مباشرة إلى أي كتاب في البخاري ومسلم والسنن والموطأ، واعرف الكتاب الذي تقرأ فيه" },
+          { en: "Every scholar's grading is shown — the first on the card, the rest one tap away — with weak grades clearly marked", ar: "تظهر أحكام العلماء كلها — الأول على البطاقة والبقية بلمسة — مع تمييز الضعيف بوضوح" },
+          { en: "Hadith of the day from An-Nawawi's Forty, and each collection now names its compiler", ar: "حديث اليوم من الأربعين النووية، وكل مجموعة تذكر الآن جامعها" },
+        ] },
+        { en: "Knowledge", ar: "المعرفة", items: [
+          { en: "New Knowledge tab: the five pillars of Islam, the six articles of faith and ihsan, each with its source", ar: "تبويب جديد للمعرفة: أركان الإسلام الخمسة وأركان الإيمان الستة والإحسان، مع مصدر كل منها" },
+          { en: "Understanding hadith: short explanations of sahih, hasan, da'if, isnad and the other terms you see in gradings", ar: "فهم الحديث: شرح موجز للصحيح والحسن والضعيف والإسناد وغيرها من المصطلحات التي تراها في الأحكام" },
+        ] },
+        { en: "A calmer app", ar: "تطبيق أهدأ", items: [
+          { en: "Hadith collections are now short, grouped lists instead of big cards", ar: "مجموعات الحديث أصبحت قوائم قصيرة مجمّعة بدل البطاقات الكبيرة" },
+          { en: "Home: your shortcuts (prayers today, adhkar, Qur'an, dhikr streak) sit together in one card", ar: "الرئيسية: اختصاراتك (صلوات اليوم والأذكار والقرآن وسلسلة الذكر) في بطاقة واحدة" },
+          { en: "Settings is much shorter: Offline Qur'an has its own page, one tap away", ar: "الإعدادات أقصر بكثير: للقرآن دون اتصال صفحة خاصة على بُعد لمسة" },
+        ] },
+      ],
+    },
     {
       v: "2.6.0", date: "2026-10-05",
       en: "Qur'an+: Offline Qur'an", ar: "القرآن+: القرآن دون اتصال",
@@ -401,9 +424,6 @@
   });
   /* What's planned — honest plans in order, never dates. Nothing here is released yet. */
   SS.ROADMAP = [
-    { v: "2.7.0", icon: "scroll", en: "Hadith + Knowledge", ar: "الحديث والمعرفة",
-      den: "More hadith and authentic Islamic knowledge — always clearly sourced.",
-      dar: "مزيد من الأحاديث والمعرفة الإسلامية الموثوقة — مع ذكر المصدر دائمًا." },
     { v: "2.8.0", icon: "letters", en: "Learn", ar: "تعلّم",
       den: "Step-by-step learning that grows from today's Arabic letters lessons.",
       dar: "تعلّم خطوة بخطوة ينطلق من دروس الحروف العربية الحالية." },
