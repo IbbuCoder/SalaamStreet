@@ -38,6 +38,9 @@ laptops and large monitors. Core worship features are, and will stay, free.
   switched on and email + password accounts; installed-app launch colour now matches the theme
 - **2.5.6:** the five draft interface languages now cover the whole app; MSA tab names the NVHS MSA;
   Account page layout fix on small phones
+- **2.5.7:** Camera Mode turns the camera back on when you return to the app (no black screen) and never
+  leaves it running in the background; iPhone launch screens follow light/dark mode; search: Qibla
+  direction page, Qibla bearings on city pages, structured data, breadcrumbs and a 1200×630 share card
 
 ## Planned (no release dates; plans may change)
 

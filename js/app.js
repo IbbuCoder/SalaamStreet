@@ -42,11 +42,12 @@
       var want = mf.getAttribute(mode === "dark" ? "data-dark" : "data-light");
       if (mf.getAttribute("href") !== want) mf.setAttribute("href", want);
     }
-    var sp = document.querySelectorAll('link[rel="apple-touch-startup-image"][data-dark]');
+    // Launch screens: per system appearance for "system", else the chosen theme (see index.html).
+    var pref = SS.store && SS.store.settings ? SS.store.settings().theme : null;
+    var sp = document.querySelectorAll('link[rel="apple-touch-startup-image"][data-scheme]');
     for (i = 0; i < sp.length; i++) {
-      var light = sp[i].getAttribute("data-light") || sp[i].getAttribute("href");
-      sp[i].setAttribute("data-light", light);
-      sp[i].setAttribute("href", mode === "dark" ? sp[i].getAttribute("data-dark") : light);
+      var own = pref === "light" || pref === "dark" ? mode : sp[i].getAttribute("data-scheme");
+      sp[i].setAttribute("href", sp[i].getAttribute(own === "dark" ? "data-dark" : "data-light"));
     }
   };
   SS.applyTheme = function () {
@@ -326,6 +327,7 @@
     account: "account.title", msa: "msa.title",
   };
   var currentView = "", currentHash = "";
+  var HOME_TITLE = document.title;
   SS.currentView = function () { return currentView; };
 
   function parseHash() {
@@ -366,7 +368,9 @@
 
     var title = SS.i18n.t(TITLE_KEY[r.view] || "nav.dashboard");
     $("tb-title").textContent = r.view === "home" ? "" : title;
-    document.title = r.view === "home" ? "SalaamStreet — " + SS.i18n.t("app.tagline") : title + " — SalaamStreet";
+    // Home keeps index.html's search-friendly title in English (it's what Google shows).
+    document.title = r.view !== "home" ? title + " — SalaamStreet"
+      : SS.i18n.getLocale() === "en" ? HOME_TITLE : "SalaamStreet — " + SS.i18n.t("app.tagline");
     try {
       if (SS.views[r.view]) SS.views[r.view](r.params);
     } catch (err) {

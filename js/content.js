@@ -224,8 +224,18 @@
   ];
 
   /* ── Version & release notes (newest first) ──────────────────────── */
-  SS.VERSION = "2.5.6";
+  SS.VERSION = "2.5.7";
   SS.CHANGELOG = [
+    {
+      v: "2.5.7", date: "2026-10-05",
+      en: "Camera, launch screen & search fixes", ar: "إصلاحات الكاميرا وشاشة البدء والبحث",
+      items: [
+        { en: "Qibla Camera Mode: the camera now comes back on its own when you return to the app — no more black screen", ar: "وضع الكاميرا للقبلة: تعود الكاميرا تلقائيًا عند الرجوع إلى التطبيق — لا شاشة سوداء بعد الآن" },
+        { en: "The camera never stays on in the background if you leave Camera Mode while it's starting", ar: "لا تبقى الكاميرا تعمل في الخلفية إذا غادرت وضع الكاميرا أثناء تشغيلها" },
+        { en: "iPhone and iPad: the launch screen now matches light or dark mode", ar: "iPhone وiPad: شاشة البدء تطابق الآن الوضع الفاتح أو الداكن" },
+        { en: "Easier to find on Google: new Qibla direction page, Qibla directions for 60 cities, and a proper logo and preview when SalaamStreet is shared", ar: "أسهل في العثور عليه عبر Google: صفحة جديدة لاتجاه القبلة، واتجاه القبلة لـ٦٠ مدينة، وشعار ومعاينة مناسبة عند مشاركة سلام ستريت" },
+      ],
+    },
     {
       v: "2.5.6", date: "2026-10-05",
       en: "More languages, fewer rough edges", ar: "لغات أكثر وتحسينات صغيرة",

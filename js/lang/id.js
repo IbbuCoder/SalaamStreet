@@ -655,5 +655,11 @@ SS.i18n.register("id", {
 "qibla.dir4": "S",
 "qibla.dir5": "BD",
 "qibla.dir6": "B",
-"qibla.dir7": "BL"
+"qibla.dir7": "BL",
+"home.h1": "SalaamStreet — waktu salat, kiblat, Al-Qur'an, dan doa",
+"home.browse": "Jelajahi SalaamStreet",
+"home.browseTimes": "Waktu salat per kota",
+"home.browseQibla": "Arah kiblat per kota",
+"home.browseQuran": "Baca Al-Qur'an",
+"home.browseWidget": "Widget waktu salat untuk masjid"
 });

@@ -655,5 +655,11 @@ SS.i18n.register("fr", {
 "qibla.dir4": "S",
 "qibla.dir5": "SO",
 "qibla.dir6": "O",
-"qibla.dir7": "NO"
+"qibla.dir7": "NO",
+"home.h1": "SalaamStreet — horaires de prière, Qibla, Coran et invocations",
+"home.browse": "Parcourir SalaamStreet",
+"home.browseTimes": "Horaires de prière par ville",
+"home.browseQibla": "Direction de la Qibla par ville",
+"home.browseQuran": "Lire le Coran",
+"home.browseWidget": "Widget d'horaires de prière pour les mosquées"
 });

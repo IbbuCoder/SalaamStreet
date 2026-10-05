@@ -655,5 +655,11 @@ SS.i18n.register("bn", {
 "qibla.dir4": "দ",
 "qibla.dir5": "দপ",
 "qibla.dir6": "প",
-"qibla.dir7": "উপ"
+"qibla.dir7": "উপ",
+"home.h1": "SalaamStreet — নামাজের সময়, কিবলা, কুরআন ও দোয়া",
+"home.browse": "SalaamStreet ঘুরে দেখুন",
+"home.browseTimes": "শহর অনুযায়ী নামাজের সময়",
+"home.browseQibla": "শহর অনুযায়ী কিবলার দিক",
+"home.browseQuran": "কুরআন পড়ুন",
+"home.browseWidget": "মসজিদের জন্য নামাজের সময়ের উইজেট"
 });

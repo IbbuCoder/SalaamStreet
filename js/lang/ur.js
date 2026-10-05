@@ -655,5 +655,11 @@ SS.i18n.register("ur", {
 "qibla.dir4": "جنوب",
 "qibla.dir5": "جنوب مغرب",
 "qibla.dir6": "مغرب",
-"qibla.dir7": "شمال مغرب"
+"qibla.dir7": "شمال مغرب",
+"home.h1": "SalaamStreet — نماز کے اوقات، قبلہ، قرآن اور دعائیں",
+"home.browse": "SalaamStreet دیکھیں",
+"home.browseTimes": "شہر کے لحاظ سے نماز کے اوقات",
+"home.browseQibla": "شہر کے لحاظ سے قبلے کی سمت",
+"home.browseQuran": "قرآن پڑھیں",
+"home.browseWidget": "مساجد کے لیے نماز کے اوقات کا ویجٹ"
 });
