@@ -6,7 +6,7 @@
    The account client (js/vendor/supabase.js) is cached the first time
    someone signs in, so guests never download it; Supabase API calls are
    never cached. */
-var VERSION = "ss-v8";
+var VERSION = "ss-v9";
 var SHELL = [
   "./", "index.html", "css/styles.css",
   "js/surahs.js", "js/duas.js", "js/extras.js", "js/content.js", "js/i18n.js", "js/core.js",

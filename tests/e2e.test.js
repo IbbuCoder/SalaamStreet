@@ -562,6 +562,7 @@ test("accounts: phone sign-in, validation and linking another method to the same
   await page.click('#ac-methods [data-link="email"]');
   await page.fill("#acct-input", "same.person@example.com");
   await page.click("#acct-submit");
+  await page.waitForSelector("#acct-input.acct-code"); // wait for the code step before typing the code
   await page.fill("#acct-input", "123456");
   await page.click("#acct-submit");
   await page.waitForFunction(() => /same\.person@example\.com/.test(document.getElementById("ac-methods").textContent));
@@ -638,7 +639,7 @@ test("MSA tab: opening soon page, reachable from the navigation", async () => {
   await page.waitForSelector("#view-msa:not([hidden])");
   assert.equal(await page.textContent("#msa-h"), "MSA");
   assert.match(await page.textContent("#view-msa"), /Opening soon/);
-  assert.match(await page.textContent("#view-msa"), /Neuqua Valley High School MSA/);
+  assert.match(await page.textContent("#view-msa"), /Neuqua Valley High School \(NVHS\) MSA/);
   assert.equal(await page.getAttribute('#more-btn', "class"), "active"); // More tab lights up
   assert.deepEqual(page.errors, []);
   await context.close();
