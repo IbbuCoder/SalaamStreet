@@ -111,3 +111,38 @@ test("oversized and malformed pushes are rejected", async () => {
   await assert.rejects(as(pg, A, `select * from public.sync_push($1::jsonb)`, [JSON.stringify(many)]), /at most 1000/);
   await assert.rejects(as(pg, A, `select * from public.sync_push('{"a":1}'::jsonb)`), /array/);
 });
+
+/* 2.8 — reminders when the app is closed */
+async function asAnon(pg, sql, params) {
+  await pg.exec(`set role anon; select set_config('request.jwt.claim.sub', '', false);`);
+  try { return await pg.query(sql, params); } finally { await pg.exec("reset role;"); }
+}
+const SUB = { endpoint: "https://push.example.com/abc", keys: { p256dh: "BPk", auth: "au" } };
+
+test("push reminders: guests register and remove their own device; nobody can read the table", async () => {
+  const pg = await db();
+  const prefs = { lat: 41.8781, lng: -87.6298, tz: "America/Chicago", method: 2, school: 1, offset: 10, adhkar: true, lang: "ar" };
+  await asAnon(pg, `select public.push_register($1::jsonb, $2::jsonb)`, [JSON.stringify(SUB), JSON.stringify(prefs)]);
+  let rows = (await pg.query(`select * from public.push_subscriptions`)).rows;
+  assert.equal(rows.length, 1);
+  assert.equal(String(rows[0].lat), "41.88", "location kept to ~1 km");
+  assert.equal(String(rows[0].lng), "-87.63");
+  assert.equal(rows[0].offset_min, 10);
+  assert.equal(rows[0].lang, "ar");
+  // Re-registering updates the same row.
+  await asAnon(pg, `select public.push_register($1::jsonb, $2::jsonb)`, [JSON.stringify(SUB), JSON.stringify({ ...prefs, method: 3 })]);
+  rows = (await pg.query(`select method from public.push_subscriptions`)).rows;
+  assert.deepEqual(rows.map((r) => r.method), [3]);
+  // The API can't list or change anyone's subscriptions directly.
+  await assert.rejects(asAnon(pg, `select * from public.push_subscriptions`), /permission denied/);
+  await assert.rejects(asAnon(pg, `delete from public.push_subscriptions`), /permission denied/);
+  // Bad input is refused.
+  await assert.rejects(asAnon(pg, `select public.push_register($1::jsonb, $2::jsonb)`,
+    [JSON.stringify({ ...SUB, endpoint: "http://insecure" }), JSON.stringify(prefs)]));
+  await assert.rejects(asAnon(pg, `select public.push_register($1::jsonb, $2::jsonb)`,
+    [JSON.stringify({ ...SUB, endpoint: "https://x/2" }), JSON.stringify({ ...prefs, lat: 123 })]));
+  // Turning reminders off deletes the row.
+  await asAnon(pg, `select public.push_unregister($1)`, [SUB.endpoint]);
+  rows = (await pg.query(`select * from public.push_subscriptions`)).rows;
+  assert.equal(rows.length, 0);
+});

@@ -316,6 +316,17 @@
   /** Write text only when it changes (readings arrive many times a second). */
   function setText(el, s) { if (el.textContent !== s) el.textContent = s; }
   function setHidden(el, on) { if (on) el.setAttribute("hidden", ""); else el.removeAttribute("hidden"); }
+  /** The one big instruction at the top of the card ("" once the compass is live:
+      the turn / facing-the-Qibla pill takes over). */
+  function step(s) { setText($("qb-step"), s); }
+  function needStart(on) {
+    $("qb-enable").hidden = !on;
+    $("qibla-card").classList.toggle("needs-start", on);
+    if (on) step(t("qibla.stepStart"));
+  }
+  function desktopStep() {
+    if (bearing !== null) step(f("qibla.stepDesktop", { deg: Math.round(bearing), dir: pointName(bearing) }));
+  }
 
   /** Compass-mode heading: top of the screen when flat-ish, else where the camera faces. */
   function facing(r) { return r.flat >= 0.5 ? r.top : r.camera; }
@@ -420,18 +431,20 @@
       setText($("qb-turn"), on ? "" : turnText(diff));
     }
     setTarget(heading);
-    setText($("qb-hint"), low ? t("qibla.lowAccuracy") : t("qibla.calibrate"));
+    step("");
+    setText($("qb-hint"), low ? t("qibla.lowAccuracy") : "");
   }
 
   function startSensors(fromTap) {
     if (!compass.supported() || window.isSecureContext === false) {
-      $("qb-hint").textContent = t("qibla.noCompass"); sensorState("none"); return Promise.resolve(false);
+      $("qb-hint").textContent = t("qibla.noCompass"); sensorState("none"); desktopStep(); return Promise.resolve(false);
     }
-    if (compass.needsPermission() && !fromTap) { $("qb-enable").hidden = false; return Promise.resolve(false); }
+    if (compass.needsPermission() && !fromTap) { needStart(true); return Promise.resolve(false); }
     var p = compass.needsPermission() ? compass.requestPermission() : Promise.resolve("granted");
     return p.then(function (res) {
-      if (res !== "granted") { $("qb-enable").hidden = false; $("qb-hint").textContent = t("qibla.motionDenied"); return false; }
-      $("qb-enable").hidden = true;
+      if (res !== "granted") { needStart(true); $("qb-hint").textContent = t("qibla.motionDenied"); return false; }
+      needStart(false);
+      step(t("qibla.stepTurn"));
       compass.on(renderCompass);
       compass.on(renderCamera);
       compass.start();
@@ -440,6 +453,7 @@
         if (!compass.hasReading()) {
           $("qb-hint").textContent = t("qibla.noCompass");
           sensorState("none");
+          desktopStep();
           if (camOpen) $("qb-cam-msg").textContent = t("qibla.cameraNoCompass");
         }
       }, 3000);
@@ -489,6 +503,8 @@
         $("qb-compass").setAttribute("aria-label", t("qibla.needLocation"));
         $("qb-mode-camera").disabled = true;
         $("qb-hint").textContent = "";
+        step(t("qibla.stepLocation"));
+        needStart(false);
         drawStatic();
         if (camOpen) closeCamera();
         return;
@@ -507,7 +523,8 @@
       if (compass.hasReading() && anim.shown !== null) drawCompass(anim.shown);
       else {
         drawStatic();
-        $("qb-hint").textContent = t("qibla.northUp");
+        $("qb-hint").textContent = "";
+        desktopStep();
       }
       startSensors(false);
     });
@@ -715,6 +732,8 @@
     $("qb-loc-chip").onclick = askLocation;
     $("qb-locwarn-btn").onclick = askLocation;
     $("qb-enable").onclick = function () { startSensors(true); };
+    // How-to and details stay folded on phones; wide screens have room to show them.
+    if (window.matchMedia && matchMedia("(min-width: 1100px)").matches) $("qb-info").open = true;
     $("qb-mode-camera").onclick = function () { if (!camOpen) enterCamera(); };
     $("qb-cam-exit").onclick = exitCamera;
     $("qb-cam-done").onclick = exitCamera;

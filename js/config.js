@@ -23,6 +23,10 @@
     // Google and email are switched on in Supabase. Add "apple" and "phone"
     // back here once each is set up (backend/README-backend.md).
     signInMethods: ["google", "email"],
+    // Reminders when SalaamStreet is closed (2.8): the VAPID *public* key.
+    // Leave empty until the reminder server is set up (backend/README-push.md);
+    // the option stays hidden until then. Never put the private key here.
+    pushPublicKey: "",
   };
 
   /* Qur'an PDF (Offline Qur'an, 2.6.0). People can download this file, save it

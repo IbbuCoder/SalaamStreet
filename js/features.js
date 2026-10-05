@@ -135,8 +135,13 @@
     } catch (e) { /* audio unavailable */ }
   }
 
-  function notify(title, body, tag, url) {
+  function notify(title, body, tag, url, extra) {
     var opts = { body: body, tag: tag, icon: "icons/icon-192.png", badge: "icons/icon-192.png", data: { url: url || "./#/prayer" } };
+    // e.g. an "I prayed" button (shown where the system supports notification buttons).
+    if (extra && extra.prayed) {
+      opts.data.prayed = extra.prayed;
+      opts.actions = [{ action: "prayed", title: t("daily.iPrayed") }];
+    }
     var shown = false;
     if (notifPermission() === "granted") {
       if (navigator.serviceWorker && navigator.serviceWorker.controller) {
@@ -174,11 +179,12 @@
       at(Math.max(ten - now, 4000), function () {
         if (SS.store.get("kahf:notified") === SS.localDate()) return;
         SS.store.set("kahf:notified", SS.localDate());
-        if (s.reminders) notify(t("friday.title"), t("friday.notify"), "kahf-" + SS.localDate(), "./#/surah/18");
+        if (s.reminders && !(SS.push && SS.push.active())) notify(t("friday.title"), t("friday.notify"), "kahf-" + SS.localDate(), "./#/surah/18");
       });
     }
 
     if (!s.reminders || notifPermission() !== "granted") return;
+    if (SS.push && SS.push.active()) return; // the reminder server sends them (js/push.js)
     SS.geo.resolve().then(function (loc) {
       return SS.api.prayerTimes({ lat: loc.lat, lng: loc.lng, method: s.method, school: s.school }).then(function (r) {
         var off = (+s.reminderOffset || 0) * 60000;
@@ -190,7 +196,8 @@
             SS.store.set("rem:last", tag);
             var name = t("prayer." + key);
             var title = off ? f("rem.soon", { p: name, n: s.reminderOffset }) : f("rem.now", { p: name });
-            notify(title, SS.formatTime(r.timings[key]) + " · " + SS.ui.locLabel(loc), tag);
+            notify(title, SS.formatTime(r.timings[key]) + " · " + SS.ui.locLabel(loc), tag, "./#/home",
+              { prayed: "./#/home/prayed/" + key + "/" + SS.localDate() });
           });
         });
       });
@@ -216,6 +223,19 @@
       document.addEventListener("pointerdown", unlock);
     },
     schedule: scheduleReminders,
+    notify: notify,
+    /** Ask for notification permission (once); resolves true when allowed. */
+    ask: function () {
+      if (!notifSupported()) {
+        SS.toast(isIOS() && !isStandalone() ? t("rem.iosNote") : t("rem.unsupported"));
+        return Promise.resolve(false);
+      }
+      if (notifPermission() === "granted") return Promise.resolve(true);
+      return Promise.resolve(Notification.requestPermission()).then(function (perm) {
+        if (perm !== "granted") SS.toast(t("rem.blocked"));
+        return perm === "granted";
+      });
+    },
   };
 
   function isIOS() { return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1); }

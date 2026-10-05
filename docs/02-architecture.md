@@ -27,6 +27,9 @@ surahs.js   114-surah metadata, global ayah numbering
 duas.js     dua library + dhikr presets (all with sources)
 extras.js   Islamic calendar events, hadith collection list, Knowledge content
 hadith-books.js  Book index for the large hadith collections (generated; loaded on demand)
+praytimes.js On-device prayer times (offline fallback; shared with the reminder server)
+daily.js    2.8 everyday helpers: did-you-pray, Qur'an goal, adhkar reminders, wake lock, badge, Friday summary
+push.js     Opt-in reminders when the app is closed (Web Push → backend/functions/send-reminders)
 i18n.js     English/Arabic strings, RTL switching
 core.js     constants, storage (+ sync write hooks), cached fetch, API clients, location flow, Qibla bearing
 views.js    one controller per view (+ optional "leave" hooks)

@@ -10,14 +10,14 @@ SalaamStreet began as an Islamic-themed Shopify shop that Ibrahim built when he 
 
 **Our promise:** everything you need — prayer times, Qibla, Qur'an, duas, dhikr, the prayer tracker, Arabic learning and (when it arrives) sync — stays free forever. Any future paid extras (subscription or one-time) will only be for things that genuinely cost money to provide.
 
-Current version: **2.7.0 — Hadith + Knowledge** (see `SS.VERSION` / `SS.CHANGELOG` in `js/content.js`).
+Current version: **2.8.0 — The SalaamStreet App** (see `SS.VERSION` / `SS.CHANGELOG` in `js/content.js`).
 
 ## Features
 
 - **Free accounts (optional) + Guest Mode** — use everything without an account, or sign in with Apple, Google, phone or email to keep bookmarks, streaks, Qur'an progress and settings in sync on all your devices. Guest data is merged in when you sign in; nothing is lost. Setup: [`backend/README-backend.md`](backend/README-backend.md)
 - **Your SalaamStreet (Account page)** — prayer and dhikr streaks (current and best), Continue Reading across devices, Qur'an progress, recently read, bookmark collections with notes and search, saved duas, sign-in methods and sync status
-- **Prayer times** — device location or a city you type in, 7 calculation methods, Standard/Hanafi Asr, today's times and a monthly timetable (AlAdhan API, cached for offline)
-- **Qibla finder** — live compass corrected from magnetic to true north (WMM2025), works flat or upright and in any screen rotation; **Camera Mode** overlays the direction on your camera view with turn-left/right guidance, and both lock on with a short vibration when you face the Qibla; bearing and distance to Makkah everywhere (computed on your device)
+- **Prayer times** — device location or a city you type in, 7 calculation methods, Standard/Hanafi Asr, today's times and a monthly timetable (AlAdhan API, cached; calculated on the device when there's no connection)
+- **Qibla finder** — one clear instruction at a time and a big “Start compass” button; live compass corrected from magnetic to true north (WMM2025), works flat or upright and in any screen rotation; **Camera Mode** overlays the direction on your camera view with turn-left/right guidance, and both lock on with a short vibration when you face the Qibla; bearing and distance to Makkah everywhere (computed on your device)
 - **Qur'an reader** — all 114 surahs in Uthmani script with Saheeh International translation, optional transliteration, adjustable Arabic text size, bookmarks, resume where you left off, copy an ayah
 - **Recitation** — 4 reciters, per-ayah or continuous playback, speed and repeat controls, lock-screen/media-key controls
 - **Tafsir** — Ibn Kathir (English) for any ayah, with previous/next ayah, in a bottom sheet on phones
@@ -28,7 +28,8 @@ Current version: **2.7.0 — Hadith + Knowledge** (see `SS.VERSION` / `SS.CHANGE
 - **Dhikr counter** — big tap target (or Space bar on desktop), presets with sourced targets, undo, today's totals, daily streaks, haptic feedback
 - **Islamic calendar** — today's Hijri date and approximate countdowns to key dates
 - **Prayer tracker** — tick off each prayer, see the last 7 days and your streak (on your device; synced only if you sign in)
-- **Prayer reminders** — opt-in notifications at (or before) each prayer, a soft chime, and a Friday Al-Kahf reminder
+- **Prayer reminders** — opt-in notifications at (or before) each prayer with an “I prayed” button, a soft chime, a Friday Al-Kahf reminder and morning/evening adhkar reminders; optionally they arrive even when SalaamStreet is closed (Web Push, see [`backend/README-push.md`](backend/README-push.md))
+- **Made for the installed app** — “Did you pray?” check-in on Home, a daily Qur'an goal, an app-icon badge for prayers not yet ticked, a recitation sleep timer, the screen kept on while reading, a Friday summary of your week, and a prompt when a new version is ready
 - **Morning & evening adhkar** — a guided routine with a counter for each remembrance and automatic progress
 - **Ramadan mode** — appears automatically in Ramadan: suhoor/iftar times and countdown, plus a fasting log
 - **Qur'an reading plans** — finish the Qur'an in 30 (one juz a day), 60, 120 or 365 days
@@ -75,10 +76,13 @@ Safe-area insets (iPhone notch / home indicator), 16px form inputs (no iOS zoom)
 │   ├── content.js        99 Names, juz boundaries, adhkar sequence, Arabic letters, translations
 │   ├── i18n.js           English/Arabic strings, language loading, RTL switching
 │   ├── lang/             Draft interface languages (ur, bn, id, tr, fr), loaded on demand
+│   ├── praytimes.js      Prayer times calculated on the device (offline fallback; also used by the reminder server)
 │   ├── core.js           Config, storage (+ sync hooks), API clients with caching, location flow, Qibla bearing
 │   ├── offline.js        Offline Qur'an: IndexedDB text/tafsir, cached audio + PDF, resumable downloads
 │   ├── views.js          One controller per view
 │   ├── features.js       Tracker, reminders, adhkar, Names, mosques, Arabic, plans, share cards
+│   ├── daily.js          Did-you-pray, Qur'an goal, adhkar reminders, wake lock, icon badge, Friday summary, sleep timer
+│   ├── push.js           Opt-in reminders when the app is closed (Web Push)
 │   ├── offline-ui.js     Offline Qur'an section in Settings, Qur'an page cards, PDF viewer
 │   ├── qibla.js          Qibla compass + camera mode, WMM2025 declination, orientation maths
 │   ├── config.js         Supabase URL + key for optional accounts (empty = guest-only)
@@ -96,7 +100,8 @@ Safe-area insets (iPhone notch / home indicator), 16px form inputs (no iOS zoom)
 ├── tools/build-pages.js  Generator for the SEO pages + sitemap.xml
 ├── tools/build-splash.js Generator for the light/dark iOS launch screens
 ├── tools/build-hadith-books.js Generator for js/hadith-books.js (from hadith-api)
-├── backend/              Supabase schema + setup guide for optional accounts
+├── tools/build-push-messages.js Copies reminder texts + praytimes.js to the reminder server
+├── backend/              Supabase schema, setup guides, and functions/send-reminders (closed-app reminders)
 ├── tests/                Unit, database (PGlite) and browser (Playwright) tests
 └── docs/                 Product, architecture and design notes
 ```
@@ -130,6 +135,8 @@ npm run lint         # ESLint
 - `tests/sync.test.js` — sync engine across simulated devices (conflicts, offline, guest migration)
 - `tests/schema.test.js` — `backend/supabase-schema.sql` in a real Postgres (RLS, newest-wins, delete account)
 - `tests/qibla.test.js` — Qibla bearings vs published values, WMM2025 declination, orientation maths
+- `tests/praytimes.test.js` — on-device prayer times vs the adhan library (8 cities, 4 seasons, every method)
+- `tests/push.test.js` — the reminder server: what's due when, sent once, in the device's language
 - `tests/offline.test.js` — Offline Qur'an in Chromium with real IndexedDB/Cache API: storage, read-path fallback, resume after a dropped connection or closed tab, quota errors, PDF card hidden while the file is missing
 - `tests/e2e.test.js` — the app in Chromium: startup theme, Tafsir, Qibla compass/camera, guest mode, every sign-in method driven through the real supabase-js client against a mock Supabase API, and the Offline Qur'an (text, audio across surahs, the PDF viewer offline)
 

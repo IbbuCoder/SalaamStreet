@@ -928,3 +928,87 @@ test("less crowded: Settings links to Offline Qur'an on its own page; Home short
   assert.deepEqual(page.errors, []);
   await context.close();
 });
+
+/* ═══════════ The SalaamStreet App (2.8.0) ═══════════ */
+test("app helpers: did-you-pray check-in, 'I prayed' links, Qur'an goal, Friday summary, sleep timer, settings", async () => {
+  const { page, context } = await device({ settings: { location: CHICAGO, quranGoal: 5 } });
+  // Friday 5:00 PM: Asr (3:45) has started, Maghrib (6:30) hasn't.
+  await page.clock.setFixedTime(new Date(2026, 9, 9, 17, 0));
+  await open(page, "#/home");
+  await page.waitForSelector("#np-checkin");
+  assert.match(await page.textContent("#np-track"), /Did you pray Asr\?/);
+  await page.click("#np-checkin");
+  await page.waitForSelector("#np-track:not(.has-checkin)");
+  assert.equal(await page.evaluate(() => SS.tracker.isDone(SS.localDate(), "Asr")), true);
+  assert.match(await page.textContent("#np-track"), /1 of 5/);
+  assert.equal(await page.locator('#np-strip .slot[data-key="Asr"].prayed').count(), 1);
+
+  // A reminder's "I prayed" button opens #/home/prayed/<Prayer>/<date>.
+  await page.evaluate(() => { location.hash = "#/home/prayed/Dhuhr/2026-10-09"; });
+  await page.waitForFunction(() => location.hash === "#/home");
+  assert.equal(await page.evaluate(() => SS.tracker.isDone("2026-10-09", "Dhuhr")), true);
+
+  // Friday: the week in numbers, hidden for the day once dismissed.
+  await page.waitForSelector("#week-card:not([hidden])");
+  assert.match(await page.textContent("#week-card"), /2\/35/);
+  await page.click("#week-close");
+  assert.equal(await page.isVisible("#week-card"), false);
+
+  // Qur'an goal: ayahs reached while reading count once each; Home shows the ring.
+  await open(page, "#/surah/1");
+  await page.waitForSelector("#ayah-7");
+  for (let n = 1; n <= 7; n++) {
+    await page.evaluate((k) => document.getElementById("ayah-" + k).scrollIntoView({ block: "center" }), n);
+    await page.waitForTimeout(120);
+  }
+  await page.waitForFunction(() => SS.quranGoal.count() >= 5, null, { timeout: 5000 });
+  await open(page, "#/home");
+  await page.waitForSelector("#cr-ring:not([hidden]).done");
+  assert.match(await page.textContent("#cr-pos"), /5\/5 ayahs today|\d\/5 ayahs today/);
+
+  // Sleep timer on the audio bar.
+  await page.evaluate(() => { document.getElementById("audio-bar").hidden = false; });
+  await page.click("#ab-sleep");
+  assert.equal(await page.getAttribute("#ab-sleep", "aria-pressed"), "true");
+  assert.equal(await page.textContent("#ab-sleep-n"), "15′");
+
+  // Settings: goal, reminder time and keep-screen-on.
+  await open(page, "#/settings");
+  assert.equal(await page.inputValue("#st-goal"), "5");
+  assert.equal(await page.isVisible("#st-goal-time"), true);
+  await page.selectOption("#st-goal", "0");
+  assert.equal(await page.isVisible("#st-goal-time"), false);
+  assert.equal(await page.evaluate(() => SS.store.settings().quranGoal), 0);
+  assert.deepEqual(page.errors, []);
+  await context.close();
+});
+
+test("prayer times keep working with no connection: calculated on the device", async () => {
+  const { page, context } = await device();
+  await context.route(/api\.aladhan\.com/, (route) => route.abort());
+  await open(page, "#/prayer");
+  await page.waitForSelector("#pt-list .pt-row, #pt-list [data-pray], #pt-list li", { timeout: 8000 });
+  assert.equal(await page.isVisible("#pt-cache-note"), true);
+  assert.match(await page.textContent("#pt-cache-note"), /calculated on your device/);
+  const times = await page.evaluate(() => [...document.querySelectorAll("#pt-list")].map((e) => e.textContent).join(" "));
+  assert.match(times, /\d{1,2}:\d{2}/);
+  await open(page, "#/home");
+  await page.waitForFunction(() => /\d/.test(document.getElementById("np-countdown").textContent));
+  assert.deepEqual(page.errors, []);
+  await context.close();
+});
+
+test("reminders when closed: hidden until the server is set up, then offered under Prayer reminders", async () => {
+  const a = await device();
+  await open(a.page, "#/settings");
+  assert.equal(await a.page.isVisible("#st-push-row"), false);
+  await a.context.close();
+  const b = await device();
+  await b.context.route("**/js/config.js", (route) => route.fulfill({ contentType: "text/javascript",
+    body: 'window.SS=window.SS||{};SS.CONFIG={supabaseUrl:"https://test.supabase.co",supabaseAnonKey:"k",signInMethods:["email"],pushPublicKey:"BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U"};' }));
+  await open(b.page, "#/settings");
+  assert.equal(await b.page.isVisible("#st-push-row"), true);
+  assert.match(await b.page.textContent("#st-push-note"), /about 1 km/);
+  assert.deepEqual(b.page.errors, []);
+  await b.context.close();
+});

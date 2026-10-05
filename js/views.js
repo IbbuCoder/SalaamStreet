@@ -328,6 +328,7 @@
         if (gen !== ptGen) return;
         $("pt-hijri").textContent = SS.hijriLabel(r.hijri);
         $("pt-cache-note").hidden = !r.stale;
+        $("pt-cache-note").textContent = t(r.onDevice ? "prayer.onDevice" : "common.offlineCache");
         var nk = nextPrayerKey(r.timings), now = new Date();
         var html = "";
         for (var i = 0; i < SS.PRAYERS.length; i++) {
@@ -816,6 +817,7 @@
     SS.store.set("quran:recent", recent.slice(0, 12));
     var prog = SS.store.get("quran:progress", {}) || {};
     if (!(prog[surah] >= ayah)) { prog[surah] = ayah; SS.store.set("quran:progress", prog); }
+    hook("ayahRead", surah, ayah);
   }
 
   function srObserveLastRead() {
