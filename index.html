@@ -524,6 +524,8 @@
         </span>
         <span class="btn btn-sm" data-i18n="quran.resume">Resume</span>
       </a>
+      <div id="qi-offline"></div>
+      <div id="qi-pdf" hidden></div>
       </div>
 
       <div class="index-bar">
@@ -907,6 +909,9 @@
         </div>
       </div>
 
+      <h2 class="group-label with-ic" id="offline-quran"><svg class="ic" aria-hidden="true"><use href="#i-download"/></svg><span data-i18n="off.title">Offline Qur'an</span></h2>
+      <div class="stack off-section" id="st-offline"></div>
+
       <h2 class="group-label with-ic"><svg class="ic" aria-hidden="true"><use href="#i-clock"/></svg><span data-i18n="settings.prayer">Prayer &amp; location</span></h2>
       <div class="card settings-group">
         <div class="set-row set-row-stack">
@@ -1155,6 +1160,36 @@
     </div>
   </dialog>
 
+  <!-- ═══════════ Qur'an PDF viewer (Offline Qur'an; js/offline-ui.js) ═══════════ -->
+  <dialog class="modal pdf-dialog" id="pdf-dialog" aria-labelledby="pdf-h">
+    <div class="pdf-shell">
+      <header class="pdf-bar">
+        <div class="pdf-head">
+          <h2 id="pdf-h">The Holy Qur'ān</h2>
+          <p class="tiny" id="pdf-credit"></p>
+        </div>
+        <button class="icon-btn" data-close type="button" id="pdf-close" aria-label="Close"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
+      </header>
+      <div class="pdf-stage" id="pdf-stage" tabindex="0">
+        <div class="pdf-page" id="pdf-page"><canvas id="pdf-canvas"></canvas></div>
+        <div class="pdf-status" id="pdf-status" aria-live="polite"></div>
+      </div>
+      <footer class="pdf-tools">
+        <button class="icon-btn bordered" id="pdf-prev" type="button" aria-label="Previous page"><svg class="ic flip" aria-hidden="true"><use href="#i-chev-l"/></svg></button>
+        <form class="pdf-jump" id="pdf-jump">
+          <label class="visually-hidden" for="pdf-num" data-i18n="pdf.page">Page</label>
+          <input class="input input-sm" id="pdf-num" type="number" inputmode="numeric" min="1" value="1" enterkeyhint="go" />
+          <span class="tiny">/ <b id="pdf-total">–</b></span>
+        </form>
+        <button class="icon-btn bordered" id="pdf-next" type="button" aria-label="Next page"><svg class="ic flip" aria-hidden="true"><use href="#i-chev-r"/></svg></button>
+        <span class="spacer"></span>
+        <button class="icon-btn bordered" id="pdf-zoom-out" type="button" aria-label="Zoom out"><svg class="ic" aria-hidden="true"><use href="#i-minus"/></svg></button>
+        <button class="btn btn-ghost btn-sm pdf-zoom" id="pdf-zoom" type="button">100%</button>
+        <button class="icon-btn bordered" id="pdf-zoom-in" type="button" aria-label="Zoom in"><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg></button>
+      </footer>
+    </div>
+  </dialog>
+
   <!-- ═══════════ Share-as-image dialog ═══════════ -->
   <dialog class="modal sheet tall" id="share-dialog" aria-labelledby="share-h">
     <div class="modal-body">
@@ -1238,8 +1273,10 @@
   <script src="js/content.js" defer></script>
   <script src="js/i18n.js" defer></script>
   <script src="js/core.js" defer></script>
+  <script src="js/offline.js" defer></script>
   <script src="js/views.js" defer></script>
   <script src="js/features.js" defer></script>
+  <script src="js/offline-ui.js" defer></script>
   <script src="js/qibla.js" defer></script>
   <script src="js/config.js" defer></script>
   <script src="js/sync.js" defer></script>
