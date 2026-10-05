@@ -557,7 +557,7 @@ SS.i18n.register("id", {
 "about.p2": "Tetapi Ibrahim mempertahankan namanya dan mengubah idenya. Bagaimana jika SalaamStreet tidak menjual sesuatu kepada umat Muslim, melainkan memberi mereka sesuatu — setiap hari, gratis?",
 "about.p3": "Kini Ibrahim adalah siswa di Neuqua Valley High School, dan ia bergabung dengan Muslim Student Association (MSA) di sekolahnya.",
 "about.p3b": "SalaamStreet adalah satu tempat yang tenang untuk melihat waktu salat, menghadap kiblat, membaca dan mendengarkan Al-Qur'an, mempelajari doa-doa sahih, mencatat salat, mulai belajar bahasa Arab, dan mengingat Allah — tanpa iklan, dan data Anda tetap di perangkat Anda.",
-"about.p4": "Ibrahim punya idenya; ayahnya membantu mewujudkannya.",
+"about.p4": "Ibrahim punya idenya; ayahnya, Aquil, membantu mewujudkannya.",
 "about.promiseTitle": "Janji kami",
 "about.promiseFree": "Semua yang Anda butuhkan tetap gratis, selamanya. Waktu salat, kiblat, Al-Qur'an, doa, zikir, pencatat salat, belajar bahasa Arab, dan sinkronisasi antarperangkat tidak akan pernah berbayar.",
 "about.promisePaid": "Fitur tambahan berbayar hanya untuk hal yang benar-benar butuh biaya untuk disediakan — seperti tutor AI atau kelas langsung — dan Anda bisa memilih berlangganan atau membayar sekali untuk selamanya.",
@@ -661,5 +661,6 @@ SS.i18n.register("id", {
 "home.browseTimes": "Waktu salat per kota",
 "home.browseQibla": "Arah kiblat per kota",
 "home.browseQuran": "Baca Al-Qur'an",
-"home.browseWidget": "Widget waktu salat untuk masjid"
+"home.browseWidget": "Widget waktu salat untuk masjid",
+"home.browseFacts": "SalaamStreet sekilas"
 });

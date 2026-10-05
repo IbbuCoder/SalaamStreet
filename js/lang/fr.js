@@ -557,7 +557,7 @@ SS.i18n.register("fr", {
 "about.p2": "Mais Ibrahim a gardé le nom et changé l'idée. Au lieu de vendre des choses aux musulmans, et si SalaamStreet leur donnait quelque chose — chaque jour, gratuitement ?",
 "about.p3": "Aujourd'hui, Ibrahim est élève au lycée Neuqua Valley, où il fait partie de l'association des étudiants musulmans (MSA).",
 "about.p3b": "SalaamStreet est un endroit calme pour trouver les horaires de prière, s'orienter vers la Qibla, lire et écouter le Coran, apprendre des invocations authentiques, suivre ses prières, commencer à apprendre l'arabe et se souvenir d'Allah — sans publicité, et avec vos données qui restent sur votre appareil.",
-"about.p4": "Ibrahim a eu l'idée ; son père l'a aidé à lui donner vie.",
+"about.p4": "Ibrahim a eu l'idée ; son père, Aquil, l'a aidé à lui donner vie.",
 "about.promiseTitle": "Notre promesse",
 "about.promiseFree": "Tout l'essentiel reste gratuit, pour toujours. Les horaires de prière, la Qibla, le Coran, les invocations, le dhikr, le suivi des prières, l'apprentissage de l'arabe et la synchronisation entre vos appareils ne seront jamais payants.",
 "about.promisePaid": "Les extras payants ne concerneront que ce qui coûte réellement de l'argent à fournir — comme un tuteur IA ou des cours en direct — et vous pourrez choisir un abonnement ou payer une fois pour toujours.",
@@ -661,5 +661,6 @@ SS.i18n.register("fr", {
 "home.browseTimes": "Horaires de prière par ville",
 "home.browseQibla": "Direction de la Qibla par ville",
 "home.browseQuran": "Lire le Coran",
-"home.browseWidget": "Widget d'horaires de prière pour les mosquées"
+"home.browseWidget": "Widget d'horaires de prière pour les mosquées",
+"home.browseFacts": "SalaamStreet en bref"
 });

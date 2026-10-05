@@ -2,4 +2,49 @@ User-agent: *
 Allow: /
 Disallow: /widget/embed.html
 
+User-agent: Googlebot
+Allow: /
+Disallow: /widget/embed.html
+
+User-agent: Google-Extended
+Allow: /
+Disallow: /widget/embed.html
+
+User-agent: Bingbot
+Allow: /
+Disallow: /widget/embed.html
+
+User-agent: GPTBot
+Allow: /
+Disallow: /widget/embed.html
+
+User-agent: OAI-SearchBot
+Allow: /
+Disallow: /widget/embed.html
+
+User-agent: ChatGPT-User
+Allow: /
+Disallow: /widget/embed.html
+
+User-agent: ClaudeBot
+Allow: /
+Disallow: /widget/embed.html
+
+User-agent: Claude-SearchBot
+Allow: /
+Disallow: /widget/embed.html
+
+User-agent: PerplexityBot
+Allow: /
+Disallow: /widget/embed.html
+
+User-agent: Applebot
+Allow: /
+Disallow: /widget/embed.html
+
+User-agent: Applebot-Extended
+Allow: /
+Disallow: /widget/embed.html
+
+# A plain-text guide for AI assistants: https://salaamstreet.com/llms.txt
 Sitemap: https://salaamstreet.com/sitemap.xml

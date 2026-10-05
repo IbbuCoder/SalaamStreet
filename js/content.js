@@ -224,8 +224,17 @@
   ];
 
   /* ── Version & release notes (newest first) ──────────────────────── */
-  SS.VERSION = "2.5.7";
+  SS.VERSION = "2.5.8";
   SS.CHANGELOG = [
+    {
+      v: "2.5.8", date: "2026-10-05",
+      en: "SalaamStreet at a glance", ar: "سلام ستريت في لمحة",
+      items: [
+        { en: "New “SalaamStreet at a glance” page: quick facts about the app and answers to common questions", ar: "صفحة جديدة «سلام ستريت في لمحة»: معلومات سريعة عن التطبيق وإجابات عن الأسئلة الشائعة" },
+        { en: "Our story now names Ibrahim's father, Aquil, who builds SalaamStreet with him", ar: "قصتنا تذكر الآن والد إبراهيم، عقيل، الذي يبني سلام ستريت معه" },
+        { en: "Easier for search engines and AI assistants to understand SalaamStreet correctly", ar: "أسهل على محركات البحث والمساعدات الذكية فهم سلام ستريت بشكل صحيح" },
+      ],
+    },
     {
       v: "2.5.7", date: "2026-10-05",
       en: "Camera, launch screen & search fixes", ar: "إصلاحات الكاميرا وشاشة البدء والبحث",

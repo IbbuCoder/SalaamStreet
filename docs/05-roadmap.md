@@ -41,6 +41,9 @@ laptops and large monitors. Core worship features are, and will stay, free.
 - **2.5.7:** Camera Mode turns the camera back on when you return to the app (no black screen) and never
   leaves it running in the background; iPhone launch screens follow light/dark mode; search: Qibla
   direction page, Qibla bearings on city pages, structured data, breadcrumbs and a 1200×630 share card
+- **2.5.8 — SalaamStreet at a glance:** facts + FAQ page (with FAQ structured data), `/llms.txt` for AI
+  assistants, AI crawlers welcomed in robots.txt, founders (Ibrahim, with his father Aquil) in the story
+  and structured data
 
 ## Planned (no release dates; plans may change)
 

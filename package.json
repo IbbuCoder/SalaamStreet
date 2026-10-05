@@ -1,6 +1,6 @@
 {
   "name": "salaamstreet",
-  "version": "2.5.7",
+  "version": "2.5.8",
   "private": true,
   "description": "SalaamStreet — a static, client-side Islamic web app. No build step: the site is served as-is. This file only holds developer tooling (tests, lint, page generation).",
   "scripts": {
