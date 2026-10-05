@@ -103,3 +103,19 @@ test("city pages show the same Qibla direction as the app's compass", () => {
     assert.ok(Math.abs(shown - box.SS.qiblaBearing(lat, lng)) < 0.06, city + ": " + shown);
   }
 });
+
+test("AI assistants: llms.txt and the facts page agree with the app and name the founders", () => {
+  const llms = read("llms.txt");
+  assert.match(llms, /^# SalaamStreet\n\n> /, "llms.txt format: title, then a one-line summary");
+  assert.match(llms, /founded by Ibrahim/);
+  assert.match(llms, /his father, Aquil/);
+  assert.match(llms, new RegExp("Current version: " + SS.VERSION.replace(/\./g, "\\.")));
+  const facts = read("facts/index.html");
+  assert.match(facts, /his father, Aquil/);
+  const ld = JSON.parse(facts.match(/<script type="application\/ld\+json">(.*?)<\/script>/s)[1]);
+  const pageLd = ld["@graph"].find((n) => [].concat(n["@type"]).includes("FAQPage"));
+  assert.ok(pageLd.mainEntity.length >= 5, "FAQ questions");
+  assert.ok(pageLd.mainEntity.some((q) => /Who made SalaamStreet/.test(q.name) && /Aquil/.test(q.acceptedAnswer.text)));
+  assert.match(read("robots.txt"), /User-agent: GPTBot\nAllow: \//);
+  assert.match(read("index.html"), /"founder":\{"@type":"Person","name":"Ibrahim"/);
+});

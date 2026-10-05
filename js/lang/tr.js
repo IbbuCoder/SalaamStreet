@@ -557,7 +557,7 @@ SS.i18n.register("tr", {
 "about.p2": "Ama İbrahim adı korudu ve fikri değiştirdi. SalaamStreet Müslümanlara bir şey satmak yerine onlara her gün, ücretsiz bir şey verse nasıl olurdu?",
 "about.p3": "Bugün İbrahim, Neuqua Valley Lisesi'nde öğrenci ve okulun Müslüman Öğrenciler Derneği'nin (MSA) bir üyesi.",
 "about.p3b": "SalaamStreet; namaz vakitlerini bulmak, kıbleye yönelmek, Kur'an okumak ve dinlemek, sahih dualar öğrenmek, namazlarını takip etmek, Arapça öğrenmeye başlamak ve Allah'ı anmak için sakin bir yer — reklamsız ve verileriniz cihazınızda kalarak.",
-"about.p4": "Fikir İbrahim'indi; babası onu hayata geçirmesine yardım etti.",
+"about.p4": "Fikir İbrahim'indi; babası Aquil onu hayata geçirmesine yardım etti.",
 "about.promiseTitle": "Sözümüz",
 "about.promiseFree": "İhtiyacınız olan her şey sonsuza dek ücretsiz kalacak. Namaz vakitleri, kıble, Kur'an, dualar, zikir, namaz takibi, Arapça öğrenme ve cihazlarınız arasında eşitleme asla ücretli olmayacak.",
 "about.promisePaid": "Ücretli ekstralar yalnızca sunulması gerçekten para gerektiren şeyler için olacak — yapay zekâ destekli öğretmen veya canlı dersler gibi — ve abonelik ya da tek seferlik ödeme arasında seçim yapabileceksiniz.",
@@ -661,5 +661,6 @@ SS.i18n.register("tr", {
 "home.browseTimes": "Şehirlere göre namaz vakitleri",
 "home.browseQibla": "Şehirlere göre kıble yönü",
 "home.browseQuran": "Kur'an oku",
-"home.browseWidget": "Camiler için namaz vakti aracı"
+"home.browseWidget": "Camiler için namaz vakti aracı",
+"home.browseFacts": "Bir bakışta SalaamStreet"
 });

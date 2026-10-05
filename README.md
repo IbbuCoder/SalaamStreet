@@ -10,7 +10,7 @@ SalaamStreet began as an Islamic-themed Shopify shop that Ibrahim built when he 
 
 **Our promise:** everything you need — prayer times, Qibla, Qur'an, duas, dhikr, the prayer tracker, Arabic learning and (when it arrives) sync — stays free forever. Any future paid extras (subscription or one-time) will only be for things that genuinely cost money to provide.
 
-Current version: **2.5.7 — Camera, launch screen & search fixes** (see `SS.VERSION` / `SS.CHANGELOG` in `js/content.js`).
+Current version: **2.5.8 — SalaamStreet at a glance** (see `SS.VERSION` / `SS.CHANGELOG` in `js/content.js`).
 
 ## Features
 
