@@ -59,7 +59,6 @@ laptops and large monitors. Core worship features are, and will stay, free.
 
 The same list appears in the app under About → Updates (`SS.ROADMAP` in `js/content.js`).
 
-- **2.8.0 — Learn:** structured lessons beyond the Arabic alphabet
 - **2.9.0 — MSA + Community:** tools for Muslim Student Associations and local communities (the MSA tab is
   already open as a preview)
 - **3.0.0 — Major SalaamStreet milestone**

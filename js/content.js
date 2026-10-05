@@ -424,9 +424,6 @@
   });
   /* What's planned — honest plans in order, never dates. Nothing here is released yet. */
   SS.ROADMAP = [
-    { v: "2.8.0", icon: "letters", en: "Learn", ar: "تعلّم",
-      den: "Step-by-step learning that grows from today's Arabic letters lessons.",
-      dar: "تعلّم خطوة بخطوة ينطلق من دروس الحروف العربية الحالية." },
     { v: "2.9.0", icon: "mosque", en: "MSA + Community", ar: "رابطة الطلاب المسلمين والمجتمع",
       den: "Tools for Muslim Student Associations and local communities. The MSA tab is already open as a preview.",
       dar: "أدوات لروابط الطلاب المسلمين والمجتمعات المحلية. تبويب الرابطة متاح الآن كمعاينة." },
