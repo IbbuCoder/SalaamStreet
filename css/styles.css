@@ -1382,3 +1382,57 @@ dialog.modal.pdf-dialog{inline-size:100vw;max-inline-size:100vw;block-size:100dv
 .pdf-zoom{min-inline-size:3.6em;padding-inline:6px}
 @media (max-width:359px){.pdf-tools .spacer{display:none}.pdf-tools{flex-wrap:wrap}}
 [dir="rtl"] .pdf-page{direction:ltr}
+
+/* ── 2.7.0: Settings keeps the long Offline Qur'an section on its own page (#/settings/offline) ── */
+#view-settings:not(.st-sub) .st-only-sub{display:none}
+#view-settings.st-sub > :not(.st-only-sub){display:none}
+#view-settings.st-sub .st-only-sub .page-head{margin-block-end:12px}
+
+/* ── 2.7.0: Hadith library — grouped lists, hadith of the day, knowledge, gradings ── */
+.hd-group{padding-block:4px}
+.hd-row{display:flex;align-items:center;gap:12px;padding-block:14px;color:inherit;text-decoration:none}
+.hd-row + .hd-row,.know-item + .know-item{border-block-start:1px solid var(--border)}
+.hd-row:hover{text-decoration:none}
+.hd-row:hover .hd-row-title{color:var(--primary-strong)}
+.hd-row .chev{flex:none;color:var(--text-3)}
+.hd-row-body{display:flex;flex-direction:column;gap:3px;min-inline-size:0;flex:1}
+.hd-row-title{font-weight:700;line-height:1.35}
+.hd-row-ar{font-family:var(--font-ar-ui);font-weight:500;color:var(--primary-strong);margin-inline-start:6px}
+.hd-row-meta{font-size:.78rem;color:var(--text-3);font-weight:600;display:inline-flex;align-items:center;gap:4px}
+.hd-row-meta .ic{inline-size:14px;block-size:14px}
+.hd-daily{display:flex;flex-direction:column;gap:8px;color:inherit;text-decoration:none;margin-block-end:8px}
+.hd-daily:hover{text-decoration:none;border-color:color-mix(in srgb,var(--primary) 45%,var(--border))}
+.hd-daily-top{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.hd-daily-text{color:var(--text-2);line-height:1.6;display:-webkit-box;-webkit-line-clamp:4;line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.hd-daily .hd-row-meta{color:var(--primary-strong)}
+.hd-by{margin-block:4px 12px}
+.hd-mixed{margin-block-end:12px}
+.hd-browse{flex-wrap:wrap}
+.hd-browse .hd-book{flex:1 1 100%;inline-size:100%;text-align:start}
+.hd-bookname{color:var(--text-3);font-weight:600;margin-block:6px 0}
+.badge.grade-ok{background:var(--primary-soft);color:var(--primary-strong)}
+.badge.grade-weak{background:color-mix(in srgb,var(--gold-bright) 18%,transparent);color:var(--gold)}
+.hd-grades{flex-basis:100%;font-size:.8rem;color:var(--text-2)}
+.hd-grades summary{cursor:pointer;font-weight:700;color:var(--text-3);min-block-size:32px;display:flex;align-items:center}
+.hd-grades ul{margin:4px 0 0;padding-inline-start:18px;display:grid;gap:2px}
+.know-sub{margin:-4px 6px 8px}
+.know-item summary{cursor:pointer;font-weight:700;padding-block:14px;min-block-size:48px;display:flex;align-items:center;gap:6px;list-style:none}
+.know-item summary::-webkit-details-marker{display:none}
+.know-item summary::after{content:"";margin-inline-start:auto;inline-size:8px;block-size:8px;border-inline-end:2px solid var(--text-3);border-block-end:2px solid var(--text-3);transform:rotate(45deg);transition:transform .2s}
+.know-item[open] summary::after{transform:rotate(-135deg)}
+.know-list{margin:0 0 10px;padding-inline-start:22px;display:grid;gap:4px;color:var(--text-2)}
+.know-text{margin:0 0 12px;color:var(--text-2);line-height:1.6}
+.know-src{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 14px;font-size:.85rem}
+@media (prefers-reduced-motion:reduce){.know-item summary::after{transition:none}}
+
+/* ── 2.7.0: Home shortcuts share one card (rows with dividers) instead of four separate boxes ── */
+.widget-list{padding:4px 0}
+.widget-list > .widget{border-radius:0;padding:14px 18px}
+.widget-list > .widget + .widget{border-block-start:1px solid var(--border)}
+.widget-list > .widget:first-child{border-start-start-radius:var(--radius);border-start-end-radius:var(--radius)}
+.widget-list > .widget:last-child{border-end-start-radius:var(--radius);border-end-end-radius:var(--radius)}
+.widget-list > .widget:hover{box-shadow:none;background:var(--surface-2)}
+.widget-list > .widget:active{transform:none}
+.hd-daily .h-sm{font-weight:700}
+#hd-cats .group-label:first-of-type{margin-block-start:16px}
+#hd-know .group-label:first-of-type{margin-block-start:4px}

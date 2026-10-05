@@ -306,43 +306,45 @@
             <a class="quick" href="#/dhikr"><span class="q-ic"><svg aria-hidden="true"><use href="#i-beads"/></svg></span><span data-i18n="nav.dhikr">Dhikr</span></a>
           </nav>
 
-          <a class="card widget" href="#/prayer" id="track-widget">
-            <span class="w-ic"><svg aria-hidden="true"><use href="#i-check"/></svg></span>
-            <span class="w-body">
-              <span class="w-title" data-i18n="track.today">Prayers today</span>
-              <span class="w-sub" id="track-sub"></span>
-            </span>
-            <span class="dots" id="track-dots" aria-hidden="true"></span>
-          </a>
-
-          <a class="card widget" href="#/adhkar" id="adhkar-widget">
-            <span class="w-ic gold"><svg aria-hidden="true"><use href="#i-sunrise"/></svg></span>
-            <span class="w-body">
-              <span class="w-title" id="adhkar-w-title" data-i18n="adhkar.morning">Morning adhkar</span>
-              <span class="w-sub" id="adhkar-w-sub"></span>
-            </span>
-            <svg class="ic chev" aria-hidden="true"><use href="#i-chev-r"/></svg>
-          </a>
-
           <div class="card plan-mini" id="plan-widget" hidden></div>
 
-          <a class="card widget" href="#/quran" id="cr-link">
-            <span class="w-ic"><svg aria-hidden="true"><use href="#i-book"/></svg></span>
-            <span class="w-body">
-              <span class="w-title" id="cr-title" data-i18n="dash.startReading">Start reading the Qur'an</span>
-              <span class="w-sub" id="cr-pos" data-i18n="dash.startReadingSub">114 surahs with audio and tafsir</span>
-            </span>
-            <svg class="ic chev" aria-hidden="true"><use href="#i-chev-r"/></svg>
-          </a>
+          <div class="card widget-list">
+            <a class="widget" href="#/prayer" id="track-widget">
+              <span class="w-ic"><svg aria-hidden="true"><use href="#i-check"/></svg></span>
+              <span class="w-body">
+                <span class="w-title" data-i18n="track.today">Prayers today</span>
+                <span class="w-sub" id="track-sub"></span>
+              </span>
+              <span class="dots" id="track-dots" aria-hidden="true"></span>
+            </a>
 
-          <a class="card widget" href="#/dhikr">
-            <span class="w-ic gold"><svg aria-hidden="true"><use href="#i-beads"/></svg></span>
-            <span class="w-body">
-              <span class="w-title" data-i18n="dash.dhikrStreak">Dhikr streak</span>
-              <span class="w-sub"><b class="gold" id="ds-count">0</b> <span id="ds-days" data-i18n="dash.days">days</span></span>
-            </span>
-            <svg class="ic chev" aria-hidden="true"><use href="#i-chev-r"/></svg>
-          </a>
+            <a class="widget" href="#/adhkar" id="adhkar-widget">
+              <span class="w-ic gold"><svg aria-hidden="true"><use href="#i-sunrise"/></svg></span>
+              <span class="w-body">
+                <span class="w-title" id="adhkar-w-title" data-i18n="adhkar.morning">Morning adhkar</span>
+                <span class="w-sub" id="adhkar-w-sub"></span>
+              </span>
+              <svg class="ic chev" aria-hidden="true"><use href="#i-chev-r"/></svg>
+            </a>
+
+            <a class="widget" href="#/quran" id="cr-link">
+              <span class="w-ic"><svg aria-hidden="true"><use href="#i-book"/></svg></span>
+              <span class="w-body">
+                <span class="w-title" id="cr-title" data-i18n="dash.startReading">Start reading the Qur'an</span>
+                <span class="w-sub" id="cr-pos" data-i18n="dash.startReadingSub">114 surahs with audio and tafsir</span>
+              </span>
+              <svg class="ic chev" aria-hidden="true"><use href="#i-chev-r"/></svg>
+            </a>
+
+            <a class="widget" href="#/dhikr">
+              <span class="w-ic gold"><svg aria-hidden="true"><use href="#i-beads"/></svg></span>
+              <span class="w-body">
+                <span class="w-title" data-i18n="dash.dhikrStreak">Dhikr streak</span>
+                <span class="w-sub"><b class="gold" id="ds-count">0</b> <span id="ds-days" data-i18n="dash.days">days</span></span>
+              </span>
+              <svg class="ic chev" aria-hidden="true"><use href="#i-chev-r"/></svg>
+            </a>
+          </div>
         </aside>
       </div>
       <nav class="browse-links mt-3" aria-labelledby="browse-h">
@@ -660,22 +662,34 @@
 
     <!-- ═══════════ HADITH ═══════════ -->
     <section class="view" id="view-hadith" hidden aria-labelledby="hd-h">
-      <div id="hd-home">
+      <div class="view-narrow" id="hd-home">
         <header class="page-head">
           <h1 id="hd-h" tabindex="-1" data-i18n="hadith.title">Hadith Library</h1>
           <p data-i18n="hadith.sub">Authentic collections with Arabic, English, grading, and reference on every hadith.</p>
         </header>
-        <div class="cat-grid cat-grid-wide" id="hd-cats"></div>
+        <div class="segmented mb-2" role="tablist" aria-label="Hadith">
+          <button id="hd-tab-coll" type="button" role="tab" aria-selected="true" aria-controls="hd-coll" data-i18n="hadith.tabCollections">Collections</button>
+          <button id="hd-tab-know" type="button" role="tab" aria-selected="false" aria-controls="hd-know" data-i18n="hadith.tabKnowledge">Knowledge</button>
+        </div>
+        <div id="hd-coll" role="tabpanel" aria-labelledby="hd-tab-coll">
+          <div id="hd-daily"></div>
+          <div id="hd-cats"></div>
+        </div>
+        <div id="hd-know" role="tabpanel" aria-labelledby="hd-tab-know" hidden></div>
       </div>
       <div class="view-narrow" id="hd-detail" hidden>
         <a class="back-link" href="#/hadith"><svg class="ic flip" aria-hidden="true"><use href="#i-chev-l"/></svg><span data-i18n="hadith.title">Hadith Library</span></a>
-        <h1 id="hd-title" class="mb-2" tabindex="-1"></h1>
+        <h1 id="hd-title" tabindex="-1"></h1>
+        <p class="tiny hd-by" id="hd-by"></p>
+        <p class="note hd-mixed" id="hd-mixed" hidden data-i18n="hadith.mixedNote">This book contains hadith of different grades — check the grading shown with each one.</p>
         <form class="hd-browse mb-2" id="hd-browse" hidden>
           <button class="icon-btn bordered" id="hd-prev" type="button" aria-label="Previous hadith"><svg class="ic flip" aria-hidden="true"><use href="#i-chev-l"/></svg></button>
           <label class="visually-hidden" for="hd-num" data-i18n="hadith.number">Hadith number</label>
           <input class="input" id="hd-num" type="number" inputmode="numeric" min="1" placeholder="#" />
           <button class="btn btn-sm" id="hd-go" type="submit" data-i18n="hadith.go">Go</button>
           <button class="icon-btn bordered" id="hd-next" type="button" aria-label="Next hadith"><svg class="ic flip" aria-hidden="true"><use href="#i-chev-r"/></svg></button>
+          <label class="visually-hidden" for="hd-book" data-i18n="hadith.jumpBook">Jump to a book</label>
+          <select class="input hd-book" id="hd-book" hidden></select>
         </form>
         <div class="stack" id="hd-list" aria-live="polite"></div>
         <p class="tiny mt-2" data-i18n="hadith.disclaimer">Text served from the open hadith-api. Always verify important rulings with qualified scholars.</p>
@@ -865,7 +879,11 @@
 
     <!-- ═══════════ SETTINGS ═══════════ -->
     <section class="view view-narrow" id="view-settings" hidden aria-labelledby="st-h">
-      <header class="page-head"><h1 id="st-h" tabindex="-1" data-i18n="settings.title">Settings</h1></header>
+      <header class="page-head st-main"><h1 id="st-h" tabindex="-1" data-i18n="settings.title">Settings</h1></header>
+      <div class="st-only-sub">
+        <a class="back-link" href="#/settings"><svg class="ic flip" aria-hidden="true"><use href="#i-chev-l"/></svg><span data-i18n="settings.title">Settings</span></a>
+        <header class="page-head"><h1 id="st-off-h" tabindex="-1" data-i18n="off.title">Offline Qur'an</h1></header>
+      </div>
       <div class="mt-1" id="st-account"></div>
 
       <h2 class="group-label with-ic"><svg class="ic" aria-hidden="true"><use href="#i-contrast"/></svg><span data-i18n="settings.appearance">Appearance</span></h2>
@@ -909,8 +927,9 @@
         </div>
       </div>
 
-      <h2 class="group-label with-ic" id="offline-quran"><svg class="ic" aria-hidden="true"><use href="#i-download"/></svg><span data-i18n="off.title">Offline Qur'an</span></h2>
-      <div class="stack off-section" id="st-offline"></div>
+      <h2 class="group-label with-ic st-main" id="offline-quran"><svg class="ic" aria-hidden="true"><use href="#i-download"/></svg><span data-i18n="off.title">Offline Qur'an</span></h2>
+      <div class="st-main" id="st-offline-link"></div>
+      <div class="stack off-section st-only-sub" id="st-offline"></div>
 
       <h2 class="group-label with-ic"><svg class="ic" aria-hidden="true"><use href="#i-clock"/></svg><span data-i18n="settings.prayer">Prayer &amp; location</span></h2>
       <div class="card settings-group">

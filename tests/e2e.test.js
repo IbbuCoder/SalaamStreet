@@ -64,12 +64,23 @@ async function mockApis(context, opts = {}) {
       if (spec.fail === "all" || spec.fail === mirror) return route.fulfill({ status: 404, body: "nf" });
       return route.fulfill({ json: { text: spec.text || `Commentary for ${key}`, surah: +tm[1], ayah: +tm[2] } });
     }
+    const hm = u.pathname.match(/hadith-api@1\/editions\/(eng|ara)-(\w+)(?:\/(\d+))?\.min\.json$/);
+    if (hm) return route.fulfill({ json: hadithJson(hm[1], hm[2], hm[3] && +hm[3]) });
     if (u.hostname === "api.aladhan.com" && /\/timings\//.test(u.pathname)) {
       return route.fulfill({ json: { data: { timings: { Fajr: "05:00", Sunrise: "06:30", Dhuhr: "12:30", Asr: "15:45", Maghrib: "18:30", Isha: "19:45", Imsak: "04:50" },
         date: { hijri: { day: "12", month: { number: 4, en: "Rabi al-Thani", ar: "ربيع الآخر" }, year: "1448" } } } } });
     }
     return route.abort();
   });
+}
+
+/* hadith-api: a small forty for the bounded collections, and one graded hadith per number for the large ones. */
+function hadithJson(lang, coll, num) {
+  const one = (n) => ({ hadithnumber: n, text: (lang === "ara" ? "حديث " : "Hadith text ") + coll + " " + n,
+    grades: coll === "abudawud" ? [{ name: "Al-Albani", grade: "Sahih" }, { name: "Zubair Ali Zai", grade: "Daif" }] : [],
+    reference: { book: 1, hadith: n } });
+  if (num) return { hadiths: [one(num)] };
+  return { metadata: { name: coll }, hadiths: [1, 2, 3].map(one) };
 }
 
 const CHICAGO = { lat: 41.88, lng: -87.63, label: "Chicago", consent: "manual" };
@@ -849,4 +860,71 @@ test("Qur'an PDF: download it, go offline, open it in the viewer, then remove it
     site.pdf = null;
     site.down = false;
   }
+});
+
+/* ═══════════ Hadith + Knowledge (2.7.0) ═══════════ */
+test("hadith library: ten grouped collections, hadith of the day, knowledge, books and gradings", async () => {
+  const { page, context } = await device();
+  await open(page, "#/hadith");
+  await page.waitForSelector("#hd-daily .hd-daily");
+  assert.equal(await page.locator("#hd-cats .hd-row").count(), 10, "ten collections");
+  assert.equal(await page.locator("#hd-cats .hd-group").count(), 3, "in three groups");
+  assert.match(await page.textContent("#hd-daily"), /Hadith of the day/);
+  await shot(page, "hadith-home-mobile");
+
+  // Knowledge tab: foundations with sources and the glossary.
+  await page.click("#hd-tab-know");
+  assert.equal(await page.isVisible("#hd-coll"), false);
+  assert.match(await page.textContent("#hd-know"), /Sahih al-Bukhari 8/);
+  assert.ok(await page.locator("#hd-know .know-item").count() >= 10);
+  await page.locator("#hd-know summary", { hasText: "Da'if" }).click();
+  assert.match(await page.textContent("#hd-know"), /not used to establish rulings/);
+  await shot(page, "hadith-knowledge-mobile");
+
+  // A Sunan: compiler, the mixed-grades note, the book picker and every grading.
+  await open(page, "#/hadith/abudawud/100");
+  await page.waitForSelector("#hd-list article");
+  assert.match(await page.textContent("#hd-by"), /Imam Abu Dawud \(d\. 275 AH\)/);
+  assert.equal(await page.isVisible("#hd-mixed"), true);
+  await page.waitForSelector("#hd-book:not([hidden])");
+  assert.match(await page.locator("#hd-book option:checked").textContent(), /^Book 1: Purification/);
+  assert.match(await page.textContent("#hd-list .hd-bookname"), /Book 1: Purification/);
+  assert.match(await page.textContent("#hd-list .badge.grade-ok"), /Sahih — Al-Albani/);
+  await page.click("#hd-list .hd-grades summary");
+  assert.match(await page.textContent("#hd-list .hd-grades"), /Daif — Zubair Ali Zai/);
+  // Choosing a book jumps to its first hadith.
+  await page.selectOption("#hd-book", { label: await page.locator("#hd-book option").nth(1).textContent() });
+  await page.waitForFunction(() => /#\/hadith\/abudawud\/391$/.test(location.hash));
+  // The last hadith has no "next".
+  await open(page, "#/hadith/abudawud/99999");
+  await page.waitForSelector("#hd-list article");
+  assert.equal(await page.inputValue("#hd-num"), "5274");
+  assert.equal(await page.isDisabled("#hd-next"), true);
+
+  // A forty opens at the hadith a Knowledge link points to.
+  await open(page, "#/hadith/nawawi/2");
+  await page.waitForSelector("#hd-n2");
+  assert.equal(await page.isVisible("#hd-browse"), false);
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true, "no sideways scrolling");
+  assert.deepEqual(page.errors, []);
+  await context.close();
+});
+
+test("less crowded: Settings links to Offline Qur'an on its own page; Home shortcuts share one card", async () => {
+  const { page, context } = await device();
+  await open(page, "#/settings");
+  await page.waitForSelector("#st-offline-link a[href='#/settings/offline']");
+  assert.equal(await page.isVisible("#st-offline"), false, "the long section isn't on the main Settings page");
+  assert.equal(await page.isVisible("#st-method"), true);
+  await page.click("#st-offline-link a");
+  await page.waitForSelector("#st-offline .off-card");
+  assert.equal(await page.isVisible("#st-method"), false, "the sub-page shows only Offline Qur'an");
+  assert.equal(await page.isVisible("#st-off-h"), true);
+  await page.click("#view-settings .st-only-sub .back-link");
+  await page.waitForSelector("#st-method", { state: "visible" });
+
+  await open(page, "#/home");
+  assert.equal(await page.locator(".home-side .widget-list > .widget").count(), 4);
+  assert.deepEqual(page.errors, []);
+  await context.close();
 });

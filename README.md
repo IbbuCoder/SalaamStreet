@@ -10,7 +10,7 @@ SalaamStreet began as an Islamic-themed Shopify shop that Ibrahim built when he 
 
 **Our promise:** everything you need — prayer times, Qibla, Qur'an, duas, dhikr, the prayer tracker, Arabic learning and (when it arrives) sync — stays free forever. Any future paid extras (subscription or one-time) will only be for things that genuinely cost money to provide.
 
-Current version: **2.5.8 — SalaamStreet at a glance** (see `SS.VERSION` / `SS.CHANGELOG` in `js/content.js`).
+Current version: **2.7.0 — Hadith + Knowledge** (see `SS.VERSION` / `SS.CHANGELOG` in `js/content.js`).
 
 ## Features
 
@@ -22,7 +22,8 @@ Current version: **2.5.8 — SalaamStreet at a glance** (see `SS.VERSION` / `SS.
 - **Recitation** — 4 reciters, per-ayah or continuous playback, speed and repeat controls, lock-screen/media-key controls
 - **Tafsir** — Ibn Kathir (English) for any ayah, with previous/next ayah, in a bottom sheet on phones
 - **Offline Qur'an** — download the whole Qur'an once (Arabic, your translation and transliteration; more translations optional), plus recitation per surah or all of it, and Tafsir Ibn Kathir; resumable downloads with pause/cancel, stored only on your device. An optional Qur'an PDF (when the site provides one) can be saved to the device and read offline in the built-in viewer
-- **Hadith library** — 40 Hadith Nawawi & Qudsi in full, plus browse-by-number for Sahih al-Bukhari and Muslim, with Arabic, English, grading and reference
+- **Hadith library** — 10 collections: the 40 Hadith of an-Nawawi, Qudsi and Shah Waliullah in full; the Six Books (Bukhari, Muslim, Abu Dawud, Tirmidhi, Nasa'i, Ibn Majah) and the Muwatta of Imam Malik to browse by number or jump to any book; Arabic, English, reference and every scholar's grading (weak grades marked); a Hadith of the day
+- **Knowledge** — the five pillars, the six articles of faith and ihsan with their sources, and short explanations of hadith terms (sahih, hasan, da'if, isnad …)
 - **Dua library** — authentic supplications with Arabic, transliteration, translation and a source on every dua; favourites and copy
 - **Dhikr counter** — big tap target (or Space bar on desktop), presets with sourced targets, undo, today's totals, daily streaks, haptic feedback
 - **Islamic calendar** — today's Hijri date and approximate countdowns to key dates
@@ -69,7 +70,8 @@ Safe-area insets (iPhone notch / home indicator), 16px form inputs (no iOS zoom)
 ├── js/
 │   ├── surahs.js         114-surah metadata + ayah numbering
 │   ├── duas.js           Dua library + dhikr presets, all with sources
-│   ├── extras.js         Calendar events + hadith collections
+│   ├── extras.js         Calendar events, hadith collections + Knowledge content
+│   ├── hadith-books.js   Book (kitab) index for the large hadith collections, loaded on demand (generated)
 │   ├── content.js        99 Names, juz boundaries, adhkar sequence, Arabic letters, translations
 │   ├── i18n.js           English/Arabic strings, language loading, RTL switching
 │   ├── lang/             Draft interface languages (ur, bn, id, tr, fr), loaded on demand
@@ -93,6 +95,7 @@ Safe-area insets (iPhone notch / home indicator), 16px form inputs (no iOS zoom)
 ├── surah/ duas/ names-of-allah/ prayer-times/   Generated SEO pages (see below)
 ├── tools/build-pages.js  Generator for the SEO pages + sitemap.xml
 ├── tools/build-splash.js Generator for the light/dark iOS launch screens
+├── tools/build-hadith-books.js Generator for js/hadith-books.js (from hadith-api)
 ├── backend/              Supabase schema + setup guide for optional accounts
 ├── tests/                Unit, database (PGlite) and browser (Playwright) tests
 └── docs/                 Product, architecture and design notes

@@ -50,12 +50,15 @@ laptops and large monitors. Core worship features are, and will stay, free.
   resumable downloads (small parallel batches, retries, pause/cancel, carry on after a lost connection or
   closed tab), storage used and per-item removal; a Qur'an PDF card with save-to-device and an in-app
   offline viewer (pdf.js), shown once the PDF file is added. Downloads stay on the device, never synced
+- **2.7.0 — Hadith + Knowledge:** 10 hadith collections (added Abu Dawud, Tirmidhi, Nasa'i, Ibn Majah, Muwatta
+  Malik and Shah Waliullah's forty); jump to any book; every scholar's grading shown with weak grades marked;
+  compiler on each collection; Hadith of the day; a Knowledge tab (pillars of Islam and Iman, ihsan, hadith terms);
+  a calmer layout — grouped hadith lists, Home shortcuts in one card, Offline Qur'an on its own Settings page
 
 ## Planned (no release dates; plans may change)
 
 The same list appears in the app under About → Updates (`SS.ROADMAP` in `js/content.js`).
 
-- **2.7.0 — Hadith + Knowledge:** more hadith collections and learning content
 - **2.8.0 — Learn:** structured lessons beyond the Arabic alphabet
 - **2.9.0 — MSA + Community:** tools for Muslim Student Associations and local communities (the MSA tab is
   already open as a preview)
