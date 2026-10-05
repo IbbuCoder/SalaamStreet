@@ -54,19 +54,21 @@ laptops and large monitors. Core worship features are, and will stay, free.
   Malik and Shah Waliullah's forty); jump to any book; every scholar's grading shown with weak grades marked;
   compiler on each collection; Hadith of the day; a Knowledge tab (pillars of Islam and Iman, ihsan, hadith terms);
   a calmer layout — grouped hadith lists, Home shortcuts in one card, Offline Qur'an on its own Settings page
+- **2.8.0 — The SalaamStreet App:** "Did you pray?" check-in and an "I prayed" button on reminders; prayer times
+  calculated on the device when offline; reminders when the app is closed (Web Push via Supabase, opt-in);
+  app-icon badge; daily Qur'an goal; morning/evening adhkar reminders; recitation sleep timer; keep-screen-on;
+  Friday summary; update prompt; a simpler Qibla finder; launch screens for every current iPhone and iPad
 
 ## Planned (no release dates; plans may change)
 
 The same list appears in the app under About → Updates (`SS.ROADMAP` in `js/content.js`).
 
-- **2.8.0 — The SalaamStreet App:** a better experience for people who use SalaamStreet installed on their
-  phone, tablet or computer, not just on the website
 - **2.9.0 — MSA + Community:** tools for Muslim Student Associations and local communities (the MSA tab is
   already open as a preview)
 - **3.0.0 — SalaamStreet Kids:** a safe, simple SalaamStreet for young children, with family accounts so parents
   can set it up and follow along
 
-Also open: push reminders that arrive while the site is closed, and native-speaker
+Also open: native-speaker
 review of the draft Urdu, Bengali, Indonesian, Turkish and French translations.
 
 ## Principles

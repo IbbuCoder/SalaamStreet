@@ -130,3 +130,22 @@ test("AI assistants: llms.txt and the facts page agree with the app and name the
   assert.match(read("robots.txt"), /User-agent: GPTBot\nAllow: \//);
   assert.match(read("index.html"), /"founder":\{"@type":"Person","name":"Ibrahim"/);
 });
+
+test("every current iPhone and iPad has a light and a dark launch screen (no white flash in dark mode)", () => {
+  const html = read("index.html");
+  const tags = [...html.matchAll(/<link rel="apple-touch-startup-image" ([^>]+)>/g)].map((m) => m[1]);
+  for (const t of tags) {
+    for (const attr of ["href", "data-light", "data-dark"]) {
+      const f = t.match(new RegExp(attr + '="([^"]+)"'))[1];
+      assert.ok(fs.existsSync(path.join(ROOT, f)), "missing launch image: " + f);
+    }
+  }
+  // iPhone 16/17 Pro, 16/17 Pro Max, iPhone Air, iPad mini, iPad Pro 13" (M4) — and iPads held sideways.
+  for (const size of ["402px) and (device-height: 874px", "440px) and (device-height: 956px", "420px) and (device-height: 912px",
+    "744px) and (device-height: 1133px", "1032px) and (device-height: 1376px"]) {
+    for (const scheme of ["light", "dark"]) {
+      assert.ok(tags.some((t) => t.includes("(device-width: " + size + ")") && t.includes("orientation: portrait") && t.includes("prefers-color-scheme: " + scheme)), size + " " + scheme);
+    }
+  }
+  assert.ok(tags.some((t) => t.includes("744px) and (device-height: 1133px") && t.includes("orientation: landscape")), "iPad landscape");
+});

@@ -184,6 +184,77 @@ end;
 $$;
 
 -- ════════════════════════════════════════════════════════════════════════
+--  2.8 — Reminders that arrive when SalaamStreet is closed (Web Push)
+--  One row per device that opted in (guests too — no account needed).
+--  Only what's needed to send the reminders: the browser's push address,
+--  an approximate location (2 decimals ≈ 1 km), time zone and reminder
+--  choices. Nobody can read the table through the API: devices add, update
+--  and remove their own row through the two functions below (the push
+--  address works as the device's secret), and only the send-reminders
+--  function (service role) reads it. Turning reminders off deletes the row.
+-- ════════════════════════════════════════════════════════════════════════
+create table if not exists public.push_subscriptions (
+    endpoint    text primary key check (endpoint like 'https://%' and length(endpoint) < 1000),
+    p256dh      text not null check (length(p256dh) < 200),
+    auth        text not null check (length(auth) < 100),
+    lat         numeric(5,2) not null check (lat between -90 and 90),
+    lng         numeric(6,2) not null check (lng between -180 and 180),
+    tz          text not null check (length(tz) < 64),
+    method      smallint not null default 3,
+    school      smallint not null default 0 check (school in (0, 1)),
+    offset_min  smallint not null default 0 check (offset_min between 0 and 60),
+    prayers     boolean not null default true,
+    kahf        boolean not null default true,
+    adhkar      boolean not null default false,
+    lang        text not null default 'en' check (length(lang) <= 5),
+    sent        jsonb not null default '{}'::jsonb,   -- what was already sent today (no doubles)
+    updated_at  timestamptz not null default now()
+);
+alter table public.push_subscriptions enable row level security;
+-- No policies on purpose: the API can't select, insert, update or delete directly.
+
+create or replace function public.push_register(sub jsonb, prefs jsonb)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+    insert into public.push_subscriptions as p
+        (endpoint, p256dh, auth, lat, lng, tz, method, school, offset_min, prayers, kahf, adhkar, lang, updated_at)
+    values (
+        sub->>'endpoint', sub->'keys'->>'p256dh', sub->'keys'->>'auth',
+        round((prefs->>'lat')::numeric, 2), round((prefs->>'lng')::numeric, 2),
+        coalesce(prefs->>'tz', 'UTC'),
+        coalesce((prefs->>'method')::smallint, 3), coalesce((prefs->>'school')::smallint, 0),
+        coalesce((prefs->>'offset')::smallint, 0),
+        coalesce((prefs->>'prayers')::boolean, true), coalesce((prefs->>'kahf')::boolean, true),
+        coalesce((prefs->>'adhkar')::boolean, false), coalesce(left(prefs->>'lang', 5), 'en'), now()
+    )
+    on conflict (endpoint) do update set
+        p256dh = excluded.p256dh, auth = excluded.auth, lat = excluded.lat, lng = excluded.lng, tz = excluded.tz,
+        method = excluded.method, school = excluded.school, offset_min = excluded.offset_min,
+        prayers = excluded.prayers, kahf = excluded.kahf, adhkar = excluded.adhkar, lang = excluded.lang,
+        updated_at = now();
+end;
+$$;
+
+create or replace function public.push_unregister(endpoint text)
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+    delete from public.push_subscriptions p where p.endpoint = push_unregister.endpoint;
+$$;
+
+revoke all on public.push_subscriptions from anon, authenticated;
+revoke execute on function public.push_register(jsonb, jsonb) from public;
+revoke execute on function public.push_unregister(text) from public;
+grant execute on function public.push_register(jsonb, jsonb) to anon, authenticated;
+grant execute on function public.push_unregister(text) to anon, authenticated;
+
+-- ════════════════════════════════════════════════════════════════════════
 --  Earlier draft (pre-2.5, never connected to the website): the tables
 --  preferences, bookmarks, progress and favorites are superseded by
 --  sync_records. If you created them from the old draft, you can drop them:

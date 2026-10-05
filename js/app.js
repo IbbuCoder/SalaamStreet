@@ -274,6 +274,7 @@
       var loaded = !!audio && !$("audio-bar").hidden && curSurah === surah && curAyah === ayah;
       return { loaded: loaded, playing: loaded && !audio.paused };
     },
+    pause: function () { if (audio && !audio.paused) audio.pause(); },
     toggle: function () {
       if (!audio) return;
       if (audio.paused) { var p = audio.play(); if (p && p.catch) p.catch(function () {}); }
@@ -475,6 +476,7 @@
     wireNetwork();
     registerServiceWorker();
     if (SS.reminders) SS.reminders.init();
+    if (SS.dailyBoot) SS.dailyBoot();
     if (SS.aboutBoot) SS.aboutBoot();
     if (SS.accountBoot) SS.accountBoot();
     window.addEventListener("hashchange", function () { navigate(); });

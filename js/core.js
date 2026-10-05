@@ -61,6 +61,7 @@
     reciter: "ar.alafasy", showTranslation: true, showTransliteration: false, location: null,
     translation: "en.sahih", timeFormat: "auto", units: "auto", extraTimes: false, continuousPlay: false,
     reminders: false, reminderOffset: 0, reminderSound: true, kahfReminder: true,
+    quranGoal: 0, goalTime: "", keepAwake: true, adhkarReminders: false, iconBadge: false, pushReminders: false,
   };
   SS.FALLBACK_LOC = { lat: 21.4225, lng: 39.8262, label: "Makkah (default)", isFallback: true };
 
@@ -254,6 +255,32 @@
     });
   }
 
+  /* ── On-device prayer times (js/praytimes.js) ───────────────────
+     The location's time zone is remembered from AlAdhan when online, so a
+     city typed in from abroad still gets its own clock time offline. */
+  function rememberZone(la, lo, meta) {
+    if (meta && meta.timezone && store.get("tz:" + la + ":" + lo) !== meta.timezone) store.set("tz:" + la + ":" + lo, meta.timezone);
+  }
+  function localTimes(o, d) {
+    if (!SS.praytimes) return null;
+    var zone = store.get("tz:" + o.lat.toFixed(2) + ":" + o.lng.toFixed(2)) || o.tz || null;
+    return SS.praytimes.times(d, o.lat, o.lng, { method: o.method, school: o.school, tzOffset: SS.praytimes.tzOffset(d, zone) });
+  }
+  SS.localPrayerTimes = localTimes;
+  /** Hijri date in AlAdhan's shape, from the browser's Umm al-Qura calendar (may differ by a day from local moon-sighting). */
+  SS.hijriOf = function (d) {
+    var MONTHS = {
+      en: ["Muharram", "Safar", "Rabi al-Awwal", "Rabi al-Thani", "Jumada al-Awwal", "Jumada al-Thani", "Rajab", "Sha'ban", "Ramadan", "Shawwal", "Dhul-Qi'dah", "Dhul-Hijjah"],
+      ar: ["محرم", "صفر", "ربيع الأول", "ربيع الآخر", "جمادى الأولى", "جمادى الآخرة", "رجب", "شعبان", "رمضان", "شوال", "ذو القعدة", "ذو الحجة"],
+    };
+    try {
+      var p = new Intl.DateTimeFormat("en-u-ca-islamic-umalqura-nu-latn", { day: "numeric", month: "numeric", year: "numeric" })
+        .formatToParts(d).reduce(function (o, x) { o[x.type] = x.value; return o; }, {});
+      var m = +p.month;
+      return { day: String(+p.day), month: { number: m, en: MONTHS.en[m - 1], ar: MONTHS.ar[m - 1] }, year: String(parseInt(p.year, 10)) };
+    } catch (e) { return null; }
+  };
+
   /* ── API ────────────────────────────────────────────────────── */
   SS.api = {
     /** Daily prayer times + Hijri date. Coords rounded to 2dp (~1 km) for privacy. */
@@ -265,7 +292,14 @@
         "&method=" + o.method + "&school=" + o.school;
       return cachedFetch("pt:" + la + ":" + lo + ":" + dd + ":" + o.method + ":" + o.school, url, DAY)
         .then(function (r) {
+          rememberZone(la, lo, r.data.data.meta);
           return { timings: r.data.data.timings, hijri: r.data.data.date.hijri, stale: !!r.stale };
+        })
+        .catch(function (err) {
+          // No connection and nothing cached: calculate on the device instead.
+          var local = localTimes(o, d);
+          if (!local) throw err;
+          return { timings: local, hijri: SS.hijriOf(d), stale: true, onDevice: true };
         });
     },
     monthlyTimes: function (o) {
@@ -273,7 +307,17 @@
       var url = SS.ALADHAN + "/calendar/" + o.year + "/" + o.month + "?latitude=" + la + "&longitude=" + lo +
         "&method=" + o.method + "&school=" + o.school;
       return cachedFetch("ptm:" + la + ":" + lo + ":" + o.year + ":" + o.month + ":" + o.method + ":" + o.school, url, 7 * DAY)
-        .then(function (r) { return { days: r.data.data }; });
+        .then(function (r) { return { days: r.data.data }; })
+        .catch(function (err) {
+          if (!SS.praytimes) throw err;
+          var days = [], n = new Date(o.year, o.month, 0).getDate();
+          for (var i = 1; i <= n; i++) {
+            var day = new Date(o.year, o.month - 1, i);
+            var dd = ("0" + i).slice(-2) + "-" + ("0" + o.month).slice(-2) + "-" + o.year;
+            days.push({ timings: localTimes(o, day), date: { gregorian: { date: dd, day: String(i), weekday: { en: day.toLocaleDateString("en-US", { weekday: "long" }) } }, hijri: SS.hijriOf(day) } });
+          }
+          return { days: days, onDevice: true };
+        });
     },
     geocodeCity: function (city) {
       return fetchJson(SS.ALADHAN + "/timingsByAddress?address=" + encodeURIComponent(city))

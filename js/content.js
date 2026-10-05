@@ -224,8 +224,40 @@
   ];
 
   /* ── Version & release notes (newest first) ──────────────────────── */
-  SS.VERSION = "2.7.0";
+  SS.VERSION = "2.8.0";
   SS.CHANGELOG = [
+    {
+      v: "2.8.0", date: "2026-10-05",
+      en: "The SalaamStreet App", ar: "تطبيق سلام ستريت",
+      den: "Made for everyone who keeps SalaamStreet on their phone, tablet or computer: smarter reminders, a daily Qur'an goal, prayer times with no internet, and a simpler Qibla.",
+      dar: "صُمّم لكل من يبقي سلام ستريت على هاتفه أو جهازه اللوحي أو حاسوبه: تذكيرات أذكى، وهدف يومي للقرآن، ومواقيت صلاة دون إنترنت، وقبلة أبسط.",
+      groups: [
+        { en: "Prayer", ar: "الصلاة", items: [
+          { en: "“Did you pray?” on the Home screen — tick the current prayer with one tap", ar: "«هل صليت؟» في الشاشة الرئيسية — سجّل الصلاة الحالية بلمسة واحدة" },
+          { en: "An “I prayed” button on prayer reminders that ticks it for you", ar: "زر «صلّيت» في تذكيرات الصلاة يسجّلها لك" },
+          { en: "Prayer times now work with no internet — calculated on your device when you're offline", ar: "مواقيت الصلاة تعمل الآن دون إنترنت — تُحسب على جهازك عند انقطاع الاتصال" },
+          { en: "Reminders that arrive even when SalaamStreet is closed (Settings → Prayer reminders, where available)", ar: "تذكيرات تصلك حتى عندما يكون سلام ستريت مغلقًا (الإعدادات ← تذكيرات الصلاة، حيث يتوفر)" },
+          { en: "Optional badge on the app icon for prayers not yet ticked today", ar: "شارة اختيارية على أيقونة التطبيق للصلوات غير المسجّلة اليوم" },
+        ] },
+        { en: "Qur'an & adhkar", ar: "القرآن والأذكار", items: [
+          { en: "Set a daily Qur'an goal and watch it fill as you read, with an optional reminder", ar: "حدّد هدفًا يوميًا للقرآن وتابع تقدّمك أثناء القراءة، مع تذكير اختياري" },
+          { en: "Morning and evening adhkar reminders", ar: "تذكير بأذكار الصباح والمساء" },
+          { en: "Sleep timer for recitation (15, 30 or 60 minutes)", ar: "مؤقّت إيقاف للتلاوة (١٥ أو ٣٠ أو ٦٠ دقيقة)" },
+          { en: "The screen stays on while you read, follow adhkar or count dhikr", ar: "تبقى الشاشة مضاءة أثناء القراءة والأذكار والذكر" },
+        ] },
+        { en: "Your week", ar: "أسبوعك", items: [
+          { en: "Every Friday, a short summary of your week: prayers, ayahs read and adhkar", ar: "كل جمعة، ملخّص قصير لأسبوعك: الصلوات والآيات المقروءة والأذكار" },
+        ] },
+        { en: "Qibla", ar: "القبلة", items: [
+          { en: "A simpler Qibla finder: one clear instruction at a time and a big “Start compass” button", ar: "باحث قبلة أبسط: تعليمة واضحة واحدة في كل مرة وزر كبير «تشغيل البوصلة»" },
+          { en: "How-to and details folded away until you need them", ar: "طريقة الاستخدام والتفاصيل مطويّة حتى تحتاجها" },
+        ] },
+        { en: "Fixes", ar: "إصلاحات", items: [
+          { en: "Fixed the white launch screen in dark mode on newer iPhones and iPads (iPhone 16 and 17, iPhone Air, iPad mini, iPad Pro) and on iPads held sideways", ar: "إصلاح شاشة البدء البيضاء في الوضع الداكن على أجهزة iPhone وiPad الأحدث (iPhone 16 و17 وiPhone Air وiPad mini وiPad Pro) وعلى iPad بالوضع الأفقي" },
+          { en: "When a new version is ready, SalaamStreet asks before updating", ar: "عند توفّر إصدار جديد، يسألك سلام ستريت قبل التحديث" },
+        ] },
+      ],
+    },
     {
       v: "2.7.0", date: "2026-10-05",
       en: "Hadith + Knowledge", ar: "الحديث والمعرفة",
@@ -424,9 +456,6 @@
   });
   /* What's planned — honest plans in order, never dates. Nothing here is released yet. */
   SS.ROADMAP = [
-    { v: "2.8.0", icon: "phone", en: "The SalaamStreet App", ar: "تطبيق سلام ستريت",
-      den: "A better experience for everyone who has SalaamStreet installed on their phone, tablet or computer — not just on the website.",
-      dar: "تجربة أفضل لكل من ثبّت سلام ستريت على هاتفه أو جهازه اللوحي أو حاسوبه — لا على الموقع فقط." },
     { v: "2.9.0", icon: "mosque", en: "MSA + Community", ar: "رابطة الطلاب المسلمين والمجتمع",
       den: "Tools for Muslim Student Associations and local communities. The MSA tab is already open as a preview.",
       dar: "أدوات لروابط الطلاب المسلمين والمجتمعات المحلية. تبويب الرابطة متاح الآن كمعاينة." },

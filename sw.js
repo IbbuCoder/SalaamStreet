@@ -10,12 +10,12 @@
    caches named "ss-offline-…", which belong to the app and survive service
    worker updates. The PDF itself (files/) is fetched by the app, never cached
    here; pdf.js (js/vendor/pdfjs/) is cached on first use like supabase.js. */
-var VERSION = "ss-v13";
+var VERSION = "ss-v14";
 var KEEP = /^ss-offline/;
 var SHELL = [
   "./", "index.html", "css/styles.css",
-  "js/surahs.js", "js/duas.js", "js/extras.js", "js/content.js", "js/i18n.js", "js/core.js",
-  "js/offline.js", "js/views.js", "js/features.js", "js/offline-ui.js", "js/qibla.js", "js/config.js", "js/sync.js", "js/account.js", "js/app.js",
+  "js/surahs.js", "js/duas.js", "js/extras.js", "js/content.js", "js/i18n.js", "js/praytimes.js", "js/core.js",
+  "js/offline.js", "js/views.js", "js/features.js", "js/daily.js", "js/push.js", "js/offline-ui.js", "js/qibla.js", "js/config.js", "js/sync.js", "js/account.js", "js/app.js",
   "manifest.webmanifest", "manifest-dark.webmanifest", "icons/icon-192.png", "icons/apple-touch-icon.png", "icons/favicon-32.png",
   "icons/brand/logo-mark-128.png", "icons/brand/logo-mark-256.png",
 ];
@@ -70,10 +70,24 @@ self.addEventListener("fetch", function (e) {
   }
 });
 
+/* Reminders sent while SalaamStreet is closed (2.8; backend/functions/send-reminders). */
+self.addEventListener("push", function (e) {
+  var m = {};
+  try { m = e.data ? e.data.json() : {}; } catch (err) { m = { title: "SalaamStreet", body: e.data ? e.data.text() : "" }; }
+  var opts = {
+    body: m.body || "", tag: m.tag || "salaamstreet", icon: "icons/icon-192.png", badge: "icons/icon-192.png",
+    data: { url: m.url || "./#/home", prayed: m.prayed || null },
+  };
+  if (m.prayed) opts.actions = [{ action: "prayed", title: m.action || "I prayed" }];
+  e.waitUntil(self.registration.showNotification(m.title || "SalaamStreet", opts));
+});
+
 /* Prayer reminders: tapping a notification focuses (or opens) the app. */
 self.addEventListener("notificationclick", function (e) {
   e.notification.close();
-  var target = (e.notification.data && e.notification.data.url) || "./#/home";
+  var data = e.notification.data || {};
+  // "I prayed" ticks the prayer in the tracker (the app reads the link and marks it).
+  var target = (e.action === "prayed" && data.prayed) || data.url || "./#/home";
   e.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(function (list) {
       for (var i = 0; i < list.length; i++) {

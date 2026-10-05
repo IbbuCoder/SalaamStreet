@@ -82,7 +82,7 @@
   var SPECS = [
     // Settings: per field. Location and reminders are per device on purpose
     // (where you are, and notification permission, belong to each device).
-    { key: "settings", map: true, col: "pref", skip: { location: 1, reminders: 1 } },
+    { key: "settings", map: true, col: "pref", skip: { location: 1, reminders: 1, adhkarReminders: 1, goalTime: 1, iconBadge: 1, pushReminders: 1 } },
     { key: "quran:bookmarks", map: true, col: "bm" },
     { key: "duas:favorites", map: true, col: "fav" },
     { key: "prayers:log", map: true, col: "prayers" },
