@@ -21,6 +21,7 @@ Current version: **2.5.8 — SalaamStreet at a glance** (see `SS.VERSION` / `SS.
 - **Qur'an reader** — all 114 surahs in Uthmani script with Saheeh International translation, optional transliteration, adjustable Arabic text size, bookmarks, resume where you left off, copy an ayah
 - **Recitation** — 4 reciters, per-ayah or continuous playback, speed and repeat controls, lock-screen/media-key controls
 - **Tafsir** — Ibn Kathir (English) for any ayah, with previous/next ayah, in a bottom sheet on phones
+- **Offline Qur'an** — download the whole Qur'an once (Arabic, your translation and transliteration; more translations optional), plus recitation per surah or all of it, and Tafsir Ibn Kathir; resumable downloads with pause/cancel, stored only on your device. An optional Qur'an PDF (when the site provides one) can be saved to the device and read offline in the built-in viewer
 - **Hadith library** — 40 Hadith Nawawi & Qudsi in full, plus browse-by-number for Sahih al-Bukhari and Muslim, with Arabic, English, grading and reference
 - **Dua library** — authentic supplications with Arabic, transliteration, translation and a source on every dua; favourites and copy
 - **Dhikr counter** — big tap target (or Space bar on desktop), presets with sourced targets, undo, today's totals, daily streaks, haptic feedback
@@ -40,7 +41,7 @@ Current version: **2.5.8 — SalaamStreet at a glance** (see `SS.VERSION` / `SS.
 - **Learn to read Arabic** — the 28 letters and their shapes, the vowel marks, and a quick quiz
 - **Prayer-times widget for mosques** — a free embed builder at [`/widget/`](https://salaamstreet.com/widget/): pick a location, method and style, copy one line of code
 - **Search-friendly pages** — every surah, the dua library, the 99 Names, a Qibla direction page and prayer times (with the Qibla direction) for 60 major cities have their own indexable page, with structured data, breadcrumbs and a share card, plus `sitemap.xml`
-- **7 interface languages** — English and Arabic, plus draft Urdu, Bengali, Indonesian, Turkish and French (loaded only when chosen; pending native-speaker review) — with full right-to-left layout for Arabic and Urdu · **Light / dark / system theme** · **Installable** (add to home screen) · **Works offline** for anything you've already opened
+- **7 interface languages** — English and Arabic, plus draft Urdu, Bengali, Indonesian, Turkish and French (loaded only when chosen; pending native-speaker review) — with full right-to-left layout for Arabic and Urdu · **Light / dark / system theme** · **Installable** (add to home screen) · **Works offline** for anything you've already opened, and for the whole Qur'an once downloaded (Settings → Offline Qur'an)
 
 ## Principles
 
@@ -73,15 +74,19 @@ Safe-area insets (iPhone notch / home indicator), 16px form inputs (no iOS zoom)
 │   ├── i18n.js           English/Arabic strings, language loading, RTL switching
 │   ├── lang/             Draft interface languages (ur, bn, id, tr, fr), loaded on demand
 │   ├── core.js           Config, storage (+ sync hooks), API clients with caching, location flow, Qibla bearing
+│   ├── offline.js        Offline Qur'an: IndexedDB text/tafsir, cached audio + PDF, resumable downloads
 │   ├── views.js          One controller per view
 │   ├── features.js       Tracker, reminders, adhkar, Names, mosques, Arabic, plans, share cards
+│   ├── offline-ui.js     Offline Qur'an section in Settings, Qur'an page cards, PDF viewer
 │   ├── qibla.js          Qibla compass + camera mode, WMM2025 declination, orientation maths
 │   ├── config.js         Supabase URL + key for optional accounts (empty = guest-only)
 │   ├── sync.js           Cross-device sync engine
 │   ├── account.js        Sign-in, account linking, sync wiring, Account dashboard
 │   ├── vendor/supabase.js  supabase-js (MIT), loaded only when someone uses accounts
+│   ├── vendor/pdfjs/     Mozilla pdf.js (Apache-2.0), loaded only for the Qur'an PDF
 │   └── app.js            Router, theme, dialogs, audio player, boot
-├── sw.js                 Service worker (offline app shell)
+├── files/                The Qur'an PDF goes here (not included; see SS.QURAN_PDF in js/config.js)
+├── sw.js                 Service worker (offline app shell; keeps the ss-offline-* caches)
 ├── manifest.webmanifest  PWA manifest · icons/ app icons
 ├── 404.html · CNAME · .nojekyll   GitHub Pages
 ├── widget/               Prayer-times widget: builder (index.html) + iframe (embed.html)
@@ -122,7 +127,8 @@ npm run lint         # ESLint
 - `tests/sync.test.js` — sync engine across simulated devices (conflicts, offline, guest migration)
 - `tests/schema.test.js` — `backend/supabase-schema.sql` in a real Postgres (RLS, newest-wins, delete account)
 - `tests/qibla.test.js` — Qibla bearings vs published values, WMM2025 declination, orientation maths
-- `tests/e2e.test.js` — the app in Chromium: startup theme, Tafsir, Qibla compass/camera, guest mode, and every sign-in method driven through the real supabase-js client against a mock Supabase API
+- `tests/offline.test.js` — Offline Qur'an in Chromium with real IndexedDB/Cache API: storage, read-path fallback, resume after a dropped connection or closed tab, quota errors, PDF card hidden while the file is missing
+- `tests/e2e.test.js` — the app in Chromium: startup theme, Tafsir, Qibla compass/camera, guest mode, every sign-in method driven through the real supabase-js client against a mock Supabase API, and the Offline Qur'an (text, audio across surahs, the PDF viewer offline)
 
 ## Run locally
 
@@ -153,7 +159,7 @@ The repo is deployed from the `main` branch root:
 | Google Fonts | Figtree, IBM Plex Sans Arabic, Scheherazade New, Amiri |
 | [Supabase](https://supabase.com) (only when signed in) | Optional accounts and sync (needs your project URL + anon key) |
 
-Responses are cached in localStorage, so surahs you've read and today's prayer times keep working offline.
+Responses are cached in localStorage, so surahs you've read and today's prayer times keep working offline. For the whole Qur'an, Settings → Offline Qur'an downloads the text (and optionally recitation and tafsir) into IndexedDB and the Cache API on the device; nothing downloaded is ever synced to an account.
 
 ## Roadmap
 

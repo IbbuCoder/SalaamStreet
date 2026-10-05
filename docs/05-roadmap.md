@@ -44,12 +44,17 @@ laptops and large monitors. Core worship features are, and will stay, free.
 - **2.5.8 — SalaamStreet at a glance:** facts + FAQ page (with FAQ structured data), `/llms.txt` for AI
   assistants, AI crawlers welcomed in robots.txt, founders (Ibrahim, with his father Aquil) in the story
   and structured data
+- **2.6.0 — Qur'an+: Offline Qur'an:** download the whole Qur'an once (Arabic Uthmani, your translation,
+  transliteration) into on-device storage and read it with no internet; extra translations with sizes;
+  recitation per surah or all of it, played offline including continuous play; Tafsir Ibn Kathir;
+  resumable downloads (small parallel batches, retries, pause/cancel, carry on after a lost connection or
+  closed tab), storage used and per-item removal; a Qur'an PDF card with save-to-device and an in-app
+  offline viewer (pdf.js), shown once the PDF file is added. Downloads stay on the device, never synced
 
 ## Planned (no release dates; plans may change)
 
 The same list appears in the app under About → Updates (`SS.ROADMAP` in `js/content.js`).
 
-- **2.6.0 — Qur'an+:** deeper Qur'an study and reading tools
 - **2.7.0 — Hadith + Knowledge:** more hadith collections and learning content
 - **2.8.0 — Learn:** structured lessons beyond the Arabic alphabet
 - **2.9.0 — MSA + Community:** tools for Muslim Student Associations and local communities (the MSA tab is
