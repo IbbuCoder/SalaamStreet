@@ -1324,7 +1324,7 @@ html[data-theme="dark"] .acct-method.acct-apple{background:#fff;color:#000;borde
 
 /* ═══════════ Offline Qur'an (2.6.0) ═══════════ */
 .off-section > .off-pdf:empty{display:none}
-.off-card{display:grid;gap:12px}
+.off-card{display:grid;grid-template-columns:minmax(0,1fr);gap:12px}
 .off-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 .off-main{flex:1 1 14ch;min-inline-size:0;display:grid;gap:2px}
 .off-main .tiny{color:var(--text-2);overflow-wrap:anywhere}
