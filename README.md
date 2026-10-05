@@ -85,7 +85,7 @@ Safe-area insets (iPhone notch / home indicator), 16px form inputs (no iOS zoom)
 │   ├── vendor/supabase.js  supabase-js (MIT), loaded only when someone uses accounts
 │   ├── vendor/pdfjs/     Mozilla pdf.js (Apache-2.0), loaded only for the Qur'an PDF
 │   └── app.js            Router, theme, dialogs, audio player, boot
-├── files/                The Qur'an PDF goes here (not included; see SS.QURAN_PDF in js/config.js)
+├── files/                The Qur'an PDF (see SS.QURAN_PDF in js/config.js)
 ├── sw.js                 Service worker (offline app shell; keeps the ss-offline-* caches)
 ├── manifest.webmanifest  PWA manifest · icons/ app icons
 ├── 404.html · CNAME · .nojekyll   GitHub Pages

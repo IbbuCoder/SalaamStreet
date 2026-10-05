@@ -14,16 +14,17 @@ const { routeQuranApis, testPdf } = require("./helpers/offline-fixtures");
 
 const ROOT = path.resolve(__dirname, "..");
 const VERSION = require("../package.json").version;
-const TYPES = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css", ".png": "image/png", ".json": "application/json", ".webmanifest": "application/manifest+json", ".svg": "image/svg+xml", ".pdf": "application/pdf" };
+const TYPES = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css", ".png": "image/png", ".json": "application/json", ".webmanifest": "application/manifest+json", ".svg": "image/svg+xml", ".pdf": "application/pdf", ".wasm": "application/wasm" };
 const PDF_PATH = "/files/quran-english-sher-ali.pdf";
 let server, base, browser;
-const site = { pdf: null }; // a test PDF served at the real path, for one test at a time
+const site = { pdf: null }; // a test PDF served at the real path, for one test at a time; null = the file is missing
 
 function serve() {
   return new Promise((resolve) => {
     server = http.createServer((req, res) => {
       let p = decodeURIComponent(new URL(req.url, "http://x").pathname);
-      if (p === PDF_PATH && site.pdf) {
+      if (p === PDF_PATH && !site.pdf) { res.writeHead(404, { "content-type": "text/plain" }); return res.end("nf"); }
+      if (p === PDF_PATH) {
         res.writeHead(200, { "content-type": "application/pdf", "content-length": site.pdf.length, "cache-control": "no-store" });
         return res.end(req.method === "HEAD" ? undefined : site.pdf);
       }

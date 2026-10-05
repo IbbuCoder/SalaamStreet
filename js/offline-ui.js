@@ -497,7 +497,7 @@
       SS.openDialog(d);
       Promise.all([off().loadPdfjs(), off().pdf.blob().then(function (b) { return b.arrayBuffer(); })]).then(function (r) {
         if (my !== gen) return null;
-        task = r[0].getDocument({ data: new Uint8Array(r[1]), isEvalSupported: false });
+        task = r[0].getDocument({ data: new Uint8Array(r[1]), isEvalSupported: false, wasmUrl: off().pdfjsWasmUrl() });
         return task.promise;
       }).then(function (pdfDoc) {
         if (!pdfDoc || my !== gen) return;

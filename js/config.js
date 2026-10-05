@@ -37,6 +37,6 @@
     translator: "Maulawi Sher Ali",
     source: "alislam.org",
     sourceUrl: "https://www.alislam.org/quran/",
-    bytes: 0,
+    bytes: 18597296,
   };
 })();

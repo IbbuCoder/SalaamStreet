@@ -2,7 +2,8 @@
 
 Downloadable files offered in the app.
 
-- `quran-english-sher-ali.pdf` — **not included yet** (awaiting the publisher's
-  written permission). When it arrives, add the PDF here with exactly this name
-  and set its size in bytes in `SS.QURAN_PDF_INFO.bytes` (`js/config.js`).
-  Until the file is here, the Qur'an PDF card stays hidden everywhere.
+- `quran-english-sher-ali.pdf`: *The Holy Qur'ān*, English translation by
+  Maulawi Sher Ali (source: alislam.org), 1,028 pages, 18,597,296 bytes.
+  Shown as the Qur'an PDF card in Settings → Offline Qur'an and on the
+  Qur'an page. If you replace it, keep this exact name and update
+  `SS.QURAN_PDF_INFO.bytes` in `js/config.js`.

@@ -26,6 +26,17 @@ test("version is the same in package.json, the app and the newest release notes"
   for (const item of SS.CHANGELOG[0].items) assert.ok(item.en && item.ar, "every note has English and Arabic: " + JSON.stringify(item));
 });
 
+test("the Qur'an PDF the app offers is in files/ with the size the card shows", () => {
+  const box = { console };
+  box.window = box;
+  vm.createContext(box);
+  vm.runInContext(read("js/config.js"), box);
+  const file = path.join(ROOT, box.SS.QURAN_PDF);
+  assert.ok(fs.existsSync(file), "missing: " + box.SS.QURAN_PDF);
+  assert.equal(fs.statSync(file).size, box.SS.QURAN_PDF_INFO.bytes, "SS.QURAN_PDF_INFO.bytes matches the file");
+  assert.equal(fs.readFileSync(file).subarray(0, 5).toString(), "%PDF-");
+});
+
 test("light and dark manifests differ only in colour, and match the page backgrounds", () => {
   const light = JSON.parse(read("manifest.webmanifest"));
   const dark = JSON.parse(read("manifest-dark.webmanifest"));

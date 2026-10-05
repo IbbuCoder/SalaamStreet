@@ -23,7 +23,10 @@
   var AUDIO_CACHE = "ss-offline-audio", PDF_CACHE = "ss-offline-pdf";
   var BASE_EDITIONS = ["quran-uthmani", "en.transliteration"];
   var AUDIO_KEY = "https://salaamstreet.offline/audio/"; // cache keys only; never fetched
-  var PDFJS_FILES = ["js/vendor/pdfjs/boot.mjs", "js/vendor/pdfjs/pdf.min.mjs", "js/vendor/pdfjs/pdf.worker.min.mjs"];
+  var PDFJS_FILES = ["js/vendor/pdfjs/boot.mjs", "js/vendor/pdfjs/pdf.min.mjs", "js/vendor/pdfjs/pdf.worker.min.mjs",
+    // Image decoders for scanned pages (JBIG2, JPEG 2000) and colour profiles.
+    "js/vendor/pdfjs/wasm/jbig2.wasm", "js/vendor/pdfjs/wasm/openjpeg.wasm", "js/vendor/pdfjs/wasm/qcms_bg.wasm"];
+  var PDFJS_WASM = "js/vendor/pdfjs/wasm/";
   var MB = 1048576;
   var cfg = { parallel: 4, tries: 3, retryDelay: 800, timeout: 30000 };
 
@@ -1004,6 +1007,8 @@
 
     pdf: pdf,
     loadPdfjs: loadPdfjs,
+    /** Folder of pdf.js's WebAssembly image decoders (absolute URL). */
+    pdfjsWasmUrl: function () { return new URL(PDFJS_WASM, location.href).href; },
     /** Human message key for a job's stop reason. */
     reasonKey: function (reason) {
       return { quota: "off.errQuota", offline: "off.errOffline", storage: "off.errStorage", failed: "off.errFailed" }[reason] || "";

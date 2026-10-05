@@ -15,7 +15,7 @@ const { routeQuranApis, testPdf } = require("./helpers/offline-fixtures");
 const ROOT = path.resolve(__dirname, "..");
 const VERSION = require("../package.json").version;
 const SHOTS = process.env.SS_SHOTS || "";
-const TYPES = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".pdf": "application/pdf", ".css": "text/css", ".png": "image/png", ".json": "application/json", ".webmanifest": "application/manifest+json", ".svg": "image/svg+xml" };
+const TYPES = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".pdf": "application/pdf", ".wasm": "application/wasm", ".css": "text/css", ".png": "image/png", ".json": "application/json", ".webmanifest": "application/manifest+json", ".svg": "image/svg+xml" };
 let server, base, browser;
 const site = { pdf: null, down: false };
 
