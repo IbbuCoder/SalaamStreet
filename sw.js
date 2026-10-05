@@ -5,12 +5,17 @@
    cached by the app itself in localStorage, so they are not handled here.
    The account client (js/vendor/supabase.js) is cached the first time
    someone signs in, so guests never download it; Supabase API calls are
-   never cached. */
-var VERSION = "ss-v11";
+   never cached.
+   Offline Qur'an (js/offline.js): downloaded audio and the Qur'an PDF live in
+   caches named "ss-offline-…", which belong to the app and survive service
+   worker updates. The PDF itself (files/) is fetched by the app, never cached
+   here; pdf.js (js/vendor/pdfjs/) is cached on first use like supabase.js. */
+var VERSION = "ss-v12";
+var KEEP = /^ss-offline/;
 var SHELL = [
   "./", "index.html", "css/styles.css",
   "js/surahs.js", "js/duas.js", "js/extras.js", "js/content.js", "js/i18n.js", "js/core.js",
-  "js/views.js", "js/features.js", "js/qibla.js", "js/config.js", "js/sync.js", "js/account.js", "js/app.js",
+  "js/offline.js", "js/views.js", "js/features.js", "js/offline-ui.js", "js/qibla.js", "js/config.js", "js/sync.js", "js/account.js", "js/app.js",
   "manifest.webmanifest", "manifest-dark.webmanifest", "icons/icon-192.png", "icons/apple-touch-icon.png", "icons/favicon-32.png",
   "icons/brand/logo-mark-128.png", "icons/brand/logo-mark-256.png",
 ];
@@ -22,7 +27,7 @@ self.addEventListener("install", function (e) {
 self.addEventListener("activate", function (e) {
   e.waitUntil(
     caches.keys().then(function (keys) {
-      return Promise.all(keys.filter(function (k) { return k !== VERSION; }).map(function (k) { return caches.delete(k); }));
+      return Promise.all(keys.filter(function (k) { return k !== VERSION && !KEEP.test(k); }).map(function (k) { return caches.delete(k); }));
     }).then(function () { return self.clients.claim(); })
   );
 });
@@ -33,6 +38,7 @@ self.addEventListener("fetch", function (e) {
   var url = new URL(req.url);
 
   if (url.origin === self.location.origin) {
+    if (/\/files\//.test(url.pathname)) return; // the Qur'an PDF: stored by the app only if someone downloads it
     e.respondWith(
       fetch(req).then(function (res) {
         if (res && res.ok) {

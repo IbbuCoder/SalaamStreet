@@ -24,4 +24,19 @@
     // back here once each is set up (backend/README-backend.md).
     signInMethods: ["google", "email"],
   };
+
+  /* Qur'an PDF (Offline Qur'an, 2.6.0). People can download this file, save it
+     to their device and read it offline in SalaamStreet's own viewer. The file
+     goes in files/ with exactly this name. While SS.QURAN_PDF is empty, or the
+     file isn't there, the PDF card is hidden everywhere.
+     bytes: the file's exact size, shown before downloading. Set it when the
+     file is added; until then the size the server reports is shown. */
+  SS.QURAN_PDF = "files/quran-english-sher-ali.pdf";
+  SS.QURAN_PDF_INFO = {
+    title: "The Holy Qur'ān",
+    translator: "Maulawi Sher Ali",
+    source: "alislam.org",
+    sourceUrl: "https://www.alislam.org/quran/",
+    bytes: 18597296,
+  };
 })();

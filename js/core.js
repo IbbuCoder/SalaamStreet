@@ -283,23 +283,33 @@
           return { lat: +m.latitude.toFixed(2), lng: +m.longitude.toFixed(2), label: city };
         });
     },
-    /** Full surah: Arabic + chosen translation + transliteration (cached 30 days). */
+    /** Full surah: Arabic + chosen translation + transliteration. The offline
+        Qur'an (js/offline.js) is used first when downloaded; otherwise the API,
+        cached 30 days. */
     surahText: function (n) {
       var tr = SS.translation().id;
       var url = SS.ALQURAN + "/surah/" + n + "/editions/quran-uthmani," + tr + ",en.transliteration";
-      return cachedFetch("surah:" + n + (tr === "en.sahih" ? "" : ":" + tr), url, 30 * DAY).then(function (r) {
-        var d = r.data.data;
-        return { arabic: d[0].ayahs, translation: d[1].ayahs, transliteration: d[2].ayahs };
-      });
+      function online() {
+        return cachedFetch("surah:" + n + (tr === "en.sahih" ? "" : ":" + tr), url, 30 * DAY).then(function (r) {
+          var d = r.data.data;
+          return { arabic: d[0].ayahs, translation: d[1].ayahs, transliteration: d[2].ayahs };
+        });
+      }
+      if (!SS.offline) return online();
+      return SS.offline.surah(n, tr).then(function (r) { return r || online(); });
     },
-    /** Single ayah by global number (daily ayah). */
+    /** Single ayah by global number (daily ayah); offline Qur'an first when downloaded. */
     ayah: function (g) {
       var tr = SS.translation().id;
       var url = SS.ALQURAN + "/ayah/" + g + "/editions/quran-uthmani," + tr;
-      return cachedFetch("ayah:" + g + (tr === "en.sahih" ? "" : ":" + tr), url, 30 * DAY).then(function (r) {
-        var d = r.data.data;
-        return { arabic: d[0].text, translation: d[1].text, surah: d[0].surah, numberInSurah: d[0].numberInSurah };
-      });
+      function online() {
+        return cachedFetch("ayah:" + g + (tr === "en.sahih" ? "" : ":" + tr), url, 30 * DAY).then(function (r) {
+          var d = r.data.data;
+          return { arabic: d[0].text, translation: d[1].text, surah: d[0].surah, numberInSurah: d[0].numberInSurah };
+        });
+      }
+      if (!SS.offline) return online();
+      return SS.offline.ayah(g, tr).then(function (r) { return r || online(); });
     },
     /** Search the chosen translation for a word or phrase. No matches → []. */
     searchQuran: function (q) {
@@ -355,6 +365,13 @@
         so a wrong or stale response can never be shown for another verse. */
     tafsir: function (surah, ayah) {
       surah = +surah; ayah = +ayah;
+      if (SS.offline) {
+        return SS.offline.tafsir(surah, ayah).then(function (r) { return r || SS.api.tafsirOnline(surah, ayah); });
+      }
+      return SS.api.tafsirOnline(surah, ayah);
+    },
+    /** Tafsir from the network (with its own 30-day cache). */
+    tafsirOnline: function (surah, ayah) {
       var key = "tafsir2:" + surah + ":" + ayah;
       var cached = store.get("cache:" + key);
       if (cached && Date.now() - cached.at < 30 * DAY && cached.data && cached.data.text) {

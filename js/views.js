@@ -421,6 +421,7 @@
       '<span class="names"><span class="en">' + (SS.i18n.isAr() ? "" : '<span class="visually-hidden">' + s.n + ". </span>") + esc(surahName(s)) + "</span>" +
       '<span class="meta"><bdi>' + esc(SS.i18n.isAr() ? s.en : s.meaning) + "</bdi> · <bdi>" + s.ayahs + " " +
       esc(t("quran.verses")) + "</bdi> · <bdi>" + esc(type) + "</bdi></span></span>" +
+      (SS.offlineUI ? SS.offlineUI.mark(s.n) : "") +
       '<span class="arname" lang="ar" aria-hidden="true">' + esc(s.ar) + "</span></a>";
   }
 
@@ -1119,6 +1120,8 @@
       // Signed in: this device forgets the account too (the account itself
       // is only deleted from Account → Delete account).
       (signedIn ? SS.account.signOut(false).catch(function () {}) : Promise.resolve()).then(function () {
+        return SS.offline ? SS.offline.removeAll().catch(function () {}) : null; // downloads too (Offline Qur'an)
+      }).then(function () {
         SS.store.clearAll();
         SS.geo.clear();
         location.hash = "#/home";

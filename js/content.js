@@ -224,8 +224,23 @@
   ];
 
   /* ── Version & release notes (newest first) ──────────────────────── */
-  SS.VERSION = "2.5.8";
+  SS.VERSION = "2.6.0";
   SS.CHANGELOG = [
+    {
+      v: "2.6.0", date: "2026-10-05",
+      en: "Qur'an+: Offline Qur'an", ar: "القرآن+: القرآن دون اتصال",
+      den: "Download the Qur'an once and read, listen and study with no internet.",
+      dar: "نزّل القرآن مرة واحدة واقرأ واستمع وتدبّر دون إنترنت.",
+      items: [
+        { en: "New Offline Qur'an in Settings: download all 114 surahs (Arabic, your translation and transliteration) to read with no internet", ar: "جديد: القرآن دون اتصال في الإعدادات — نزّل السور الـ١١٤ (العربية وترجمتك والنقحرة) لتقرأ دون إنترنت" },
+        { en: "Add more translations for offline reading, each shown with its size", ar: "أضف ترجمات أخرى للقراءة دون اتصال، مع حجم كل منها" },
+        { en: "Download recitation for one surah or all of them, and listen offline — even continuous play into the next surah", ar: "نزّل التلاوة لسورة واحدة أو للسور كلها واستمع دون اتصال — حتى مع التشغيل المتواصل إلى السورة التالية" },
+        { en: "Download Tafsir Ibn Kathir for offline study", ar: "نزّل تفسير ابن كثير للدراسة دون اتصال" },
+        { en: "Downloads pause, resume and carry on by themselves after a lost connection or a closed tab, with progress, sizes and clear messages", ar: "التنزيلات تتوقف وتُستأنف وتكمل وحدها بعد انقطاع الاتصال أو إغلاق الصفحة، مع التقدّم والأحجام ورسائل واضحة" },
+        { en: "See the storage used and remove any download, or all of them; downloads stay on your device and are never synced", ar: "اعرف المساحة المستخدمة واحذف أي تنزيل أو كلها؛ تبقى التنزيلات على جهازك ولا تُزامَن أبدًا" },
+        { en: "Ready for a downloadable Qur'an PDF with a built-in offline viewer (shown once the file is available)", ar: "جاهز لملف قرآن PDF قابل للتنزيل مع عارض مدمج يعمل دون اتصال (يظهر عند توفّر الملف)" },
+      ],
+    },
     {
       v: "2.5.8", date: "2026-10-05",
       en: "SalaamStreet at a glance", ar: "سلام ستريت في لمحة",
@@ -386,9 +401,6 @@
   });
   /* What's planned — honest plans in order, never dates. Nothing here is released yet. */
   SS.ROADMAP = [
-    { v: "2.6.0", icon: "book", en: "Qur'an+", ar: "القرآن+",
-      den: "Deeper Qur'an study tools, building on the reader, recitation and memorize mode.",
-      dar: "أدوات أعمق لدراسة القرآن، مبنية على القارئ والتلاوة ووضع الحفظ." },
     { v: "2.7.0", icon: "scroll", en: "Hadith + Knowledge", ar: "الحديث والمعرفة",
       den: "More hadith and authentic Islamic knowledge — always clearly sourced.",
       dar: "مزيد من الأحاديث والمعرفة الإسلامية الموثوقة — مع ذكر المصدر دائمًا." },
