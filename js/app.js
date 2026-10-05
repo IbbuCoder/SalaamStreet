@@ -181,6 +181,13 @@
     // A reciter not hosted at the current bitrate 404s → try the next bitrate.
     audio.addEventListener("error", function () {
       if (!audio.src) return;
+      if (offlineSrc && audio.src === offlineSrc) { // stored file unreadable → stream it instead
+        URL.revokeObjectURL(offlineSrc); offlineSrc = "";
+        audio.src = audioSrc(curSurah, curAyah);
+        var p = audio.play();
+        if (p && p.catch) p.catch(function () { setPlayingUI(false); });
+        return;
+      }
       if (brIdx < SS.AUDIO_BITRATES.length - 1) { brIdx++; playCurrent(); }
       else {
         SS.toast(navigator.onLine === false ? SS.i18n.t("common.offline") : SS.i18n.t("quran.audioError"));
@@ -189,6 +196,7 @@
     });
     // Once a bitrate works, remember it for this reciter (skip probing next time).
     audio.addEventListener("canplay", function () {
+      if (offlineSrc && audio.src === offlineSrc) return;
       SS.store.set("audio:br:" + currentReciter(), brIdx);
     });
     if ("mediaSession" in navigator) {
@@ -202,11 +210,22 @@
     }
   }
 
+  var playToken = 0, offlineSrc = "";
   function playCurrent() {
-    audio.src = audioSrc(curSurah, curAyah);
-    audio.playbackRate = +($("ab-speed").value || 1);
-    var p = audio.play();
-    if (p && p.catch) p.catch(function () { setPlayingUI(false); /* blocked/interrupted; error handler covers 404s */ });
+    var token = ++playToken, s = curSurah, a = curAyah;
+    function go(src) {
+      if (token !== playToken) return; // a newer ayah was asked for meanwhile
+      if (offlineSrc && offlineSrc !== src) { URL.revokeObjectURL(offlineSrc); offlineSrc = ""; }
+      if (src.indexOf("blob:") === 0) offlineSrc = src;
+      audio.src = src;
+      audio.playbackRate = +($("ab-speed").value || 1);
+      var p = audio.play();
+      if (p && p.catch) p.catch(function () { setPlayingUI(false); /* blocked/interrupted; error handler covers 404s */ });
+    }
+    // Downloaded recitation (Offline Qur'an) plays from the device; everything else streams as before.
+    if (SS.offline && SS.offline.hasAudio(currentReciter(), s)) {
+      SS.offline.audioUrl(currentReciter(), s, a).then(function (u) { go(u || audioSrc(s, a)); }, function () { go(audioSrc(s, a)); });
+    } else go(audioSrc(s, a));
   }
 
   function step(delta) {
