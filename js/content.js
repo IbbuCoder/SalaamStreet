@@ -424,11 +424,14 @@
   });
   /* What's planned — honest plans in order, never dates. Nothing here is released yet. */
   SS.ROADMAP = [
+    { v: "2.8.0", icon: "phone", en: "The SalaamStreet App", ar: "تطبيق سلام ستريت",
+      den: "A better experience for everyone who has SalaamStreet installed on their phone, tablet or computer — not just on the website.",
+      dar: "تجربة أفضل لكل من ثبّت سلام ستريت على هاتفه أو جهازه اللوحي أو حاسوبه — لا على الموقع فقط." },
     { v: "2.9.0", icon: "mosque", en: "MSA + Community", ar: "رابطة الطلاب المسلمين والمجتمع",
       den: "Tools for Muslim Student Associations and local communities. The MSA tab is already open as a preview.",
       dar: "أدوات لروابط الطلاب المسلمين والمجتمعات المحلية. تبويب الرابطة متاح الآن كمعاينة." },
-    { v: "3.0.0", icon: "sparkle", en: "Major SalaamStreet Milestone", ar: "محطة كبرى لسلام ستريت",
-      den: "A major milestone for SalaamStreet. Plans may change as we learn from you.",
-      dar: "محطة كبرى في مسيرة سلام ستريت. قد تتغير الخطط بحسب ما نتعلمه منكم." },
+    { v: "3.0.0", icon: "users", en: "SalaamStreet Kids", ar: "سلام ستريت للأطفال",
+      den: "A safe, simple SalaamStreet for young children, with family accounts so parents can set it up and follow along.",
+      dar: "سلام ستريت آمن وبسيط للأطفال الصغار، مع حسابات عائلية ليُعدّه الوالدان ويتابعا تقدّم أطفالهما." },
   ];
 })();

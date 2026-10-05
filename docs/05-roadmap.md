@@ -59,9 +59,12 @@ laptops and large monitors. Core worship features are, and will stay, free.
 
 The same list appears in the app under About → Updates (`SS.ROADMAP` in `js/content.js`).
 
+- **2.8.0 — The SalaamStreet App:** a better experience for people who use SalaamStreet installed on their
+  phone, tablet or computer, not just on the website
 - **2.9.0 — MSA + Community:** tools for Muslim Student Associations and local communities (the MSA tab is
   already open as a preview)
-- **3.0.0 — Major SalaamStreet milestone**
+- **3.0.0 — SalaamStreet Kids:** a safe, simple SalaamStreet for young children, with family accounts so parents
+  can set it up and follow along
 
 Also open: push reminders that arrive while the site is closed, and native-speaker
 review of the draft Urdu, Bengali, Indonesian, Turkish and French translations.
