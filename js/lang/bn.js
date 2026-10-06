@@ -820,7 +820,7 @@ SS.i18n.register("bn", {
 "push.needLocation": "আগে আপনার অবস্থান নির্ধারণ করুন, যাতে রিমাইন্ডার সঠিক সময়ে আসে।",
 "nav.stories": "গল্প",
 "stories.title": "সালামস্ট্রিট গল্প",
-"stories.sub": "নবীদের গল্প, শুধু কুরআন ও সহিহ হাদিস থেকে — প্রতিটি অংশে সূত্রসহ।",
+"stories.sub": "কুরআন ও সহিহ হাদিসের সত্য গল্প — নবী, সাহাবি ও আরও — প্রতিটি অংশে সূত্রসহ।",
 "stories.new": "নতুন",
 "stories.prophets": "নবীগণ",
 "stories.progress": "{total}টির মধ্যে {n}টি পড়া",
@@ -838,5 +838,11 @@ SS.i18n.register("bn", {
 "stories.ayahOfDay": "আজকের আয়াত",
 "stories.nameOfDay": "আজকের নাম",
 "stories.duaOfDay": "আজকের দোয়া",
-"stories.hadithOfDay": "আজকের হাদিস"
+"stories.hadithOfDay": "আজকের হাদিস",
+"stories.group_prophets": "নবীগণ",
+"stories.group_quran": "কুরআনের গল্প",
+"stories.group_seerah": "নবী ﷺ ও তাঁর সাহাবিগণ",
+"stories.group_hadith": "নবী ﷺ বর্ণিত গল্প",
+"stories.play": "চালান",
+"stories.pause": "থামান"
 });

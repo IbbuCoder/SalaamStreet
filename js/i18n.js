@@ -764,7 +764,7 @@
       "push.needLocation": "Set your location first, so reminders arrive at the right times.",
       "nav.stories": "Stories",
       "stories.title": "SalaamStreet Stories",
-      "stories.sub": "Stories of the Prophets, told only from the Qur'an and authentic hadith — with the source on every part.",
+      "stories.sub": "True stories from the Qur'an and authentic hadith — the Prophets, the Companions and more — with the source on every part.",
       "stories.new": "New",
       "stories.prophets": "The Prophets",
       "stories.progress": "{n} of {total} read",
@@ -783,6 +783,12 @@
       "stories.nameOfDay": "Name of the day",
       "stories.duaOfDay": "Dua of the day",
       "stories.hadithOfDay": "Hadith of the day",
+      "stories.group_prophets": "The Prophets",
+      "stories.group_quran": "Stories from the Qur'an",
+      "stories.group_seerah": "The Prophet ﷺ and his Companions",
+      "stories.group_hadith": "Stories the Prophet ﷺ told",
+      "stories.play": "Play",
+      "stories.pause": "Pause",
     },
 
     ar: {
@@ -1543,7 +1549,7 @@
       "push.needLocation": "حدّد موقعك أولًا لتصلك التذكيرات في أوقاتها الصحيحة.",
       "nav.stories": "القصص",
       "stories.title": "قصص سلام ستريت",
-      "stories.sub": "قصص الأنبياء من القرآن والسنة الصحيحة فقط — مع المصدر في كل جزء.",
+      "stories.sub": "قصص حقيقية من القرآن والسنة الصحيحة — الأنبياء والصحابة وغيرهم — مع المصدر في كل جزء.",
       "stories.new": "جديد",
       "stories.prophets": "الأنبياء",
       "stories.progress": "قرأت {n} من {total}",
@@ -1562,6 +1568,12 @@
       "stories.nameOfDay": "اسم اليوم",
       "stories.duaOfDay": "دعاء اليوم",
       "stories.hadithOfDay": "حديث اليوم",
+      "stories.group_prophets": "الأنبياء",
+      "stories.group_quran": "قصص من القرآن",
+      "stories.group_seerah": "النبي ﷺ وأصحابه",
+      "stories.group_hadith": "قصص حدّث بها النبي ﷺ",
+      "stories.play": "تشغيل",
+      "stories.pause": "إيقاف مؤقت",
     },
   };
 

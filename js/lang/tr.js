@@ -820,7 +820,7 @@ SS.i18n.register("tr", {
 "push.needLocation": "Hatırlatmaların doğru vakitte gelmesi için önce konumunuzu ayarlayın.",
 "nav.stories": "Kıssalar",
 "stories.title": "SalaamStreet Kıssaları",
-"stories.sub": "Peygamberlerin kıssaları, yalnızca Kur'an'dan ve sahih hadislerden — her bölümde kaynağıyla.",
+"stories.sub": "Kur'an'dan ve sahih hadislerden gerçek kıssalar — peygamberler, sahabeler ve daha fazlası — her bölümde kaynağıyla.",
 "stories.new": "Yeni",
 "stories.prophets": "Peygamberler",
 "stories.progress": "{total} kıssadan {n} okundu",
@@ -838,5 +838,11 @@ SS.i18n.register("tr", {
 "stories.ayahOfDay": "Günün ayeti",
 "stories.nameOfDay": "Günün ismi",
 "stories.duaOfDay": "Günün duası",
-"stories.hadithOfDay": "Günün hadisi"
+"stories.hadithOfDay": "Günün hadisi",
+"stories.group_prophets": "Peygamberler",
+"stories.group_quran": "Kur'an'dan kıssalar",
+"stories.group_seerah": "Peygamber ﷺ ve sahabeleri",
+"stories.group_hadith": "Peygamber'in ﷺ anlattığı kıssalar",
+"stories.play": "Oynat",
+"stories.pause": "Duraklat"
 });

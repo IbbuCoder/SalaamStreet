@@ -820,7 +820,7 @@ SS.i18n.register("fr", {
 "push.needLocation": "Indiquez d'abord votre position pour que les rappels arrivent à la bonne heure.",
 "nav.stories": "Récits",
 "stories.title": "Récits SalaamStreet",
-"stories.sub": "Les récits des Prophètes, racontés uniquement d'après le Coran et les hadiths authentiques — avec la source à chaque étape.",
+"stories.sub": "Des récits vrais tirés du Coran et des hadiths authentiques — les Prophètes, les Compagnons et plus — avec la source à chaque étape.",
 "stories.new": "Nouveau",
 "stories.prophets": "Les Prophètes",
 "stories.progress": "{n} sur {total} lus",
@@ -838,5 +838,11 @@ SS.i18n.register("fr", {
 "stories.ayahOfDay": "Verset du jour",
 "stories.nameOfDay": "Nom du jour",
 "stories.duaOfDay": "Douâ du jour",
-"stories.hadithOfDay": "Hadith du jour"
+"stories.hadithOfDay": "Hadith du jour",
+"stories.group_prophets": "Les Prophètes",
+"stories.group_quran": "Récits du Coran",
+"stories.group_seerah": "Le Prophète ﷺ et ses Compagnons",
+"stories.group_hadith": "Récits racontés par le Prophète ﷺ",
+"stories.play": "Lecture",
+"stories.pause": "Pause"
 });

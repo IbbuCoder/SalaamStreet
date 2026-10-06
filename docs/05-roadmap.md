@@ -61,6 +61,9 @@ laptops and large monitors. Core worship features are, and will stay, free.
 - **2.9.0 — SalaamStreet Stories:** stories of Adam, Nuh, Ibrahim, Yusuf, Musa and Yunus as tap-through slides,
   told only from the Qur'an (verses loaded from the app's Qur'an source, with audio) and authentic hadith, each ending
   with its lesson; a daily "Today" story; story circles on Home; progress and share-as-image
+- **2.9.5 — More Stories, and a cleaner app:** 11 more stories (Qur'an: Maryam, the Cave, Luqman, the Garden, the
+  Elephant; seerah: Khadijah, the Hijrah, Bilal; hadith: the three in the cave, the thirsty dog, the man who repented)
+  in four groups; whole-story Play/Pause; Stories off Home; MSA preview tab removed; update bar only when outdated
 
 ## Planned (no release dates; plans may change)
 
@@ -68,8 +71,8 @@ The same list appears in the app under About → Updates (`SS.ROADMAP` in `js/co
 
 - **3.0.0 — SalaamStreet Kids:** a safe, simple SalaamStreet for young children, with family accounts so parents
   can set it up and follow along
-- **3.1.0 — MSA + Community:** tools for Muslim Student Associations and local communities (the MSA tab is
-  already open as a preview)
+- **3.1.0 — MSA + Community:** tools for Muslim Student Associations and local communities, starting with the
+  Neuqua Valley High School (NVHS) MSA (the 2.5.5 preview tab was removed in 2.9.5 until this ships)
 
 Also open: native-speaker
 review of the draft Urdu, Bengali, Indonesian, Turkish and French translations.

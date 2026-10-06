@@ -820,7 +820,7 @@ SS.i18n.register("ur", {
 "push.needLocation": "پہلے اپنا مقام مقرر کریں تاکہ یاد دہانیاں صحیح وقت پر آئیں۔",
 "nav.stories": "کہانیاں",
 "stories.title": "سلام اسٹریٹ کہانیاں",
-"stories.sub": "انبیاء کی کہانیاں، صرف قرآن اور صحیح احادیث سے — ہر حصے پر ماخذ کے ساتھ۔",
+"stories.sub": "قرآن اور صحیح احادیث سے سچی کہانیاں — انبیاء، صحابہ اور مزید — ہر حصے پر ماخذ کے ساتھ۔",
 "stories.new": "نیا",
 "stories.prophets": "انبیاء",
 "stories.progress": "{total} میں سے {n} پڑھی گئیں",
@@ -838,5 +838,11 @@ SS.i18n.register("ur", {
 "stories.ayahOfDay": "آج کی آیت",
 "stories.nameOfDay": "آج کا نام",
 "stories.duaOfDay": "آج کی دعا",
-"stories.hadithOfDay": "آج کی حدیث"
+"stories.hadithOfDay": "آج کی حدیث",
+"stories.group_prophets": "انبیاء",
+"stories.group_quran": "قرآن کی کہانیاں",
+"stories.group_seerah": "نبی ﷺ اور آپ کے صحابہ",
+"stories.group_hadith": "نبی ﷺ کی سنائی ہوئی کہانیاں",
+"stories.play": "چلائیں",
+"stories.pause": "روکیں"
 });
