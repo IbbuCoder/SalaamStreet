@@ -224,8 +224,27 @@
   ];
 
   /* ── Version & release notes (newest first) ──────────────────────── */
-  SS.VERSION = "2.9.0";
+  SS.VERSION = "2.9.5";
   SS.CHANGELOG = [
+    {
+      v: "2.9.5", date: "2026-10-06",
+      en: "More Stories, and a cleaner app", ar: "قصص أكثر وتطبيق أنظف",
+      den: "Eleven new stories beyond the Prophets, a clear Play/Pause to listen to a whole story, and a tidier, less cluttered app.",
+      dar: "إحدى عشرة قصة جديدة غير قصص الأنبياء، وزر تشغيل/إيقاف واضح للاستماع إلى القصة كاملة، وتطبيق أكثر ترتيبًا.",
+      groups: [
+        { en: "Stories", ar: "القصص", items: [
+          { en: "11 new stories — now 17 in four groups: the Prophets, Stories from the Qur'an, the Prophet ﷺ and his Companions, and Stories the Prophet ﷺ told", ar: "١١ قصة جديدة — صارت ١٧ في أربع مجموعات: الأنبياء، وقصص من القرآن، والنبي ﷺ وأصحابه، وقصص حدّث بها النبي ﷺ" },
+          { en: "New: Maryam, the People of the Cave, Luqman's advice, the Owners of the Garden, the Year of the Elephant, Khadijah, the Hijrah, Bilal, the Three Men in the Cave, Water for a Thirsty Dog, and the Man Who Never Gave Up on Repentance", ar: "جديد: مريم، وأصحاب الكهف، ووصية لقمان، وأصحاب الجنة، وعام الفيل، وخديجة، والهجرة، وبلال، والثلاثة في الغار، وسقيا الكلب، وقاتل المئة" },
+          { en: "A big, clear Play / Pause button: listen to a whole story — each ayah is recited and the story moves on by itself", ar: "زر تشغيل/إيقاف كبير وواضح: استمع إلى القصة كاملة — تُتلى كل آية وتنتقل القصة وحدها" },
+          { en: "Stories have moved off the Home screen — find them in the menu", ar: "نُقلت القصص من الشاشة الرئيسية — تجدها في القائمة" },
+        ] },
+        { en: "A cleaner app", ar: "تطبيق أنظف", items: [
+          { en: "Removed the MSA preview tab until MSA tools are ready (still planned for a future update)", ar: "أُزيل تبويب معاينة الرابطة حتى تجهز أدواتها (ما زالت مخطّطة لتحديث قادم)" },
+          { en: "The “new version is ready” bar only appears when there really is a newer version", ar: "شريط «إصدار جديد جاهز» لا يظهر إلا عند وجود إصدار أحدث فعلًا" },
+          { en: "Layout fixes on the Stories page and in the story viewer", ar: "إصلاحات في تخطيط صفحة القصص وعارضها" },
+        ] },
+      ],
+    },
     {
       v: "2.9.0", date: "2026-10-06",
       en: "SalaamStreet Stories", ar: "قصص سلام ستريت",
@@ -473,7 +492,7 @@
       den: "A safe, simple SalaamStreet for young children, with family accounts so parents can set it up and follow along.",
       dar: "سلام ستريت آمن وبسيط للأطفال الصغار، مع حسابات عائلية ليُعدّه الوالدان ويتابعا تقدّم أطفالهما." },
     { v: "3.1.0", icon: "mosque", en: "MSA + Community", ar: "رابطة الطلاب المسلمين والمجتمع",
-      den: "Tools for Muslim Student Associations and local communities. The MSA tab is already open as a preview.",
-      dar: "أدوات لروابط الطلاب المسلمين والمجتمعات المحلية. تبويب الرابطة متاح الآن كمعاينة." },
+      den: "Tools for Muslim Student Associations and local communities, starting with the Neuqua Valley High School (NVHS) MSA.",
+      dar: "أدوات لروابط الطلاب المسلمين والمجتمعات المحلية، بدءًا برابطة مدرسة Neuqua Valley الثانوية (NVHS)." },
   ];
 })();

@@ -698,16 +698,12 @@ test("ayah of the day: Listen plays just that ayah in the shared player", async 
   await context.close();
 });
 
-test("MSA tab: opening soon page, reachable from the navigation", async () => {
+test("MSA tab removed (2.9.5): not in the navigation, and old links land on Home", async () => {
   const { page, context } = await device();
-  await open(page, "#/home");
-  await page.click("#more-btn");
-  await page.click('#more-sheet a[href="#/msa"]');
-  await page.waitForSelector("#view-msa:not([hidden])");
-  assert.equal(await page.textContent("#msa-h"), "MSA");
-  assert.match(await page.textContent("#view-msa"), /Opening soon/);
-  assert.match(await page.textContent("#view-msa"), /Neuqua Valley High School \(NVHS\) MSA/);
-  assert.equal(await page.getAttribute('#more-btn', "class"), "active"); // More tab lights up
+  await open(page, "#/msa");
+  await page.waitForFunction(() => location.hash === "#/home");
+  assert.equal(await page.isVisible("#view-home"), true);
+  assert.equal(await page.locator('a[href="#/msa"]').count(), 0);
   assert.deepEqual(page.errors, []);
   await context.close();
 });
@@ -716,7 +712,7 @@ test("layout: no horizontal overflow on phone, tablet and desktop", async () => 
   const mock = createMock();
   for (const vp of [{ width: 320, height: 640 }, { width: 390, height: 844 }, { width: 820, height: 1180 }, { width: 1440, height: 900 }]) {
     const { page, context } = await device({ mock, context: { viewport: vp } });
-    for (const v of ["#/account", "#/qibla", "#/settings", "#/home", "#/msa"]) {
+    for (const v of ["#/account", "#/qibla", "#/settings", "#/home", "#/stories"]) {
       await open(page, v);
       const over = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
       assert.ok(over <= 0, `${v} overflows by ${over}px at ${vp.width}px`);
@@ -1014,12 +1010,16 @@ test("reminders when closed: hidden until the server is set up, then offered und
 });
 
 /* ═══════════ SalaamStreet Stories (2.9.0) ═══════════ */
-test("stories: Home row, library, tap-through viewer with Qur'an from the app's source, progress", async () => {
+test("stories: library in groups, tap-through viewer with Qur'an from the app's source, progress", async () => {
   const { page, context } = await device();
   await open(page, "#/home");
-  await page.waitForSelector("#story-row .st-bubble");
-  assert.ok(await page.locator("#story-row .st-bubble").count() >= 7, "Today + 6 prophets + All");
-  await page.click('#story-row a[href="#/stories/yunus"]');
+  assert.equal(await page.locator("#story-row").count(), 0, "not on Home (2.9.5)");
+  await page.click("#more-btn");
+  await page.click('#more-sheet a[href="#/stories"]');
+  await page.waitForSelector("#stl-list .st-card");
+  assert.equal(await page.locator("#stl-list .st-card").count(), 17);
+  assert.equal(await page.locator("#stl-list .group-label").count(), 4);
+  await page.click('#stl-list a[href="#/stories/yunus"]');
   await page.waitForSelector("#story-viewer:not([hidden])");
   assert.equal(await page.textContent("#sv-title"), "Yunus");
   assert.match(await page.textContent("#sv-count"), /1 of 9/);
@@ -1032,12 +1032,12 @@ test("stories: Home row, library, tap-through viewer with Qur'an from the app's 
   await page.waitForFunction(() => /3 of 9/.test(document.getElementById("sv-count").textContent));
   await page.locator("#sv-stage").click({ position: { x: 300, y: 300 } });
   await page.waitForFunction(() => location.hash === "#/stories/yunus/4");
-  assert.match(await page.textContent("#sv-stage"), /Qur'an 21:87/);
+  await page.waitForFunction(() => /Qur'an 21:87/.test(document.getElementById("sv-stage").textContent));
   await page.keyboard.press("ArrowLeft");
   await page.waitForFunction(() => /3 of 9/.test(document.getElementById("sv-count").textContent));
-  // Close returns to Home; progress is kept.
+  // Close returns to the library; progress is kept.
   await page.keyboard.press("Escape");
-  await page.waitForFunction(() => location.hash === "#/home");
+  await page.waitForFunction(() => location.hash === "#/stories");
   assert.equal(await page.isVisible("#story-viewer"), false);
   assert.equal(await page.evaluate(() => SS.store.get("stories:progress").yunus.at), 4);
   // Read to the end → marked as read in the library.
@@ -1046,12 +1046,41 @@ test("stories: Home row, library, tap-through viewer with Qur'an from the app's 
   await page.click("#sv-next");
   await page.waitForFunction(() => location.hash === "#/stories");
   await page.waitForSelector("#stl-progress");
-  assert.match(await page.textContent("#stl-progress"), /1 of 6 read/);
+  assert.match(await page.textContent("#stl-progress"), /1 of 17 read/);
   assert.match(await page.textContent('#stl-list a[href="#/stories/yunus"]'), /Read ✓/);
   // Today: the day's Name is always available, even offline.
   await open(page, "#/stories/today/2");
   await page.waitForSelector("#sv-stage .sv-arabic.big");
   assert.match(await page.textContent("#sv-stage .sv-kicker"), /Name of the day/);
+  assert.deepEqual(page.errors, []);
+  await context.close();
+});
+
+test("stories: Play recites each slide and moves on by itself; Pause stops", async () => {
+  const { page, context } = await device();
+  // Recitation: each ayah "plays" for a moment (a tiny silent WAV), so the story can move on.
+  const wav = Buffer.from("UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=", "base64");
+  await context.route(/cdn\.islamic\.network|everyayah|audio/, (route) => route.fulfill({ status: 200, contentType: "audio/wav", body: wav }));
+  await open(page, "#/stories/elephant");
+  await page.waitForSelector("#sv-stage .sv-quran");
+  assert.match(await page.textContent("#sv-play"), /Play/);
+  await page.click("#sv-play");
+  assert.equal(await page.getAttribute("#sv-play", "aria-pressed"), "true");
+  assert.match(await page.textContent("#sv-play"), /Pause/);
+  // Slide 1 (105:1) is recited, then the story moves to slide 2 on its own.
+  await page.waitForFunction(() => /2 of 5/.test(document.getElementById("sv-count").textContent), null, { timeout: 8000 });
+  assert.equal(await page.isVisible("#audio-bar"), false, "the audio bar stays out of the way");
+  await page.click("#sv-play");
+  assert.equal(await page.getAttribute("#sv-play", "aria-pressed"), "false");
+  const at = await page.textContent("#sv-count");
+  await page.waitForTimeout(2500);
+  assert.equal(await page.textContent("#sv-count"), at, "paused: stays on this slide");
+  // Space bar toggles too.
+  await page.locator("#story-viewer").focus();
+  await page.keyboard.press(" ");
+  assert.equal(await page.getAttribute("#sv-play", "aria-pressed"), "true");
+  await page.keyboard.press("Escape");
+  assert.equal(await page.evaluate(() => SS.storiesUI.isPlaying()), false, "closing stops playback");
   assert.deepEqual(page.errors, []);
   await context.close();
 });

@@ -398,7 +398,7 @@ const FAQ = [
   ["Is my data private?", FACTS.privacy],
   ["Which languages does SalaamStreet support?", FACTS.languages],
   ["Does SalaamStreet work offline?", "Yes. Anything you've opened once — including prayer times you've loaded — keeps working without a connection."],
-  ["What is SalaamStreet for MSAs?", "A new section for Muslim Student Associations, opening soon and starting with the Neuqua Valley High School (NVHS) MSA: Jummah times, announcements, events and a link to the MSA's Google Classroom."],
+  ["What is SalaamStreet for MSAs?", "Tools for Muslim Student Associations are planned for a future update, starting with the Neuqua Valley High School (NVHS) MSA: Jummah times, announcements, events and a link to the MSA's Google Classroom."],
 ];
 const latest = SS.CHANGELOG[0];
 write("facts", page({

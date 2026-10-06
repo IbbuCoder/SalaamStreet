@@ -1,10 +1,9 @@
 /* SalaamStreet — stories-ui.js (classic script)
-   2.9 SalaamStreet Stories: the #/stories library, the full-screen
-   tap-through viewer (#/stories/<id>[/<slide>]) and the row of story circles
-   on Home. Story content is in js/stories.js; Qur'an quotes are loaded from
+   2.9 SalaamStreet Stories: the #/stories library and the full-screen
+   tap-through viewer (#/stories/<id>[/<slide>]). Story content is in js/stories.js; Qur'an quotes are loaded from
    the app's Qur'an source (SS.api.surahText — offline when downloaded).
    "Today" is a story built each day from the Ayah, Name, Dua and Hadith of
-   the day. Progress stays on the device. */
+   the day. Progress stays on the device. (2.9.5: no longer on Home.) */
 (function () {
   "use strict";
   window.SS = window.SS || {};
@@ -17,11 +16,6 @@
   function isAr() { return SS.i18n.isAr(); }
   function L(o) { return o ? (isAr() && o.ar ? o.ar : o.en) : ""; }
   function dayOfYear() { var n = new Date(), s = new Date(n.getFullYear(), 0, 0); return Math.floor((n - s) / DAY); }
-  function onHook(name, fn) {
-    SS.hooks = SS.hooks || {};
-    var prev = SS.hooks[name];
-    SS.hooks[name] = function () { if (prev) prev.apply(null, arguments); fn.apply(null, arguments); };
-  }
 
   /* ── Progress (on this device) ── */
   function progress() { return SS.store.get("stories:progress", {}) || {}; }
@@ -85,14 +79,18 @@
   }
 
   /* ═══════════ Library (#/stories) ═══════════ */
+  var GROUPS = ["prophets", "quran", "seerah", "hadith"];
   function storiesInit(params) {
     var total = SS.STORIES.length, read = 0;
     for (var i = 0; i < total; i++) if (isDone(SS.STORIES[i].id)) read++;
     $("stl-progress").textContent = f("stories.progress", { n: read, total: total });
-    var html = cardHtml(todayStory(), true);
-    $("stl-today").innerHTML = html;
-    html = "";
-    SS.STORIES.forEach(function (s) { html += cardHtml(s); });
+    $("stl-today").innerHTML = cardHtml(todayStory(), true);
+    var html = "";
+    GROUPS.forEach(function (g) {
+      var items = SS.STORIES.filter(function (s) { return (s.group || "prophets") === g; });
+      if (!items.length) return;
+      html += '<h2 class="group-label">' + esc(t("stories.group_" + g)) + '</h2><div class="stack">' + items.map(function (s) { return cardHtml(s); }).join("") + "</div>";
+    });
     $("stl-list").innerHTML = html;
     if (params && params[0]) open(params[0], +params[1] || 1, "#/stories");
     else if (viewerOpen) close(true);
@@ -106,33 +104,13 @@
       '<svg class="ic chev flip" aria-hidden="true"><use href="#i-chev-r"/></svg></a>';
   }
 
-  /* ═══════════ Home row ═══════════ */
-  function homeRow() {
-    var el = $("story-row");
-    if (!el || !SS.STORIES) return;
-    var list = [todayStory()].concat(SS.STORIES);
-    // Unread first (after Today), so there's always something new at the start.
-    var rest = list.slice(1);
-    rest.sort(function (a, b) { return (isDone(a.id) ? 1 : 0) - (isDone(b.id) ? 1 : 0); });
-    list = [list[0]].concat(rest);
-    el.innerHTML = list.map(function (s) {
-      return '<a class="st-bubble" href="#/stories/' + s.id + '" data-from="home">' + coverHtml(s) +
-        '<span class="st-bubble-name">' + esc(L(s)) + "</span></a>";
-    }).join("") + '<a class="st-bubble st-all" href="#/stories">' + '<span class="st-cover st-more" aria-hidden="true">' + icon("grid") + '</span><span class="st-bubble-name">' + esc(t("stories.all")) + "</span></a>";
-    el.onclick = function (e) {
-      var a = e.target.closest("a[data-from]");
-      if (a) returnTo = "#/home";
-    };
-  }
-  onHook("homeInit", homeRow);
-
   /* ═══════════ Viewer ═══════════ */
   var cur = null, idx = 0, viewerOpen = false, returnTo = "#/stories", gen = 0, lastFocus = null;
 
   function open(id, n, from) {
     var s = story(id);
     if (!s) { location.hash = "#/stories"; return; }
-    if (!viewerOpen) { lastFocus = document.activeElement; if (from && returnTo !== "#/home") returnTo = from; }
+    if (!viewerOpen) { lastFocus = document.activeElement; returnTo = from || "#/stories"; }
     cur = s;
     viewerOpen = true;
     var v = $("story-viewer");
@@ -147,6 +125,7 @@
   }
   function close(silent) {
     if (!viewerOpen) return;
+    setPlaying(false);
     viewerOpen = false;
     gen++;
     $("story-viewer").hidden = true;
@@ -169,15 +148,13 @@
     var stage = $("sv-stage");
     stage.setAttribute("aria-busy", "true");
     stage.innerHTML = '<div class="sv-slide sv-loading"><span class="sk-text" style="inline-size:70%"></span><span class="sk-text" style="inline-size:85%"></span></div>';
-    $("sv-listen").hidden = true;
+    clearTimeout(autoTimer);
+    if (playing && SS.audio && SS.audio.stop) SS.audio.stop(); // the next slide starts its own recitation
     render(slide).then(function (html) {
       if (my !== gen) return;
       stage.innerHTML = html;
       stage.removeAttribute("aria-busy");
-      var slideEl = stage.firstChild;
-      var play = slideEl && slideEl.getAttribute("data-play");
-      $("sv-listen").hidden = !play;
-      if (play) $("sv-listen").setAttribute("data-play", play);
+      if (playing) playSlide(my);
     });
     if (s.id === "today") { if (i === s.slides.length - 1) SS.store.set("stories:today", SS.localDate()); }
     else seen(s.id, i + 1, s.slides.length);
@@ -198,7 +175,7 @@
         return '<div class="sv-slide"><p class="sv-kicker">' + esc(t(slide.label)) + '</p><p class="sv-text">' + esc(t(navigator.onLine === false ? "common.offline" : "common.error")) + "</p></div>";
       });
     }
-    var head = '<div class="sv-slide' + (slide.lesson ? " sv-lesson" : "") + '"' + (slide.q ? ' data-play="' + slide.q[0] + ":" + slide.q[1] + '"' : "") + ">" +
+    var head = '<div class="sv-slide' + (slide.lesson ? " sv-lesson" : "") + '"' + (slide.q ? ' data-play="' + slide.q[0] + ":" + slide.q[1] + ":" + (slide.q[2] || slide.q[1]) + '"' : "") + ">" +
       (slide.lesson ? '<p class="sv-kicker">' + icon("sparkle") + "<span>" + esc(t("stories.lesson")) + "</span></p>" : "") +
       '<p class="sv-text">' + esc(L(slide.t)) + "</p>";
     if (!slide.q) return Promise.resolve(head + (slide.src ? '<p class="sv-src">' + esc(slide.src) + "</p>" : "") + "</div>");
@@ -221,6 +198,51 @@
   }
 
   function next() { if (idx < cur.slides.length - 1) show(idx + 1); else close(); }
+
+  /* ── Play / Pause: listen to the whole story ──────────────────────
+     Play recites each slide's ayah(s) in the chosen reciter, then moves on
+     by itself; slides without a recitation stay up long enough to read.
+     It stops at the end of the story. Pause stops wherever you are. */
+  var playing = false, autoTimer = null;
+  function setPlaying(on) {
+    playing = on;
+    clearTimeout(autoTimer);
+    var b = $("sv-play");
+    if (b) {
+      b.classList.toggle("on", on);
+      b.setAttribute("aria-pressed", String(on));
+      b.querySelector("use").setAttribute("href", on ? "#i-pause" : "#i-play");
+      b.querySelector("span").textContent = t(on ? "stories.pause" : "stories.play");
+    }
+    if (!on && SS.audio && SS.audio.stop) SS.audio.stop();
+  }
+  function readMs(el) {
+    var n = (el && el.textContent || "").length;
+    return Math.max(4000, Math.min(12000, 2500 + n * 45));
+  }
+  function advance(my) {
+    if (!playing || my !== gen) return;
+    if (idx < cur.slides.length - 1) show(idx + 1);
+    else setPlaying(false); // the end of the story: stay on the lesson
+  }
+  function playSlide(my) {
+    var el = $("sv-stage").firstChild;
+    var play = el && el.getAttribute("data-play");
+    if (play && SS.audio) {
+      var p = play.split(":").map(Number);
+      SS.audio.start(p[0], p[1], SS.SURAHS[p[0] - 1], false, {
+        quiet: true, until: p[2] || p[1],
+        onEnd: function (ok) { if (my === gen) autoTimer = setTimeout(function () { advance(my); }, ok ? 900 : readMs(el)); },
+      });
+    } else {
+      autoTimer = setTimeout(function () { advance(my); }, readMs(el));
+    }
+  }
+  function togglePlay() {
+    if (playing) { setPlaying(false); return; }
+    setPlaying(true);
+    if (!$("sv-stage").getAttribute("aria-busy")) playSlide(gen);
+  }
   function prev() { if (idx > 0) show(idx - 1); }
 
   function share() {
@@ -241,10 +263,7 @@
     $("sv-next").onclick = next;
     $("sv-prev").onclick = prev;
     $("sv-share").onclick = share;
-    $("sv-listen").onclick = function () {
-      var p = (this.getAttribute("data-play") || "").split(":").map(Number);
-      if (p[0] && SS.audio) SS.audio.start(p[0], p[1], SS.SURAHS[p[0] - 1], false, { single: true });
-    };
+    $("sv-play").onclick = togglePlay;
     // Tap the left/right side of the slide (mirrored in right-to-left languages).
     $("sv-stage").addEventListener("click", function (e) {
       if (e.target.closest("a, button")) return;
@@ -268,6 +287,7 @@
       if (!viewerOpen) return;
       var rtl = document.documentElement.dir === "rtl";
       if (e.key === "Escape") { e.preventDefault(); close(); }
+      else if (e.key === " " && !e.target.closest("button, a")) { e.preventDefault(); togglePlay(); }
       else if (e.key === (rtl ? "ArrowLeft" : "ArrowRight")) { e.preventDefault(); next(); }
       else if (e.key === (rtl ? "ArrowRight" : "ArrowLeft")) { e.preventDefault(); prev(); }
       else if (e.key === "Tab") {
@@ -284,7 +304,7 @@
     });
   }
 
-  SS.storiesUI = { open: open, close: close, isOpen: function () { return viewerOpen; } };
+  SS.storiesUI = { open: open, close: close, isOpen: function () { return viewerOpen; }, isPlaying: function () { return playing; } };
   SS.views = SS.views || {};
   SS.views.stories = storiesInit;
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", wire);

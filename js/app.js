@@ -169,6 +169,12 @@
       $("ab-progress").style.inlineSize = pct + "%";
     });
     audio.addEventListener("ended", function () {
+      if (onEnd) {
+        if (playUntil && curAyah < playUntil) return SS.audio.start(curSurah, curAyah + 1, curMeta, true);
+        var done = onEnd; onEnd = null;
+        setPlayingUI(false); clearHighlight();
+        return done(true);
+      }
       if (repeatLeft > 1) { repeatLeft--; return SS.audio.start(curSurah, curAyah, curMeta, true); }
       if (singleAyah) { setPlayingUI(false); clearHighlight(); return; }
       if (curMeta && curAyah < curMeta.ayahs) SS.audio.start(curSurah, curAyah + 1, curMeta);
@@ -192,6 +198,7 @@
       else {
         SS.toast(navigator.onLine === false ? SS.i18n.t("common.offline") : SS.i18n.t("quran.audioError"));
         setPlayingUI(false);
+        if (onEnd) { var failed = onEnd; onEnd = null; failed(false); }
       }
     });
     // Once a bitrate works, remember it for this reciter (skip probing next time).
@@ -210,7 +217,7 @@
     }
   }
 
-  var playToken = 0, offlineSrc = "";
+  var playToken = 0, offlineSrc = "", playUntil = 0, onEnd = null, quiet = false;
   function playCurrent() {
     var token = ++playToken, s = curSurah, a = curAyah;
     function go(src) {
@@ -244,12 +251,18 @@
     /** Play an ayah. opts.single: stop after it instead of carrying on. */
     start: function (surah, ayah, meta, isRepeat, opts) {
       ensureAudio();
-      if (!isRepeat) { repeatLeft = REPEATS[repeatIdx]; singleAyah = !!(opts && opts.single); }
+      if (!isRepeat) {
+        repeatLeft = REPEATS[repeatIdx]; singleAyah = !!(opts && opts.single);
+        // Stories (2.9.5): play ayah…until, then call onEnd; quiet keeps the audio bar hidden.
+        playUntil = (opts && opts.until) || 0; onEnd = (opts && opts.onEnd) || null; quiet = !!(opts && opts.quiet);
+      }
       curSurah = surah; curAyah = ayah; curMeta = meta;
       brIdx = SS.store.get("audio:br:" + currentReciter(), 0) || 0;
       playCurrent();
-      $("audio-bar").hidden = false;
-      document.body.classList.add("has-audio");
+      if (!quiet) {
+        $("audio-bar").hidden = false;
+        document.body.classList.add("has-audio");
+      }
       $("ab-now").textContent = nowLabel();
       $("ab-now").setAttribute("href", "#/surah/" + surah + "/" + ayah);
       $("ab-prev").disabled = ayah <= 1;
@@ -275,6 +288,8 @@
       return { loaded: loaded, playing: loaded && !audio.paused };
     },
     pause: function () { if (audio && !audio.paused) audio.pause(); },
+    /** Stop and forget any onEnd callback (e.g. leaving a story). */
+    stop: function () { onEnd = null; if (audio && !audio.paused) audio.pause(); },
     toggle: function () {
       if (!audio) return;
       if (audio.paused) { var p = audio.play(); if (p && p.catch) p.catch(function () {}); }
@@ -335,16 +350,16 @@
 
   /* ── Router ─────────────────────────────────────────────────── */
   var VIEWS = ["home", "prayer", "qibla", "quran", "surah", "hadith", "duas", "dhikr", "calendar", "settings",
-    "adhkar", "names", "mosques", "learn", "about", "account", "msa", "stories"];
+    "adhkar", "names", "mosques", "learn", "about", "account", "stories"];
   // Which nav item to highlight for views that aren't themselves nav items.
   var NAV_ALIAS = { surah: "quran" };
   // Destinations that live in the phone "More" sheet light up the More tab.
-  var IN_MORE = { hadith: 1, duas: 1, dhikr: 1, calendar: 1, settings: 1, adhkar: 1, names: 1, mosques: 1, learn: 1, about: 1, account: 1, msa: 1, stories: 1 };
+  var IN_MORE = { hadith: 1, duas: 1, dhikr: 1, calendar: 1, settings: 1, adhkar: 1, names: 1, mosques: 1, learn: 1, about: 1, account: 1, stories: 1 };
   var TITLE_KEY = {
     home: "nav.dashboard", prayer: "prayer.title", qibla: "qibla.title", quran: "quran.title", surah: "quran.title",
     hadith: "hadith.title", duas: "duas.title", dhikr: "dhikr.title", calendar: "cal.title", settings: "settings.title",
     adhkar: "adhkar.title", names: "names.title", mosques: "mosques.title", learn: "learn.title", about: "about.title",
-    account: "account.title", msa: "msa.title", stories: "stories.title",
+    account: "account.title", stories: "stories.title",
   };
   var currentView = "", currentHash = "";
   var HOME_TITLE = document.title;
@@ -354,6 +369,8 @@
     var h = (location.hash || "#/home").replace(/^#\/?/, "");
     var parts = h.split("/");
     var view = parts.shift() || "home";
+    // The MSA preview tab was removed in 2.9.5; old links land on Home.
+    if (view === "msa") { try { history.replaceState(null, "", "#/home"); } catch (e) { /* file:// */ } view = "home"; parts = []; }
     if (VIEWS.indexOf(view) === -1) view = "home";
     return { view: view, params: parts };
   }

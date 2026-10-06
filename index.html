@@ -246,8 +246,6 @@
       <a class="navlink" href="#/duas" data-nav="duas"><svg class="ic" aria-hidden="true"><use href="#i-heart"/></svg><span data-i18n="nav.duas">Duas</span></a>
       <a class="navlink" href="#/names" data-nav="names"><svg class="ic" aria-hidden="true"><use href="#i-sparkle"/></svg><span data-i18n="nav.names">99 Names</span></a>
       <a class="navlink" href="#/learn" data-nav="learn"><svg class="ic" aria-hidden="true"><use href="#i-letters"/></svg><span data-i18n="nav.learn">Learn Arabic</span></a>
-      <p class="nav-label" data-i18n="nav.community">Community</p>
-      <a class="navlink" href="#/msa" data-nav="msa"><svg class="ic" aria-hidden="true"><use href="#i-users"/></svg><span data-i18n="nav.msa">MSA</span><span class="badge badge-gold nav-soon" data-i18n="msa.soon">Opening soon</span></a>
     </div>
     <div class="nav-group nav-bottom">
       <a class="navlink" href="#/account" data-nav="account"><svg class="ic" aria-hidden="true"><use href="#i-user"/></svg><span data-i18n="nav.account">Account</span></a>
@@ -301,7 +299,6 @@
             <button class="btn btn-sm" id="loc-banner-btn" type="button" data-i18n="dash.setLocationBtn">Set location</button>
           </div>
 
-          <nav class="story-row" id="story-row" aria-label="Stories"></nav>
           <div id="ramadan-card" hidden></div>
           <div id="friday-card" hidden></div>
           <article class="card week-card" id="week-card" aria-labelledby="week-h" hidden></article>
@@ -746,11 +743,11 @@
     <section class="view view-narrow" id="view-stories" hidden aria-labelledby="stl-h">
       <header class="page-head">
         <h1 id="stl-h" tabindex="-1" data-i18n="stories.title">SalaamStreet Stories</h1>
-        <p data-i18n="stories.sub">Stories of the Prophets, told only from the Qur'an and authentic hadith — with the source on every part.</p>
+        <p data-i18n="stories.sub">True stories from the Qur'an and authentic hadith — the Prophets, the Companions and more — with the source on every part.</p>
       </header>
       <div id="stl-today"></div>
-      <div class="row-between mt-2"><h2 class="group-label" data-i18n="stories.prophets">The Prophets</h2><span class="badge" id="stl-progress"></span></div>
-      <div class="stack" id="stl-list"></div>
+      <p class="stl-count"><span class="badge" id="stl-progress"></span></p>
+      <div id="stl-list"></div>
       <p class="tiny mt-2" data-i18n="stories.note">Each story uses the Qur'an's own words (from the same source as the Qur'an reader) with a short explanation. More stories are coming in future updates.</p>
     </section>
 
@@ -1113,24 +1110,6 @@
       </a>
       <p class="tiny mt-1" data-i18n="settings.credits">Sources: AlAdhan (prayer times), AlQuran Cloud &amp; Tanzil (Qur'an), Islamic Network (audio), tafsir_api (Ibn Kathir), hadith-api (hadith).</p>
     </section>
-    <section class="view" id="view-msa" hidden aria-labelledby="msa-h">
-      <header class="page-head">
-        <h1 id="msa-h" tabindex="-1" data-i18n="msa.title">MSA</h1>
-        <p data-i18n="msa.sub">Tools for Muslim Student Associations.</p>
-      </header>
-      <div class="card msa-hero">
-        <span class="badge badge-gold" data-i18n="msa.soon">Opening soon</span>
-        <h2 data-i18n="msa.heroTitle">SalaamStreet for MSAs</h2>
-        <p class="muted" data-i18n="msa.heroText">A home for your MSA inside SalaamStreet. We're starting with the Neuqua Valley High School (NVHS) MSA.</p>
-      </div>
-      <h2 class="h-sm mt-3 mb-1" data-i18n="msa.comingTitle">What's coming</h2>
-      <ul class="msa-grid">
-        <li class="card msa-feature"><span class="q-ic"><svg aria-hidden="true"><use href="#i-mosque"/></svg></span><div><h3 data-i18n="msa.f1">Jummah times</h3><p class="muted" data-i18n="msa.f1d">Your MSA's Jummah time, with a countdown.</p></div></li>
-        <li class="card msa-feature"><span class="q-ic"><svg aria-hidden="true"><use href="#i-bell"/></svg></span><div><h3 data-i18n="msa.f2">Announcements</h3><p class="muted" data-i18n="msa.f2d">The latest news from your MSA, all in one place.</p></div></li>
-        <li class="card msa-feature"><span class="q-ic"><svg aria-hidden="true"><use href="#i-calendar"/></svg></span><div><h3 data-i18n="msa.f3">Events</h3><p class="muted" data-i18n="msa.f3d">Upcoming meetings, fundraisers and get-togethers.</p></div></li>
-        <li class="card msa-feature"><span class="q-ic"><svg aria-hidden="true"><use href="#i-link"/></svg></span><div><h3 data-i18n="msa.f4">Classroom link</h3><p class="muted" data-i18n="msa.f4d">Jump straight to your MSA's Google Classroom.</p></div></li>
-      </ul>
-    </section>
 
   </main>
 
@@ -1184,8 +1163,8 @@
     <div class="sv-stage" id="sv-stage" aria-live="polite"></div>
     <footer class="sv-foot">
       <button class="sv-nav" id="sv-prev" type="button" aria-label="Previous"><svg class="ic flip" aria-hidden="true"><use href="#i-chev-l"/></svg></button>
-      <button class="btn btn-sm sv-btn" id="sv-listen" type="button" hidden><svg class="ic" aria-hidden="true"><use href="#i-play"/></svg><span data-i18n="stories.listen">Listen</span></button>
-      <button class="btn btn-sm sv-btn" id="sv-share" type="button"><svg class="ic" aria-hidden="true"><use href="#i-share"/></svg><span data-i18n="common.share">Share</span></button>
+      <button class="sv-play" id="sv-play" type="button" aria-pressed="false"><svg class="ic" aria-hidden="true"><use href="#i-play"/></svg><span data-i18n="stories.play">Play</span></button>
+      <button class="sv-nav" id="sv-share" type="button" aria-label="Share"><svg class="ic" aria-hidden="true"><use href="#i-share"/></svg></button>
       <button class="sv-nav" id="sv-next" type="button" aria-label="Next"><svg class="ic flip" aria-hidden="true"><use href="#i-chev-r"/></svg></button>
     </footer>
   </div>
@@ -1239,7 +1218,6 @@
         <a href="#/stories" data-nav="stories"><span class="q-ic"><svg aria-hidden="true"><use href="#i-open-book"/></svg></span><span data-i18n="nav.stories">Stories</span></a>
         <a href="#/calendar" data-nav="calendar"><span class="q-ic"><svg aria-hidden="true"><use href="#i-calendar"/></svg></span><span data-i18n="nav.calendar">Calendar</span></a>
         <a href="#/learn" data-nav="learn"><span class="q-ic"><svg aria-hidden="true"><use href="#i-letters"/></svg></span><span data-i18n="nav.learn">Learn Arabic</span></a>
-        <a href="#/msa" data-nav="msa"><span class="q-ic"><svg aria-hidden="true"><use href="#i-users"/></svg></span><span data-i18n="nav.msa">MSA</span></a>
         <a href="#/settings" data-nav="settings"><span class="q-ic"><svg aria-hidden="true"><use href="#i-settings"/></svg></span><span data-i18n="nav.settings">Settings</span></a>
         <a href="#/about" data-nav="about"><span class="q-ic"><svg aria-hidden="true"><use href="#i-info"/></svg></span><span data-i18n="nav.about">About</span></a>
       </nav>

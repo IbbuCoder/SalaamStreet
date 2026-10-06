@@ -311,17 +311,24 @@
   }
 
   /* ═══════════ New version ready ═══════════ */
+  /** Only ask to update when the site really has a newer version than the one
+      running. (Pages load network-first, so after most updates the app is
+      already current and there is nothing to ask.) */
   function watchUpdates() {
     if (!("serviceWorker" in navigator) || !navigator.serviceWorker.controller) return; // first install: nothing to replace
     var shown = false;
     navigator.serviceWorker.addEventListener("controllerchange", function () {
-      if (shown) return;
-      shown = true;
-      var el = $("update-banner");
-      if (!el) return;
-      el.hidden = false;
-      $("update-reload").onclick = function () { location.reload(); };
-      $("update-later").onclick = function () { el.hidden = true; };
+      if (shown || !window.fetch) return;
+      fetch("js/content.js", { cache: "no-store" }).then(function (r) { return r.ok ? r.text() : ""; }).then(function (src) {
+        var m = src.match(/SS\.VERSION = "([^"]+)"/);
+        if (!m || m[1] === SS.VERSION || shown) return;
+        shown = true;
+        var el = $("update-banner");
+        if (!el) return;
+        el.hidden = false;
+        $("update-reload").onclick = function () { location.reload(); };
+        $("update-later").onclick = function () { el.hidden = true; };
+      }).catch(function () { /* offline: ask next time */ });
     });
   }
 

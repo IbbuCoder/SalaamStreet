@@ -820,7 +820,7 @@ SS.i18n.register("id", {
 "push.needLocation": "Atur lokasi Anda dulu agar pengingat datang tepat waktu.",
 "nav.stories": "Kisah",
 "stories.title": "Kisah SalaamStreet",
-"stories.sub": "Kisah para Nabi, hanya dari Al-Qur'an dan hadits shahih — dengan sumber di setiap bagian.",
+"stories.sub": "Kisah nyata dari Al-Qur'an dan hadits shahih — para Nabi, para Sahabat, dan lainnya — dengan sumber di setiap bagian.",
 "stories.new": "Baru",
 "stories.prophets": "Para Nabi",
 "stories.progress": "{n} dari {total} dibaca",
@@ -838,5 +838,11 @@ SS.i18n.register("id", {
 "stories.ayahOfDay": "Ayat hari ini",
 "stories.nameOfDay": "Nama hari ini",
 "stories.duaOfDay": "Doa hari ini",
-"stories.hadithOfDay": "Hadits hari ini"
+"stories.hadithOfDay": "Hadits hari ini",
+"stories.group_prophets": "Para Nabi",
+"stories.group_quran": "Kisah dari Al-Qur'an",
+"stories.group_seerah": "Nabi ﷺ dan para Sahabat",
+"stories.group_hadith": "Kisah yang diceritakan Nabi ﷺ",
+"stories.play": "Putar",
+"stories.pause": "Jeda"
 });
