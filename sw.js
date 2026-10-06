@@ -10,12 +10,12 @@
    caches named "ss-offline-…", which belong to the app and survive service
    worker updates. The PDF itself (files/) is fetched by the app, never cached
    here; pdf.js (js/vendor/pdfjs/) is cached on first use like supabase.js. */
-var VERSION = "ss-v14";
+var VERSION = "ss-v15";
 var KEEP = /^ss-offline/;
 var SHELL = [
   "./", "index.html", "css/styles.css",
   "js/surahs.js", "js/duas.js", "js/extras.js", "js/content.js", "js/i18n.js", "js/praytimes.js", "js/core.js",
-  "js/offline.js", "js/views.js", "js/features.js", "js/daily.js", "js/push.js", "js/offline-ui.js", "js/qibla.js", "js/config.js", "js/sync.js", "js/account.js", "js/app.js",
+  "js/offline.js", "js/views.js", "js/features.js", "js/stories.js", "js/stories-ui.js", "js/daily.js", "js/push.js", "js/offline-ui.js", "js/qibla.js", "js/config.js", "js/sync.js", "js/account.js", "js/app.js",
   "manifest.webmanifest", "manifest-dark.webmanifest", "icons/icon-192.png", "icons/apple-touch-icon.png", "icons/favicon-32.png",
   "icons/brand/logo-mark-128.png", "icons/brand/logo-mark-256.png",
 ];
