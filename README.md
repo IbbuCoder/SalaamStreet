@@ -10,7 +10,7 @@ SalaamStreet began as an Islamic-themed Shopify shop that Ibrahim built when he 
 
 **Our promise:** everything you need — prayer times, Qibla, Qur'an, duas, dhikr, the prayer tracker, Arabic learning and (when it arrives) sync — stays free forever. Any future paid extras (subscription or one-time) will only be for things that genuinely cost money to provide.
 
-Current version: **2.8.0 — The SalaamStreet App** (see `SS.VERSION` / `SS.CHANGELOG` in `js/content.js`).
+Current version: **2.9.0 — SalaamStreet Stories** (see `SS.VERSION` / `SS.CHANGELOG` in `js/content.js`).
 
 ## Features
 
@@ -24,6 +24,7 @@ Current version: **2.8.0 — The SalaamStreet App** (see `SS.VERSION` / `SS.CHAN
 - **Offline Qur'an** — download the whole Qur'an once (Arabic, your translation and transliteration; more translations optional), plus recitation per surah or all of it, and Tafsir Ibn Kathir; resumable downloads with pause/cancel, stored only on your device. An optional Qur'an PDF (when the site provides one) can be saved to the device and read offline in the built-in viewer
 - **Hadith library** — 10 collections: the 40 Hadith of an-Nawawi, Qudsi and Shah Waliullah in full; the Six Books (Bukhari, Muslim, Abu Dawud, Tirmidhi, Nasa'i, Ibn Majah) and the Muwatta of Imam Malik to browse by number or jump to any book; Arabic, English, reference and every scholar's grading (weak grades marked); a Hadith of the day
 - **Knowledge** — the five pillars, the six articles of faith and ihsan with their sources, and short explanations of hadith terms (sahih, hasan, da'if, isnad …)
+- **SalaamStreet Stories** — stories of the Prophets (Adam, Nuh, Ibrahim, Yusuf, Musa, Yunus) as tap-through slides, told only from the Qur'an and authentic hadith: every Qur'an quote is loaded from the app's Qur'an source with audio, every part shows its source, and each story ends with its lesson; plus a daily "Today" story and story circles on Home
 - **Dua library** — authentic supplications with Arabic, transliteration, translation and a source on every dua; favourites and copy
 - **Dhikr counter** — big tap target (or Space bar on desktop), presets with sourced targets, undo, today's totals, daily streaks, haptic feedback
 - **Islamic calendar** — today's Hijri date and approximate countdowns to key dates
@@ -81,6 +82,8 @@ Safe-area insets (iPhone notch / home indicator), 16px form inputs (no iOS zoom)
 │   ├── offline.js        Offline Qur'an: IndexedDB text/tafsir, cached audio + PDF, resumable downloads
 │   ├── views.js          One controller per view
 │   ├── features.js       Tracker, reminders, adhkar, Names, mosques, Arabic, plans, share cards
+│   ├── stories.js        Stories of the Prophets (narration + Qur'an references; text loaded from the Qur'an source)
+│   ├── stories-ui.js     Stories library, tap-through viewer, Home story row
 │   ├── daily.js          Did-you-pray, Qur'an goal, adhkar reminders, wake lock, icon badge, Friday summary, sleep timer
 │   ├── push.js           Opt-in reminders when the app is closed (Web Push)
 │   ├── offline-ui.js     Offline Qur'an section in Settings, Qur'an page cards, PDF viewer

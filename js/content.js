@@ -224,8 +224,21 @@
   ];
 
   /* ── Version & release notes (newest first) ──────────────────────── */
-  SS.VERSION = "2.8.0";
+  SS.VERSION = "2.9.0";
   SS.CHANGELOG = [
+    {
+      v: "2.9.0", date: "2026-10-06",
+      en: "SalaamStreet Stories", ar: "قصص سلام ستريت",
+      den: "Stories of the Prophets in short tap-through slides — told only from the Qur'an and authentic hadith, with the source on every part.",
+      dar: "قصص الأنبياء في شرائح قصيرة تتنقّل بينها باللمس — من القرآن والسنة الصحيحة فقط، مع المصدر في كل جزء.",
+      items: [
+        { en: "New: SalaamStreet Stories — the stories of Adam, Nuh, Ibrahim, Yusuf, Musa and Yunus", ar: "جديد: قصص سلام ستريت — قصص آدم ونوح وإبراهيم ويوسف وموسى ويونس" },
+        { en: "Every part shows the Qur'an's own words in Arabic with the translation, straight from the Qur'an reader's source, and you can listen to each ayah", ar: "كل جزء يعرض كلمات القرآن نفسها بالعربية مع الترجمة من مصدر قارئ القرآن مباشرة، ويمكنك الاستماع إلى كل آية" },
+        { en: "Each story ends with its lesson, and any part can be shared as an image", ar: "تنتهي كل قصة بعبرتها، ويمكن مشاركة أي جزء كصورة" },
+        { en: "“Today”: the Ayah, Name, Dua and Hadith of the day as one short story", ar: "«اليوم»: آية واسم ودعاء وحديث اليوم في قصة قصيرة واحدة" },
+        { en: "Story circles at the top of Home; tap or swipe through, and your progress is saved", ar: "دوائر القصص أعلى الرئيسية؛ تنقّل باللمس أو السحب، ويُحفظ تقدّمك" },
+      ],
+    },
     {
       v: "2.8.0", date: "2026-10-05",
       en: "The SalaamStreet App", ar: "تطبيق سلام ستريت",
@@ -456,11 +469,11 @@
   });
   /* What's planned — honest plans in order, never dates. Nothing here is released yet. */
   SS.ROADMAP = [
-    { v: "2.9.0", icon: "mosque", en: "MSA + Community", ar: "رابطة الطلاب المسلمين والمجتمع",
-      den: "Tools for Muslim Student Associations and local communities. The MSA tab is already open as a preview.",
-      dar: "أدوات لروابط الطلاب المسلمين والمجتمعات المحلية. تبويب الرابطة متاح الآن كمعاينة." },
     { v: "3.0.0", icon: "users", en: "SalaamStreet Kids", ar: "سلام ستريت للأطفال",
       den: "A safe, simple SalaamStreet for young children, with family accounts so parents can set it up and follow along.",
       dar: "سلام ستريت آمن وبسيط للأطفال الصغار، مع حسابات عائلية ليُعدّه الوالدان ويتابعا تقدّم أطفالهما." },
+    { v: "3.1.0", icon: "mosque", en: "MSA + Community", ar: "رابطة الطلاب المسلمين والمجتمع",
+      den: "Tools for Muslim Student Associations and local communities. The MSA tab is already open as a preview.",
+      dar: "أدوات لروابط الطلاب المسلمين والمجتمعات المحلية. تبويب الرابطة متاح الآن كمعاينة." },
   ];
 })();

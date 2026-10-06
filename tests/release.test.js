@@ -149,3 +149,27 @@ test("every current iPhone and iPad has a light and a dark launch screen (no whi
   }
   assert.ok(tags.some((t) => t.includes("744px) and (device-height: 1133px") && t.includes("orientation: landscape")), "iPad landscape");
 });
+
+test("Stories: every slide is in English and Arabic, and every Qur'an reference is a real ayah", () => {
+  const box = { console };
+  box.window = box;
+  vm.createContext(box);
+  vm.runInContext(read("js/surahs.js"), box);
+  vm.runInContext(read("js/stories.js"), box);
+  const { STORIES, SURAHS } = box.SS;
+  assert.ok(STORIES.length >= 6);
+  const ids = new Set();
+  for (const s of STORIES) {
+    assert.ok(!ids.has(s.id), "unique id " + s.id); ids.add(s.id);
+    assert.ok(s.en && s.ar && s.sub.en && s.sub.ar, s.id + " names");
+    assert.ok(s.slides.at(-1).lesson, s.id + " ends with its lesson");
+    for (const [i, sl] of s.slides.entries()) {
+      assert.ok(sl.t && sl.t.en && sl.t.ar, `${s.id} slide ${i + 1} has English and Arabic`);
+      assert.ok(sl.q || sl.src || sl.lesson, `${s.id} slide ${i + 1} shows its source`);
+      if (sl.q) {
+        const [n, a, b = a] = sl.q, meta = SURAHS[n - 1];
+        assert.ok(meta && a >= 1 && b >= a && b <= meta.ayahs, `${s.id} slide ${i + 1}: ${sl.q}`);
+      }
+    }
+  }
+});

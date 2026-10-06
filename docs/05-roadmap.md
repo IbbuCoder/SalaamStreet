@@ -58,15 +58,18 @@ laptops and large monitors. Core worship features are, and will stay, free.
   calculated on the device when offline; reminders when the app is closed (Web Push via Supabase, opt-in);
   app-icon badge; daily Qur'an goal; morning/evening adhkar reminders; recitation sleep timer; keep-screen-on;
   Friday summary; update prompt; a simpler Qibla finder; launch screens for every current iPhone and iPad
+- **2.9.0 — SalaamStreet Stories:** stories of Adam, Nuh, Ibrahim, Yusuf, Musa and Yunus as tap-through slides,
+  told only from the Qur'an (verses loaded from the app's Qur'an source, with audio) and authentic hadith, each ending
+  with its lesson; a daily "Today" story; story circles on Home; progress and share-as-image
 
 ## Planned (no release dates; plans may change)
 
 The same list appears in the app under About → Updates (`SS.ROADMAP` in `js/content.js`).
 
-- **2.9.0 — MSA + Community:** tools for Muslim Student Associations and local communities (the MSA tab is
-  already open as a preview)
 - **3.0.0 — SalaamStreet Kids:** a safe, simple SalaamStreet for young children, with family accounts so parents
   can set it up and follow along
+- **3.1.0 — MSA + Community:** tools for Muslim Student Associations and local communities (the MSA tab is
+  already open as a preview)
 
 Also open: native-speaker
 review of the draft Urdu, Bengali, Indonesian, Turkish and French translations.

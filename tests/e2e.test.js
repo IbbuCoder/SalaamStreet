@@ -44,7 +44,7 @@ function surahJson(n, count) {
   const ed = (fmt) => ({ ayahs: Array.from({ length: count }, (_, i) => ({ number: i + 1, numberInSurah: i + 1, text: fmt(i + 1) })) });
   return { code: 200, data: [ed((i) => "آية " + i), ed((i) => `Translation of ${n}:${i}`), ed((i) => `Transliteration ${n}:${i}`)] };
 }
-const AYAHS = { 1: 7, 2: 286, 18: 110, 112: 4 };
+const AYAHS = { 1: 7, 2: 286, 18: 110, 21: 112, 37: 182, 112: 4 };
 async function mockApis(context, opts = {}) {
   const tafsir = opts.tafsir || {};
   await context.route(/^https?:\/\/(?!127\.0\.0\.1|test\.supabase\.co)/, async (route) => {
@@ -1011,4 +1011,47 @@ test("reminders when closed: hidden until the server is set up, then offered und
   assert.match(await b.page.textContent("#st-push-note"), /about 1 km/);
   assert.deepEqual(b.page.errors, []);
   await b.context.close();
+});
+
+/* ═══════════ SalaamStreet Stories (2.9.0) ═══════════ */
+test("stories: Home row, library, tap-through viewer with Qur'an from the app's source, progress", async () => {
+  const { page, context } = await device();
+  await open(page, "#/home");
+  await page.waitForSelector("#story-row .st-bubble");
+  assert.ok(await page.locator("#story-row .st-bubble").count() >= 7, "Today + 6 prophets + All");
+  await page.click('#story-row a[href="#/stories/yunus"]');
+  await page.waitForSelector("#story-viewer:not([hidden])");
+  assert.equal(await page.textContent("#sv-title"), "Yunus");
+  assert.match(await page.textContent("#sv-count"), /1 of 9/);
+  await page.waitForSelector("#sv-stage .sv-quran");
+  assert.match(await page.textContent("#sv-stage .sv-src"), /Qur'an 37:139/);
+  assert.match(await page.textContent("#sv-stage .sv-trans"), /Translation of 37:139/, "translation comes from the Qur'an source");
+  // Next by button, keyboard and tapping the right side.
+  await page.click("#sv-next");
+  await page.keyboard.press("ArrowRight");
+  await page.waitForFunction(() => /3 of 9/.test(document.getElementById("sv-count").textContent));
+  await page.locator("#sv-stage").click({ position: { x: 300, y: 300 } });
+  await page.waitForFunction(() => location.hash === "#/stories/yunus/4");
+  assert.match(await page.textContent("#sv-stage"), /Qur'an 21:87/);
+  await page.keyboard.press("ArrowLeft");
+  await page.waitForFunction(() => /3 of 9/.test(document.getElementById("sv-count").textContent));
+  // Close returns to Home; progress is kept.
+  await page.keyboard.press("Escape");
+  await page.waitForFunction(() => location.hash === "#/home");
+  assert.equal(await page.isVisible("#story-viewer"), false);
+  assert.equal(await page.evaluate(() => SS.store.get("stories:progress").yunus.at), 4);
+  // Read to the end → marked as read in the library.
+  await open(page, "#/stories/yunus/9");
+  await page.waitForSelector("#sv-stage .sv-lesson");
+  await page.click("#sv-next");
+  await page.waitForFunction(() => location.hash === "#/stories");
+  await page.waitForSelector("#stl-progress");
+  assert.match(await page.textContent("#stl-progress"), /1 of 6 read/);
+  assert.match(await page.textContent('#stl-list a[href="#/stories/yunus"]'), /Read ✓/);
+  // Today: the day's Name is always available, even offline.
+  await open(page, "#/stories/today/2");
+  await page.waitForSelector("#sv-stage .sv-arabic.big");
+  assert.match(await page.textContent("#sv-stage .sv-kicker"), /Name of the day/);
+  assert.deepEqual(page.errors, []);
+  await context.close();
 });
