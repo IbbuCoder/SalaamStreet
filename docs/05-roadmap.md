@@ -65,14 +65,23 @@ laptops and large monitors. Core worship features are, and will stay, free.
   Elephant; seerah: Khadijah, the Hijrah, Bilal; hadith: the three in the cave, the thirsty dog, the man who repented)
   in four groups; whole-story Play/Pause; Stories off Home; MSA preview tab removed; update bar only when outdated
 
+- **3.0.0 — Modes:** Choose Your Mode (from Account, the sidebar or More) with five modes — Normal, Travel, Kids,
+  Hajj & Umrah and Mosque — each with its own Home dashboard; mode persistence and sync. Travel: local times, Qibla,
+  destination and saved places, travel duas, checklist and sourced qasr/jam' guidance. Kids: parent-managed child
+  profiles, device pairing by one-time code, lessons, quizzes and achievements per child, server-enforced
+  restrictions, Family page. Hajj & Umrah: 7- and 11-step guides with sources, progress and checklist. Mosque:
+  OpenStreetMap mosque selection, calculated times, Jumu'ah note, Quiet Mode. Full notes:
+  [`release-notes/3.0.0.md`](release-notes/3.0.0.md)
+
 ## Planned (no release dates; plans may change)
 
-The same list appears in the app under About → Updates (`SS.ROADMAP` in `js/content.js`).
+The plan after 3.0 lives in [`ROADMAP.md`](../ROADMAP.md) (with status, dependencies, risks and completion
+criteria for each release). The same list appears in the app under About → Updates (`SS.ROADMAP` in
+`js/content.js`).
 
-- **3.0.0 — SalaamStreet Kids:** a safe, simple SalaamStreet for young children, with family accounts so parents
-  can set it up and follow along
-- **3.1.0 — MSA + Community:** tools for Muslim Student Associations and local communities, starting with the
-  Neuqua Valley High School (NVHS) MSA (the 2.5.5 preview tab was removed in 2.9.5 until this ships)
+- **3.1 Personalization · 3.2 Qur'an Experience · 3.3 Islamic Learning · 3.4 Community (MSA + mosques) ·
+  3.5 Ramadan Experience · 3.6 Advanced Islamic Tools · 3.7 Family Ecosystem · 3.8 Notifications ·
+  3.9 Performance, Security & Polish** — then a 4.0 proposal
 
 Also open: native-speaker
 review of the draft Urdu, Bengali, Indonesian, Turkish and French translations.

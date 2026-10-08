@@ -9,7 +9,7 @@ const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const { chromium } = require("playwright");
-const { createMock, URL_BASE } = require("./helpers/mock-supabase");
+const { createMock, familyDb, URL_BASE } = require("./helpers/mock-supabase");
 const { routeQuranApis, testPdf } = require("./helpers/offline-fixtures");
 
 const ROOT = path.resolve(__dirname, "..");
@@ -1083,4 +1083,498 @@ test("stories: Play recites each slide and moves on by itself; Pause stops", asy
   assert.equal(await page.evaluate(() => SS.storiesUI.isPlaying()), false, "closing stops playback");
   assert.deepEqual(page.errors, []);
   await context.close();
+});
+
+/* ═══════════ 3.0 Modes ═══════════ */
+const ISTANBUL = { lat: 41.01, lng: 28.98 };
+/** City search (AlAdhan timingsByAddress) and nearby mosques (Overpass), mocked. */
+async function modeApis(context) {
+  await context.route(/timingsByAddress/, (route) => route.fulfill({ json: { data: { meta: { latitude: ISTANBUL.lat, longitude: ISTANBUL.lng } } } }));
+  await context.route(/overpass-api\.de/, (route) => route.fulfill({ json: { elements: [
+    { type: "node", id: 1, lat: 41.885, lon: -87.631, tags: { name: "Downtown Islamic Center", "addr:street": "S State St", "addr:city": "Chicago", website: "https://example.org/dic", phone: "+1 312 555 0100" } },
+    { type: "way", id: 2, center: { lat: 41.9, lon: -87.65 }, tags: { name: "Masjid Al-Noor" } },
+  ] } }));
+}
+const modeOf = (page) => page.evaluate(() => document.documentElement.getAttribute("data-mode"));
+/** A fresh page load at this hash (page.goto to a different hash alone doesn't reload). */
+async function reopen(page, hash) {
+  await open(page, hash);
+  await page.reload();
+  await page.waitForFunction(() => !document.getElementById("boot"), null, { timeout: 8000 });
+}
+
+test("modes: Choose Your Mode from the Account page; switch through every mode; it persists and falls back safely", async () => {
+  const mock = createMock();
+  const { page, context } = await device({ mock });
+  page.on("dialog", (d) => d.accept());
+  await open(page, "#/account");
+  await page.click('.acct-modes a[href="#/modes"]');
+  await page.waitForSelector("#modes-list .mode-card");
+  assert.equal(await page.textContent("#modes-h"), "Choose Your Mode");
+  assert.match(await page.textContent("#view-modes .page-head p"), /fits what you’re doing right now/);
+  const cards = await page.$$eval("#modes-list .mode-card", (c) => c.map((x) => x.getAttribute("data-m")));
+  assert.deepEqual(cards, ["normal", "travel", "kids", "hajj", "mosque"]);
+  assert.equal(await page.getAttribute('.mode-card[data-m="normal"]', "aria-current"), "true");
+  assert.match(await page.textContent('.mode-card[data-m="normal"]'), /Active/, "the active state is in words, not only colour");
+  assert.equal(await page.isVisible("#mode-pill"), false, "no badge in Normal Mode");
+
+  // Normal → Travel
+  await page.click('[data-go="travel"]');
+  await page.waitForFunction(() => location.hash === "#/mode/travel");
+  assert.equal(await modeOf(page), "travel");
+  assert.equal(await page.isVisible("#mode-pill"), true);
+  assert.match(await page.textContent("#mode-pill"), /Travel/);
+  await page.waitForSelector("#tv-tabs");
+  // Survives a reload, and Home becomes the Travel dashboard.
+  await open(page, "#/home");
+  assert.equal(await modeOf(page), "travel");
+  await page.waitForSelector("#mode-home #tv-tiles");
+  assert.match(await page.textContent("#quick-grid"), /Travel duas/);
+  assert.equal(await page.isVisible('[data-home="name"]'), false, "Travel Mode steps the Name card back");
+  // Travel → Kids: Kids Mode is parent-managed, so it starts at the Family page and the active mode is untouched.
+  await page.click("#mode-pill");
+  await page.click('[data-go="kids"]');
+  await page.waitForFunction(() => location.hash === "#/family");
+  await page.waitForSelector("#fam-pair");
+  assert.equal(await modeOf(page), "travel");
+  // → Hajj & Umrah → Mosque → Normal
+  for (const id of ["hajj", "mosque", "normal"]) {
+    await open(page, "#/modes");
+    await page.click(`[data-go="${id}"]`);
+    await page.waitForFunction((m) => document.documentElement.getAttribute("data-mode") === m, id);
+  }
+  assert.equal(await page.evaluate(() => location.hash), "#/home");
+  assert.equal(await page.isHidden("#mode-home"), true, "Normal Mode restores the standard Home");
+  assert.equal(await page.isVisible('[data-home="name"]'), true);
+  assert.equal(await page.evaluate(() => localStorage.getItem("salaamstreet:mode:active")), null);
+  // Every other combination switches cleanly.
+  const ids = ["normal", "travel", "hajj", "mosque"];
+  for (const a of ids) for (const b of ids) {
+    const got = await page.evaluate(([x, y]) => { SS.modes.set(x, true); SS.modes.set(y, true); return [SS.modes.active(), document.documentElement.getAttribute("data-mode")]; }, [a, b]);
+    assert.deepEqual(got, [b, b], a + " → " + b);
+  }
+  // Bad or unknown stored data falls back to Normal; "kids" can never be set by sync or by hand.
+  for (const bad of ['{"id":"bogus"}', '"travel"', "{not json", '{"id":"kids"}']) {
+    await page.evaluate((v) => localStorage.setItem("salaamstreet:mode:active", v), bad);
+    await page.reload();
+    await page.waitForFunction(() => !document.getElementById("boot"));
+    assert.equal(await modeOf(page), "normal", bad);
+  }
+  assert.deepEqual(page.errors, []);
+  await context.close();
+});
+
+test("modes: the mode follows a guest into their account and onto their other devices", async () => {
+  const mock = createMock();
+  const A = await device({ mock });
+  await open(A.page, "#/modes");
+  await A.page.click('[data-go="hajj"]');
+  await A.page.waitForSelector("[data-type=umrah]");
+  await A.page.click("[data-type=umrah]");
+  await A.page.waitForSelector(".steps-list");
+  await A.page.click('.steps-list a[href="#/mode/hajj/step/u-prep"]');
+  await A.page.click("#hj-done");
+  await emailSignIn(A.page, "pilgrim@example.com");
+  await A.page.waitForFunction(() => SS.account.signedIn());
+  await syncNow(A.page);
+  const B = await device({ mock });
+  await emailSignIn(B.page, "pilgrim@example.com");
+  await B.page.waitForFunction(() => SS.account.signedIn());
+  await syncNow(B.page);
+  await open(B.page, "#/home");
+  assert.equal(await modeOf(B.page), "hajj");
+  await B.page.waitForSelector("#mode-home .mode-tile");
+  assert.match(await B.page.textContent("#mode-home"), /Umrah/);
+  assert.match(await B.page.textContent("#mode-home"), /1 of 7 done/);
+  // Switching on one device reaches the other.
+  await open(B.page, "#/modes");
+  await B.page.click('[data-go="normal"]');
+  await syncNow(B.page);
+  await syncNow(A.page);
+  await open(A.page, "#/home");
+  assert.equal(await modeOf(A.page), "normal");
+  await A.context.close(); await B.context.close();
+});
+
+test("travel mode: works without location permission — search, destination, saved places, checklist, guidance, offline", async () => {
+  const { page, context } = await device({ settings: { location: null } });
+  await modeApis(context);
+  page.on("dialog", (d) => d.accept());
+  await open(page, "#/modes");
+  await page.click('[data-go="travel"]');
+  await page.waitForSelector("#tv-loc");
+  await page.waitForFunction(() => document.getElementById("tv-loc").textContent !== "…");
+  assert.equal(await page.textContent("#tv-loc"), "No location yet", "never invents a location");
+  assert.match(await page.textContent("#tv-qibla"), /Set your location/);
+  // Destination by name — no permission needed.
+  await page.click("#tv-dest-form [type=submit]");
+  assert.match(await page.textContent("#tv-dest-form-err"), /at least two letters/, "accessible form error");
+  assert.equal(await page.getAttribute("#tv-dest-form-q", "aria-invalid"), "true");
+  await page.fill("#tv-dest-form-q", "Istanbul");
+  await page.click("#tv-dest-form [type=submit]");
+  await page.waitForSelector("#tv-dest-times .times-list");
+  assert.match(await page.textContent("#tv-dest"), /Istanbul/);
+  assert.match(await page.textContent("#tv-dest"), /Qibla: \d+° from north/);
+  await page.click("#tv-dest-use");
+  assert.equal(await page.evaluate(() => SS.store.settings().location.label), "Istanbul", "the whole app now uses the destination");
+  // Saved places.
+  await page.click("#mt-places");
+  await page.waitForSelector("#tv-add");
+  await page.fill("#tv-add-q", "Istanbul Airport");
+  await page.click("#tv-add [type=submit]");
+  await page.waitForSelector("[data-del]");
+  // Checklist: tick, reload, still ticked; reset.
+  await open(page, "#/mode/travel/checklist");
+  await page.waitForSelector("#tv-checklist .cl-item");
+  await page.click('label[for="cl-travelchecklist-docs"]');
+  await page.click('label[for="cl-travelchecklist-dua"]');
+  await open(page, "#/mode/travel/checklist");
+  await page.waitForSelector("#tv-checklist .cl-item");
+  assert.equal(await page.isChecked("#cl-travelchecklist-docs"), true);
+  assert.match(await page.textContent("#tv-checklist .cl-head"), /2 of 18 done/);
+  await page.click("#tv-checklist [data-reset]");
+  assert.equal(await page.isChecked("#cl-travelchecklist-docs"), false);
+  // Guidance cites sources and states differences honestly.
+  await open(page, "#/mode/travel/guide");
+  await page.waitForSelector("#tg-qasr");
+  const g = await page.textContent("#mode-root");
+  assert.match(g, /Qur'an 4:101/); assert.match(g, /Sahih Muslim 686/); assert.match(g, /Where scholars differ/); assert.match(g, /Hanafi/);
+  assert.match(g, /ask a scholar you trust/);
+  // Offline: guidance, duas and prayer times (calculated on the device) still work.
+  await context.setOffline(true);
+  await page.evaluate(() => { location.hash = "#/mode/travel/duas"; });
+  await page.waitForSelector("#tv-body .mode-dua");
+  assert.match(await page.textContent("#tv-body"), /Sahih Muslim 1342/);
+  await page.evaluate(() => { location.hash = "#/mode/travel"; });
+  await page.waitForSelector("#tv-times .times-list");
+  assert.deepEqual(page.errors, []);
+  await context.close();
+});
+
+test("travel mode: with location shared, Home shows local prayer, Qibla and Hijri date", async () => {
+  const { page, context } = await device({ settings: { location: CHICAGO } });
+  await open(page, "#/modes");
+  await page.click('[data-go="travel"]');
+  await page.waitForSelector("#tv-times .times-list");
+  assert.match(await page.textContent("#tv-loc"), /Chicago/);
+  assert.match(await page.textContent("#tv-qibla"), /Qibla: \d+° from north · .* to Makkah/);
+  assert.match(await page.textContent("#tv-cd"), /^\d\d:\d\d:\d\d$/);
+  await open(page, "#/home");
+  await page.waitForFunction(() => document.getElementById("tv-h-hijri") && document.getElementById("tv-h-hijri").textContent !== "…");
+  assert.match(await page.textContent("#tv-h-loc"), /Chicago/);
+  assert.match(await page.textContent("#tv-h-hijri"), /1448/);
+  await context.close();
+});
+
+test("hajj & umrah: choose, follow the guide, progress survives a refresh, change type, start over", async () => {
+  const { page, context } = await device();
+  page.on("dialog", (d) => d.accept());
+  await open(page, "#/mode/hajj");
+  await page.waitForSelector("#hj-ask");
+  assert.equal(await page.textContent("#hj-ask"), "What are you preparing for?");
+  await page.click("#mode-off-btn"); // turn the mode on from its own page
+  assert.equal(await modeOf(page), "hajj");
+  await page.click("[data-type=umrah]");
+  await page.waitForSelector(".steps-list");
+  assert.equal(await page.$$eval(".steps-list li", (l) => l.length), 7);
+  assert.deepEqual(await page.$$eval(".steps-list .step-t", (l) => l.map((x) => x.firstChild.textContent)),
+    ["Preparation", "Ihram", "The Miqat", "The Talbiyah", "Tawaf", "Sa'i between Safa and Marwah", "Shaving or shortening — completion"]);
+  await page.click(".mode-grid .card .btn:not(.btn-ghost)"); // Start the guide
+  await page.waitForSelector("#hj-done");
+  await page.click("#hj-done");
+  assert.equal(await page.getAttribute("#hj-done", "aria-pressed"), "true");
+  await page.click(".step-nav .btn:not(.btn-outline)"); // Next
+  await page.waitForFunction(() => /Step 2 of 7/.test(document.querySelector("#mode-root .guide-text").textContent));
+  await page.click(".step-nav .btn:not(.btn-outline)");
+  await page.click(".step-nav .btn:not(.btn-outline)");
+  await page.click(".step-nav .btn:not(.btn-outline)"); // → Tawaf
+  await page.waitForFunction(() => /Step 5 of 7/.test(document.querySelector("#mode-root .guide-text").textContent));
+  const tawaf = await page.textContent("#mode-root");
+  assert.match(tawaf, /Sahih al-Bukhari 305, 1613/);
+  assert.match(tawaf, /Rabbana atina/);
+  assert.match(tawaf, /Where scholars differ/);
+  // Refresh: progress kept, current step and "continue" resume where we were.
+  await open(page, "#/mode/hajj");
+  await page.waitForSelector(".steps-list");
+  assert.match(await page.textContent("#mode-root"), /1 of 7 done/);
+  assert.equal(await page.getAttribute('.steps-list [aria-current="step"]', "href"), "#/mode/hajj/step/u-ihram");
+  assert.equal(await page.getAttribute(".mode-grid .card a.btn:not(.btn-ghost)", "href"), "#/mode/hajj/step/u-tawaf", "continue where you left off");
+  // Hajj keeps its own progress.
+  await page.click('a[href="#/mode/hajj/choose"]');
+  await page.click("[data-type=hajj]");
+  await page.waitForSelector(".steps-list");
+  assert.equal(await page.$$eval(".steps-list li", (l) => l.length), 11);
+  assert.match(await page.textContent("#mode-root"), /0 of 11 done/);
+  await open(page, "#/mode/hajj/step/h-halq");
+  await page.waitForSelector("#hj-done");
+  assert.match(await page.textContent("#mode-root"), /Do it — there is no harm/);
+  // Back to Umrah and start over.
+  await open(page, "#/mode/hajj/choose");
+  await page.click("[data-type=umrah]");
+  await page.waitForSelector("#hj-reset");
+  await page.click("#hj-reset");
+  assert.match(await page.textContent("#mode-root"), /0 of 7 done/);
+  assert.deepEqual(page.errors, []);
+  await context.close();
+});
+
+test("mosque mode: near me, choose and save a mosque, honest times, a Jumu'ah note, Quiet Mode", async () => {
+  const { page, context } = await device();
+  await modeApis(context);
+  await open(page, "#/modes");
+  await page.click('[data-go="mosque"]');
+  await page.waitForSelector("#mq-near"); // no mosque yet → the finder
+  await page.click("#mq-near");
+  await page.waitForSelector("#mq-results [data-sel]");
+  assert.match(await page.textContent("#mq-res-from"), /2 mosques near you/);
+  await page.fill("#mq-filter", "noor");
+  assert.equal(await page.$$eval("#mq-results .place-row", (r) => r.length), 1);
+  await page.fill("#mq-filter", "");
+  await page.click('#mq-results [data-save="node/1"]');
+  await page.waitForSelector('#mq-saved-h + .stack [data-sel="node/1"], #mq-saved-h ~ .stack');
+  await page.click('#mq-results [data-sel="node/1"]');
+  await page.waitForSelector("#mq-name");
+  assert.equal(await page.textContent("#mq-name"), "Downtown Islamic Center");
+  const today = await page.textContent("#mode-root");
+  assert.match(today, /OpenStreetMap contributors, not verified by the mosque/);
+  assert.match(today, /iqamah \(congregation\) times may be later/);
+  assert.match(today, /doesn't have this mosque's khutbah time/);
+  assert.match(today, /doesn't have verified announcements or events/);
+  assert.equal(await page.getAttribute('a[href="https://example.org/dic"]', "rel"), "noopener nofollow");
+  await page.waitForSelector("#mq-times .times-list");
+  // A Jumu'ah time the user notes is shown as their note.
+  await page.fill("#mq-jtime", "13:30");
+  await page.click("#mq-jform [type=submit]");
+  await page.waitForFunction(() => /Your note: khutbah at/.test(document.getElementById("mq-jform").textContent));
+  // Quiet Mode: calmer UI, only prayer reminders get through, and never a chime.
+  await page.click('label:has(#mq-quiet)');
+  assert.equal(await page.evaluate(() => document.documentElement.classList.contains("quiet")), true);
+  const toasts = await page.evaluate(() => {
+    const before = document.getElementById("toast") ? document.getElementById("toast").textContent : "";
+    SS.reminders.notify("Read Al-Kahf", "", "kahf-test");
+    const afterOther = document.getElementById("toast").textContent;
+    SS.reminders.notify("Asr now", "", "prayer-test", "./#/home", { essential: true });
+    return [before, afterOther, document.getElementById("toast").textContent];
+  });
+  assert.notEqual(toasts[1], "Read Al-Kahf", "non-prayer reminder held back");
+  assert.match(toasts[2], /Asr now/, "prayer reminder still shown");
+  await open(page, "#/home");
+  await page.waitForSelector("#mode-home .mode-tile");
+  assert.match(await page.textContent("#mode-home"), /Downtown Islamic Center/);
+  assert.match(await page.textContent("#mode-home"), /13:30|1:30/);
+  // Leaving Mosque Mode turns Quiet Mode's effect off.
+  await page.evaluate(() => SS.modes.set("normal"));
+  assert.equal(await page.evaluate(() => document.documentElement.classList.contains("quiet")), false);
+  assert.deepEqual(page.errors, []);
+  await context.close();
+});
+
+test("mode suggestions: offered on the right pages, at most once a visit, and 'Not now' is remembered", async () => {
+  const { page, context } = await device();
+  await open(page, "#/mosques");
+  await page.waitForSelector("#view-mosques .mode-suggest");
+  assert.match(await page.textContent(".mode-suggest"), /Mosque Mode/);
+  await page.click('.mode-suggest [data-s="no"]');
+  assert.equal(await page.$(".mode-suggest"), null);
+  await page.evaluate(() => { location.hash = "#/calendar"; });
+  await page.waitForTimeout(300);
+  assert.equal(await page.$("#view-calendar .mode-suggest"), null, "one suggestion per visit");
+  await reopen(page, "#/mosques");
+  await page.waitForTimeout(300);
+  assert.equal(await page.$(".mode-suggest"), null, "dismissed: not shown again");
+  await reopen(page, "#/calendar");
+  await page.waitForSelector("#view-calendar .mode-suggest");
+  await page.click('.mode-suggest [data-s="try"]');
+  await page.waitForFunction(() => location.hash === "#/mode/hajj");
+  assert.equal(await modeOf(page), "hajj");
+  await reopen(page, "#/duas/travel");
+  await page.waitForTimeout(300);
+  assert.equal(await page.$(".mode-suggest"), null, "one suggestion per visit");
+  await context.close();
+});
+
+test("kids mode: parent adds children, a child's device pairs with a code, learning is saved per child, restrictions and security hold", async () => {
+  const pg = await familyDb();
+  const mock = createMock({ pg });
+  const P = await device({ mock });
+  P.page.on("dialog", (d) => d.accept());
+  await emailSignIn(P.page, "parent@example.com");
+  await P.page.waitForFunction(() => SS.account.signedIn());
+  await open(P.page, "#/account");
+  await P.page.click('.acct-modes a[href="#/family"]');
+  await P.page.waitForSelector("#fam-root .state, #fam-root .fam-child");
+  // + Add Kid, with accessible validation and parental consent.
+  await P.page.click('a[href="#/family/add"]');
+  await P.page.waitForSelector("#kid-form");
+  await P.page.click("#kid-form [type=submit]");
+  assert.match(await P.page.textContent("#kf-name-err"), /1–24 characters/);
+  assert.match(await P.page.textContent("#kf-consent-err"), /parent or guardian/);
+  assert.equal(await P.page.evaluate(() => document.activeElement.id), "kf-name");
+  await P.page.fill("#kf-name", "Ahmed");
+  await P.page.check("#kf-consent");
+  await P.page.click("#kid-form [type=submit]");
+  await P.page.waitForSelector("#fam-child-h");
+  const ahmedId = await P.page.evaluate(() => location.hash.split("/")[2]);
+  // A second child with only the Qur'an and duas switched on.
+  await open(P.page, "#/family/add");
+  await P.page.waitForSelector("#kid-form");
+  await P.page.fill("#kf-name", "Maryam");
+  await P.page.selectOption("#kf-age", "4-6");
+  for (const s of ["prayer", "stories", "learn", "quiz"]) await P.page.uncheck(`[name="kf-sec"][value="${s}"]`);
+  await P.page.check("#kf-consent");
+  await P.page.click("#kid-form [type=submit]");
+  await P.page.waitForSelector("#fam-child-h");
+  const maryamId = await P.page.evaluate(() => location.hash.split("/")[2]);
+  await open(P.page, "#/family");
+  await P.page.waitForSelector(".fam-child");
+  assert.equal(await P.page.$$eval(".fam-child", (c) => c.length), 2);
+  // A one-time code for Ahmed's tablet.
+  await P.page.click(`[data-pair="${ahmedId}"]`);
+  await P.page.waitForSelector("#kid-dlg-body .pair-code");
+  const code = (await P.page.textContent("#kid-dlg-body .pair-code")).replace("-", "");
+  assert.match(code, /^[A-Z2-9]{8}$/);
+  await P.page.keyboard.press("Escape");
+
+  // ── Ahmed's tablet: no account, just the code.
+  const K = await device({ mock, context: { viewport: { width: 820, height: 1180 } } });
+  K.page.on("dialog", (d) => d.accept());
+  await open(K.page, "#/modes");
+  await K.page.click('[data-go="kids"]');
+  await K.page.waitForSelector("#fam-code");
+  await K.page.fill("#fam-code", "WRONG123");
+  await K.page.click("#fam-pair [type=submit]");
+  await K.page.waitForFunction(() => /didn't work/.test(document.getElementById("fam-code-err").textContent));
+  await K.page.fill("#fam-code", code.toLowerCase());
+  await K.page.click("#fam-pair [type=submit]");
+  await K.page.waitForSelector("#kid-newpin");
+  await K.page.fill("#kid-np", "12");
+  await K.page.fill("#kid-np2", "12");
+  await K.page.press("#kid-np2", "Enter");
+  assert.match(await K.page.textContent("#kid-np-err"), /4 to 8 digits/);
+  await K.page.fill("#kid-np", "2468");
+  await K.page.fill("#kid-np2", "2468");
+  await K.page.press("#kid-np2", "Enter");
+  await K.page.waitForFunction(() => location.hash === "#/kids" && /Ahmed/.test((document.getElementById("kids-h") || {}).textContent || ""));
+  assert.equal(await K.page.isVisible(".sidenav"), false, "no app navigation in Kids Mode");
+  assert.equal(await K.page.isVisible("#account-btn"), false);
+  for (const h of ["#/account", "#/settings", "#/family", "#/modes"]) {
+    await K.page.evaluate((x) => { location.hash = x; }, h);
+    await K.page.waitForFunction(() => location.hash === "#/kids");
+  }
+  assert.deepEqual(await K.page.$$eval(".kid-tile span:nth-child(2)", (t) => t.map((x) => x.textContent)),
+    ["Learn", "Read", "Listen", "Practice", "Explore", "Duas", "My progress"]);
+  // Wudu: put the steps in order, then "I learned this!".
+  await open(K.page, "#/kids/prayer/wudu");
+  for (let i = 0; i < 8; i++) {
+    await K.page.click(`[data-step="${i}"]`);
+  }
+  await K.page.click('[data-learned="prayer:wudu"]');
+  // A quiz, all right.
+  await open(K.page, "#/kids/quiz/prayer");
+  const answers = [0, 1, 2, 0, 1, 1];
+  for (const a of answers) {
+    await K.page.click(`[data-a="${a}"]`);
+    await K.page.click("#kz-next");
+  }
+  await K.page.waitForFunction(() => /You got 6 out of 6/.test(document.getElementById("kids-root").textContent));
+  // A dua.
+  await open(K.page, "#/kids/duas/before-eating");
+  await K.page.click("#kd-hide");
+  assert.equal(await K.page.getAttribute("#kd-hide", "aria-pressed"), "true");
+  await K.page.click('[data-learned="duas:before-eating"]');
+  await K.page.waitForFunction(() => !(SS.store.get("kids:queue:" + SS.modes.kidDevice().id) || []).length, null, { timeout: 8000 });
+  await open(K.page, "#/kids/progress");
+  await K.page.waitForSelector(".ach-list");
+  const earned = await K.page.$$eval(".ach:not(.locked) span:nth-child(2)", (a) => a.map((x) => x.textContent));
+  assert.deepEqual(earned.sort(), ["First Dua Learned", "First Quiz Completed", "Wudu Basics Completed"]);
+
+  // The child's device can't reach parent or sibling data — the server refuses.
+  const probe = await K.page.evaluate(async (mid) => {
+    const c = await SS.account.client(), tok = SS.modes.kidDevice().token;
+    const list = await c.rpc("family_children_list");
+    const other = await c.rpc("family_child_detail", { p_child: mid });
+    const mine = await c.rpc("kid_progress", { p_token: tok });
+    return { list: !!list.error, other: !!other.error, mine: mine.data.child.name, items: mine.data.progress.length, parentId: "parent_id" in mine.data.child };
+  }, maryamId);
+  assert.deepEqual(probe, { list: true, other: true, mine: "Ahmed", items: 3, parentId: false });
+
+  // The parent sees Ahmed's real progress — and nothing of it on Maryam.
+  await open(P.page, "#/family/" + ahmedId);
+  await P.page.waitForSelector(".ach-list");
+  assert.equal(await P.page.$$eval(".ach:not(.locked)", (a) => a.length), 3);
+  assert.match(await P.page.textContent("#fam-root"), /Prayer quiz 100%/);
+  await open(P.page, "#/family/" + maryamId);
+  await P.page.waitForSelector(".ach-list");
+  assert.equal(await P.page.$$eval(".ach:not(.locked)", (a) => a.length), 0);
+  assert.match(await P.page.textContent("#fam-root"), /Nothing yet/);
+
+  // Maryam on the parent's own phone: the parent is signed out first; restrictions apply.
+  await P.page.click("#fam-here1");
+  await P.page.waitForSelector("#kid-here");
+  await P.page.fill("#kid-hp", "1357");
+  await P.page.fill("#kid-hp2", "1357");
+  await P.page.press("#kid-hp2", "Enter");
+  await P.page.waitForFunction(() => location.hash === "#/kids" && /Maryam/.test((document.getElementById("kids-h") || {}).textContent || ""));
+  assert.equal(await P.page.evaluate(() => SS.account.signedIn() || !!localStorage.getItem("ss-auth")), false, "no parent session left on the device");
+  assert.deepEqual(await P.page.$$eval(".kid-tile span:nth-child(2)", (t) => t.map((x) => x.textContent)), ["Read", "Duas", "My progress"]);
+  await open(P.page, "#/kids/prayer/names");
+  assert.match(await P.page.textContent("#kids-root"), /switched this off/);
+  const forced = await P.page.evaluate(async () => {
+    const c = await SS.account.client();
+    const r = await c.rpc("kid_save", { p_token: SS.modes.kidDevice().token, p_items: [{ item: "prayer:names" }, { item: "duas:after-eating" }] });
+    return r.data.rejected;
+  });
+  assert.deepEqual(forced, ["prayer:names"], "the server refuses progress in a switched-off section");
+  // Leaving needs the grown-up PIN.
+  await open(P.page, "#/kids");
+  await P.page.click("#kid-grownups");
+  await P.page.fill("#kid-pin", "0000");
+  await P.page.press("#kid-pin", "Enter");
+  await P.page.waitForFunction(() => /isn't right/.test(document.getElementById("kid-pin-err").textContent));
+  await P.page.fill("#kid-pin", "1357");
+  await P.page.press("#kid-pin", "Enter");
+  await P.page.waitForSelector("#kid-leave");
+  await P.page.click("#kid-leave");
+  await P.page.waitForFunction(() => location.hash === "#/family" && !SS.modes.kidLocked());
+  assert.equal(await P.page.evaluate(() => localStorage.getItem("salaamstreet:kids:device")), null);
+
+  // The parent signs back in and removes Ahmed's tablet; the tablet drops out of Kids Mode.
+  await emailSignIn(P.page, "parent@example.com");
+  await P.page.waitForFunction(() => SS.account.signedIn());
+  await open(P.page, "#/family/" + ahmedId);
+  await P.page.waitForSelector("[data-revoke]");
+  await P.page.click("[data-revoke]");
+  await P.page.waitForFunction(() => /No devices yet/.test(document.getElementById("fam-root").textContent));
+  // Next time the tablet opens SalaamStreet, the server refuses its token and Kids Mode closes on it.
+  await K.page.reload();
+  await K.page.waitForFunction(() => !SS.modes.kidLocked(), null, { timeout: 8000 });
+  await K.page.waitForSelector("#kid-pair");
+  assert.equal(await K.page.evaluate(() => Object.keys(localStorage).filter((k) => /kids:/.test(k)).length), 0, "nothing of Ahmed's left on the tablet");
+  assert.deepEqual(P.page.errors, []);
+  assert.deepEqual(K.page.errors, []);
+  await P.context.close(); await K.context.close();
+  await pg.close();
+});
+
+test("modes: no horizontal overflow on phone, tablet and desktop, in light and dark", async () => {
+  const pg = await familyDb();
+  const mock = createMock({ pg });
+  for (const vp of [{ width: 320, height: 640 }, { width: 390, height: 844 }, { width: 820, height: 1180 }, { width: 1440, height: 900 }]) {
+    for (const theme of ["light", "dark"]) {
+      const { page, context } = await device({ mock, context: { viewport: vp }, settings: { location: CHICAGO, theme } });
+      await modeApis(context);
+      await page.evaluate(() => 0);
+      for (const v of ["#/modes", "#/mode/travel", "#/mode/travel/guide", "#/mode/travel/checklist", "#/mode/hajj", "#/mode/mosque/find", "#/family", "#/kids"]) {
+        await open(page, v);
+        await page.waitForTimeout(150);
+        const over = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+        assert.ok(over <= 0, `${v} overflows by ${over}px at ${vp.width}px (${theme})`);
+        assert.equal(await page.evaluate(() => document.documentElement.getAttribute("data-theme")), theme);
+        if (vp.width === 390 || vp.width === 1440) await shot(page, `modes-${v.replace(/[#/]+/g, "-").replace(/^-|-$/g, "")}-${vp.width}-${theme}`);
+      }
+      assert.deepEqual(page.errors, []);
+      await context.close();
+    }
+  }
+  await pg.close();
 });

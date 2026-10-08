@@ -136,6 +136,9 @@
   }
 
   function notify(title, body, tag, url, extra) {
+    // Quiet Mode (3.0, Mosque Mode): only prayer reminders, and never the chime.
+    var quiet = !!(SS.modes && SS.modes.quiet());
+    if (quiet && !(extra && extra.essential)) return false;
     var opts = { body: body, tag: tag, icon: "icons/icon-192.png", badge: "icons/icon-192.png", data: { url: url || "./#/prayer" } };
     // e.g. an "I prayed" button (shown where the system supports notification buttons).
     if (extra && extra.prayed) {
@@ -154,7 +157,7 @@
       }
     }
     if (document.visibilityState === "visible") SS.toast(title + (body ? " · " + body : ""));
-    if (SS.store.settings().reminderSound) chime();
+    if (SS.store.settings().reminderSound && !quiet) chime();
     return shown;
   }
 
@@ -197,7 +200,7 @@
             var name = t("prayer." + key);
             var title = off ? f("rem.soon", { p: name, n: s.reminderOffset }) : f("rem.now", { p: name });
             notify(title, SS.formatTime(r.timings[key]) + " · " + SS.ui.locLabel(loc), tag, "./#/home",
-              { prayed: "./#/home/prayed/" + key + "/" + SS.localDate() });
+              { prayed: "./#/home/prayed/" + key + "/" + SS.localDate(), essential: true });
           });
         });
       });

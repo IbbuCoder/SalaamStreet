@@ -224,8 +224,48 @@
   ];
 
   /* ── Version & release notes (newest first) ──────────────────────── */
-  SS.VERSION = "2.9.5";
+  SS.VERSION = "3.0.0";
   SS.CHANGELOG = [
+    {
+      v: "3.0.0", date: "2026-10-08",
+      en: "Modes", ar: "الأوضاع",
+      den: "A new way to experience SalaamStreet: five Modes that put the right tools first for what you're doing — at home, travelling, learning as a child, on Hajj or Umrah, or at the mosque.",
+      dar: "طريقة جديدة لاستخدام سلام ستريت: خمسة أوضاع تقدّم الأدوات المناسبة لما تفعله — في البيت، أو في السفر، أو تعلّم الأطفال، أو في الحج والعمرة، أو في المسجد.",
+      groups: [
+        { en: "New: Modes", ar: "جديد: الأوضاع", items: [
+          { en: "Choose Your Mode — Normal, Travel, Kids, Hajj & Umrah and Mosque — from your Account page, the menu or the sidebar", ar: "اختر وضعك — عادي، سفر، أطفال، حج وعمرة، مسجد — من صفحة حسابك أو القائمة أو الشريط الجانبي" },
+          { en: "Each mode puts its own dashboard at the top of Home and reorders your quick links; switching back to Normal restores everything, and nothing is ever deleted", ar: "لكل وضع لوحته أعلى الرئيسية وترتيبه للاختصارات، والرجوع إلى الوضع العادي يعيد كل شيء ولا يُحذف شيء" },
+          { en: "Your mode is remembered after a refresh or restart, and syncs across your devices when you're signed in; guests keep it on the device and bring it with them when they sign up", ar: "يُحفظ وضعك بعد التحديث أو إعادة التشغيل، ويُزامن بين أجهزتك عند تسجيل الدخول، ويبقى على الجهاز للزائر وينتقل معه عند التسجيل" },
+          { en: "A small mode badge in the top bar opens the mode picker; gentle, dismissible suggestions (at most one per visit) offer a mode on the Mosques, Calendar and travel-dua pages", ar: "شارة صغيرة في الشريط العلوي تفتح منتقي الأوضاع، واقتراحات لطيفة قابلة للإغلاق (مرة على الأكثر في الزيارة) في صفحات المساجد والتقويم وأدعية السفر" },
+        ] },
+        { en: "Kids Mode and Family", ar: "وضع الأطفال والعائلة", items: [
+          { en: "A parent-managed Kids Mode: add several children (first name or nickname, age range and avatar only) and choose what each can use", ar: "وضع أطفال يديره الوالدان: أضف عدة أطفال (الاسم الأول أو اسم التدليل والعمر والصورة الرمزية فقط) واختر ما يستخدمه كل منهم" },
+          { en: "Children never get the parent's password: a device is connected to one child with a one-time code, or by the parent on their own device, and a grown-up PIN is needed to leave", ar: "لا يحصل الطفل على كلمة مرور الوالد: يُربط الجهاز بطفل واحد برمز لمرة واحدة أو من جهاز الوالد، ويلزم رمز الكبار للخروج" },
+          { en: "Learn prayer and wudu, read and listen to short surahs, everyday duas, stories of the Prophets, Names of Allah, good manners, pillars and history — every lesson with its source", ar: "تعلّم الصلاة والوضوء، واقرأ واستمع إلى السور القصيرة، والأدعية اليومية، وقصص الأنبياء، وأسماء الله، والآداب، والأركان، والتاريخ — مع مصدر كل درس" },
+          { en: "Quizzes, put-the-steps-in-order activities, flashcards, a daily learning card and gentle achievements — saved for each child separately, never a competition", ar: "اختبارات وأنشطة ترتيب الخطوات وبطاقات وبطاقة تعلّم يومية وإنجازات لطيفة — تُحفظ لكل طفل على حدة ولا تنافس فيها" },
+          { en: "A Family page for parents: each child's real progress, achievements and devices; restrictions enforced by the server; reset progress or remove a child and all their data", ar: "صفحة العائلة للوالدين: تقدّم كل طفل الحقيقي وإنجازاته وأجهزته، وقيود يفرضها الخادم، وإعادة ضبط التقدّم أو حذف الطفل وكل بياناته" },
+        ] },
+        { en: "Travel Mode", ar: "وضع السفر", items: [
+          { en: "Prayer times with a countdown, the Qibla and the Hijri date wherever you are — with or without location permission", ar: "مواقيت الصلاة مع العد التنازلي والقبلة والتاريخ الهجري حيثما كنت — بإذن الموقع أو دونه" },
+          { en: "A destination with its own prayer times and Qibla, saved places, and one tap to use a place for prayer times app-wide (and back home again)", ar: "وجهة بمواقيتها وقبلتها، وأماكن محفوظة، ولمسة واحدة لاعتماد مكان لمواقيت التطبيق كله (والعودة إلى مدينتك)" },
+          { en: "Travel duas, a four-part travel checklist, and sourced guidance on shortening and combining prayers that sets out where the schools differ", ar: "أدعية السفر، وقائمة سفر من أربعة أقسام، وإرشاد موثّق في القصر والجمع يبيّن مواضع الخلاف بين المذاهب" },
+        ] },
+        { en: "Hajj & Umrah Mode", ar: "وضع الحج والعمرة", items: [
+          { en: "Step-by-step Umrah (7 steps) and Hajj (11 steps, 8–13 Dhul-Hijjah) guides with sources, the duas for each step, and notes where scholars differ", ar: "دليل العمرة (٧ خطوات) والحج (١١ خطوة، من ٨ إلى ١٣ ذي الحجة) خطوة بخطوة مع المصادر وأدعية كل خطوة ومواضع الخلاف" },
+          { en: "Mark steps done, see where you are and what's next, resume where you left off, and start over for a new pilgrimage; a packing and preparation checklist", ar: "علّم الخطوات المكتملة، واعرف أين أنت وما التالي، وتابع من حيث توقفت، وابدأ من جديد لنسك جديد، مع قائمة تجهيز واستعداد" },
+        ] },
+        { en: "Mosque Mode", ar: "وضع المسجد", items: [
+          { en: "Choose your mosque near you or by searching an area, save favourites, and see its prayer times, next Friday and Qibla", ar: "اختر مسجدك قريبًا منك أو بالبحث في منطقة، واحفظ المفضلة، واعرض مواقيته والجمعة القادمة والقبلة" },
+          { en: "Honest data: details come from OpenStreetMap and are labelled as such; times are calculated start times, not the mosque's iqamah; you can note a Jumu'ah time for yourself", ar: "بيانات صادقة: التفاصيل من OpenStreetMap وموسومة بذلك، والمواقيت أوقات دخول محسوبة لا أوقات الإقامة، ويمكنك تدوين وقت الجمعة لنفسك" },
+          { en: "Optional Quiet Mode: no animations, fewer cards, and no non-prayer reminders or sounds from SalaamStreet while you're there", ar: "وضع هادئ اختياري: بلا حركة وبطاقات أقل وبلا تذكيرات أو أصوات غير الصلاة من سلام ستريت أثناء وجودك" },
+        ] },
+        { en: "Improvements", ar: "تحسينات", items: [
+          { en: "Everything in Modes works on phones, tablets and desktops, in light and dark themes, in all seven interface languages, with keyboard and screen-reader support", ar: "كل ما في الأوضاع يعمل على الهواتف والأجهزة اللوحية والحواسيب، بالسمة الفاتحة والداكنة، وبلغات الواجهة السبع، مع دعم لوحة المفاتيح وقارئ الشاشة" },
+          { en: "Mode pages load only when opened, and keep working offline once visited", ar: "صفحات الأوضاع لا تُحمّل إلا عند فتحها، وتعمل دون اتصال بعد زيارتها" },
+          { en: "The mosque finder now also shows a mosque's website and phone when OpenStreetMap has them", ar: "صار الباحث عن المساجد يعرض موقع المسجد وهاتفه إن توفّرا في OpenStreetMap" },
+        ] },
+      ],
+    },
     {
       v: "2.9.5", date: "2026-10-06",
       en: "More Stories, and a cleaner app", ar: "قصص أكثر وتطبيق أنظف",
@@ -488,11 +528,32 @@
   });
   /* What's planned — honest plans in order, never dates. Nothing here is released yet. */
   SS.ROADMAP = [
-    { v: "3.0.0", icon: "users", en: "SalaamStreet Kids", ar: "سلام ستريت للأطفال",
-      den: "A safe, simple SalaamStreet for young children, with family accounts so parents can set it up and follow along.",
-      dar: "سلام ستريت آمن وبسيط للأطفال الصغار، مع حسابات عائلية ليُعدّه الوالدان ويتابعا تقدّم أطفالهما." },
-    { v: "3.1.0", icon: "mosque", en: "MSA + Community", ar: "رابطة الطلاب المسلمين والمجتمع",
-      den: "Tools for Muslim Student Associations and local communities, starting with the Neuqua Valley High School (NVHS) MSA.",
-      dar: "أدوات لروابط الطلاب المسلمين والمجتمعات المحلية، بدءًا برابطة مدرسة Neuqua Valley الثانوية (NVHS)." },
+    { v: "3.1.0", icon: "user", en: "Personalization", ar: "التخصيص",
+      den: "A Home screen you arrange yourself: dashboard cards, favourite tools and shortcuts, more notification choices and better mode suggestions.",
+      dar: "شاشة رئيسية ترتّبها بنفسك: بطاقات وأدوات مفضلة واختصارات، وخيارات أكثر للتنبيهات، واقتراحات أفضل للأوضاع." },
+    { v: "3.2.0", icon: "book", en: "Qur'an Experience", ar: "تجربة القرآن",
+      den: "A more cohesive reader: reading history, more translations side by side, better audio and repeat controls, and memorization progress.",
+      dar: "قارئ أكثر تكاملًا: سجل القراءة، وترجمات أكثر جنبًا إلى جنب، وتحكم أفضل بالصوت والتكرار، وتتبع الحفظ." },
+    { v: "3.3.0", icon: "open-book", en: "Islamic Learning", ar: "التعلّم الإسلامي",
+      den: "Organized learning paths with lessons, quizzes and flashcards — Seerah, history and hadith — shared with Kids Mode.",
+      dar: "مسارات تعلّم منظّمة بدروس واختبارات وبطاقات — السيرة والتاريخ والحديث — مشتركة مع وضع الأطفال." },
+    { v: "3.4.0", icon: "mosque", en: "Community", ar: "المجتمع",
+      den: "Mosque and MSA pages with verified Jumu'ah times, events and announcements, starting with the Neuqua Valley High School (NVHS) MSA.",
+      dar: "صفحات للمساجد وروابط الطلاب بأوقات جمعة وفعاليات وإعلانات موثقة، بدءًا برابطة مدرسة Neuqua Valley الثانوية (NVHS)." },
+    { v: "3.5.0", icon: "moon", en: "Ramadan Experience", ar: "تجربة رمضان",
+      den: "A fuller Ramadan dashboard: suhoor and iftar, fasting tracker, Qur'an goals, Laylat al-Qadr and an Eid countdown — a seasonal feature, not a sixth mode.",
+      dar: "لوحة رمضان أشمل: السحور والإفطار، ومتابعة الصيام، وأهداف القرآن، وليلة القدر، والعد التنازلي للعيد — ميزة موسمية لا وضعًا سادسًا." },
+    { v: "3.6.0", icon: "compass", en: "Advanced Islamic Tools", ar: "أدوات إسلامية متقدمة",
+      den: "A Hijri date converter, a zakat calculator, better tool search and more that works offline — with every assumption explained.",
+      dar: "محوّل التاريخ الهجري، وحاسبة الزكاة، وبحث أفضل في الأدوات، والمزيد مما يعمل دون اتصال — مع شرح كل افتراض." },
+    { v: "3.7.0", icon: "users", en: "Family Ecosystem", ar: "منظومة العائلة",
+      den: "Building on Kids Mode: shared family learning goals, better progress summaries and family-friendly Ramadan tools.",
+      dar: "امتداد لوضع الأطفال: أهداف تعلّم عائلية مشتركة، وملخصات تقدّم أفضل، وأدوات رمضان مناسبة للعائلة." },
+    { v: "3.8.0", icon: "bell", en: "Notifications", ar: "التنبيهات",
+      den: "Useful, configurable reminders — Jumu'ah, Qur'an, learning and events — with custom schedules and no spam.",
+      dar: "تذكيرات مفيدة قابلة للضبط — الجمعة والقرآن والتعلّم والفعاليات — بجداول مخصصة ودون إزعاج." },
+    { v: "3.9.0", icon: "sparkle", en: "Performance, Security & Polish", ar: "الأداء والأمان والتحسين",
+      den: "Faster loading, better offline support, an accessibility and security review, and bug fixes.",
+      dar: "تحميل أسرع، ودعم أفضل دون اتصال، ومراجعة لإمكانية الوصول والأمان، وإصلاح الأخطاء." },
   ];
 })();

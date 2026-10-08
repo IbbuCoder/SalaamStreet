@@ -1536,3 +1536,169 @@ body.sv-open{overflow:hidden}
 .sv-play:focus-visible,.sv-nav:focus-visible{outline:3px solid #fde68a;outline-offset:3px}
 .stl-count{margin:16px 0 0}
 .stl-count + #stl-list > .group-label:first-child{margin-block-start:8px}
+
+/* ════════════════════════════════════════════════════════════════
+   3.0 — Modes (js/modes.js, js/modes/*.js)
+   Built only from the tokens and components above, so light/dark/system
+   and RTL work unchanged. State is never shown by colour alone: active
+   items carry a check icon and a text label.
+   ════════════════════════════════════════════════════════════════ */
+.mode-list{display:grid;gap:14px}
+@media (min-width:700px){.mode-list{grid-template-columns:1fr 1fr}}
+.mode-card{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;align-items:start;position:relative;
+  transition:border-color .15s,box-shadow .15s,transform .15s}
+.mode-card:hover{border-color:color-mix(in srgb,var(--primary) 45%,var(--border));box-shadow:var(--shadow)}
+.mode-card:focus-within{border-color:var(--primary)}
+.mode-card.on{border:2px solid var(--primary);background:linear-gradient(180deg,var(--primary-soft),var(--surface) 70%)}
+.mode-card .mode-go{grid-column:1 / -1;justify-self:stretch;margin-block-start:8px}
+.mode-card .mode-active{position:absolute;inset-block-start:14px;inset-inline-end:14px}
+.mode-card .mode-active .ic{inline-size:14px;block-size:14px}
+.mode-card.on .mode-body{padding-inline-end:84px}
+.mode-name{font-size:1.12rem;line-height:1.3}
+.mode-desc{color:var(--text-2);font-size:.92rem;margin-block-start:4px}
+.mode-emoji{display:grid;place-items:center;inline-size:52px;block-size:52px;border-radius:16px;background:var(--surface-2);font-size:1.7rem;line-height:1;flex-shrink:0}
+.mode-emoji.sm{inline-size:40px;block-size:40px;border-radius:12px;font-size:1.25rem}
+.w-ic.mode-emoji{background:var(--primary-soft)}
+.mode-head{display:flex;gap:14px;align-items:center}
+.mode-off{margin-block-end:14px}
+.mode-off p{flex:1;min-inline-size:12ch}
+
+/* Top-bar indicator and nav marker */
+.mode-pill{gap:6px;font-weight:700;font-size:.85rem;border:1px solid color-mix(in srgb,var(--primary) 40%,var(--border));background:var(--primary-soft);color:var(--primary-strong)}
+.mode-pill:hover{text-decoration:none}
+@media (max-width:420px){#mode-pill-label{display:none}}
+.nav-mode{margin-inline-start:auto;font-size:.9rem}
+
+/* Home: mode panel + blocks that step back */
+.mode-home{padding:14px 16px;margin-block-end:14px}
+.mode-strip{display:flex;align-items:center;gap:10px;margin-block-end:10px}
+.mode-strip-t{font-size:1rem}
+.mode-hidden{display:none!important}
+
+/* Suggestions */
+.mode-suggest{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-block:0 16px;border-style:dashed}
+.mode-suggest .ms-text{flex:1;min-inline-size:18ch;font-size:.94rem;color:var(--text-2)}
+.mode-suggest .ms-acts{display:flex;gap:6px}
+
+/* Shared: dashboards, tiles, steps */
+.mode-grid{display:grid;gap:14px;grid-template-columns:minmax(0,1fr)}
+@media (min-width:900px){.mode-grid{grid-template-columns:minmax(0,1.2fr) minmax(0,1fr)}}
+.mode-grid .card-title{flex-wrap:wrap;gap:6px}
+.mode-grid .countdown{font-size:clamp(1.4rem,7vw,2rem)}
+.mode-tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+@media (min-width:600px){.mode-tiles{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.mode-tile{display:grid;gap:2px;padding:12px 14px;border-radius:var(--radius-sm);background:var(--surface-2);border:1px solid var(--border);color:var(--text);min-block-size:72px}
+a.mode-tile:hover{text-decoration:none;border-color:var(--primary)}
+.mode-tile small{color:var(--text-3);font-size:.78rem;font-weight:600}
+.mode-tile b{font-size:1.05rem;line-height:1.3;overflow-wrap:anywhere}
+.mode-tabs{display:flex;overflow-x:auto;scrollbar-width:none;margin-block-end:16px;inline-size:100%}
+.mode-tabs::-webkit-scrollbar{display:none}
+.mode-tabs button{flex:1 0 auto;min-block-size:44px}
+.mode-section + .mode-section{margin-block-start:18px}
+.mode-dua .arabic-dua{font-family:var(--font-dua);font-size:1.5rem;line-height:2;text-align:center;margin-block:8px}
+.badge-src-line{margin-block-start:8px}
+.badge-ok{background:var(--primary-soft);color:var(--primary-strong)}
+.badge-net{background:var(--surface-2);color:var(--text-2)}
+.badge .ic{inline-size:13px;block-size:13px}
+.guide-text p + p,.guide-text ul{margin-block-start:8px}
+.guide-text ul{padding-inline-start:20px}
+.guide-text li + li{margin-block-start:4px}
+.guide-src{margin-block-start:10px}
+.diff{margin-block-start:10px;padding:10px 12px;border-radius:var(--radius-xs);border-inline-start:3px solid var(--gold-bright);background:color-mix(in srgb,var(--gold-bright) 8%,transparent);font-size:.92rem}
+.diff b{display:block;font-size:.8rem;text-transform:uppercase;letter-spacing:.04em;color:var(--gold)}
+.consult{font-size:.88rem;color:var(--text-2)}
+
+/* Step-by-step guides (Hajj/Umrah) */
+.steps-list{list-style:none;padding:0;display:grid;gap:8px}
+.step-row{display:flex;align-items:center;gap:12px;inline-size:100%;padding:12px 14px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--surface);color:var(--text);text-align:start;min-block-size:56px}
+.step-row:hover{border-color:var(--primary)}
+.step-row[aria-current="step"]{border:2px solid var(--primary);background:var(--primary-soft)}
+.step-n{display:grid;place-items:center;inline-size:32px;block-size:32px;border-radius:50%;background:var(--surface-2);font-weight:800;font-size:.9rem;flex-shrink:0}
+.step-row.done .step-n{background:var(--primary);color:var(--on-primary)}
+.step-row .step-t{flex:1;font-weight:700}
+.step-row .step-s{font-size:.8rem;color:var(--text-3);font-weight:600}
+.step-nav{display:flex;gap:8px;flex-wrap:wrap;justify-content:space-between;margin-block-start:14px}
+
+/* Checklists */
+.cl-head{display:grid;gap:6px;margin-block-end:8px}
+.cl-group{border:none;padding:0;margin:0}
+.cl-group + .cl-group{margin-block-start:12px}
+.cl-group legend{padding:0;margin-block-end:4px}
+.cl-item{display:flex;align-items:center;gap:12px;min-block-size:48px;padding:8px 10px;border-radius:var(--radius-xs);cursor:pointer}
+.cl-item:hover{background:var(--surface-2)}
+.cl-item input{position:absolute;opacity:0;inline-size:1px;block-size:1px}
+.cl-box{display:grid;place-items:center;inline-size:24px;block-size:24px;border-radius:7px;border:2px solid var(--text-3);flex-shrink:0;color:transparent}
+.cl-box .ic{inline-size:16px;block-size:16px}
+.cl-item input:checked + .cl-box{background:var(--primary);border-color:var(--primary);color:var(--on-primary)}
+.cl-item input:checked ~ .cl-text{color:var(--text-3);text-decoration:line-through}
+.cl-item input:focus-visible + .cl-box{outline:2.5px solid var(--primary);outline-offset:2px}
+
+/* Places / mosques lists */
+.place-row{display:flex;align-items:center;gap:12px;padding:12px 14px}
+.place-row .w-body{flex:1;min-inline-size:0}
+.place-acts{display:flex;gap:6px;flex-wrap:wrap}
+.form-row{display:flex;gap:8px;flex-wrap:wrap}
+.form-row .input{flex:1;min-inline-size:12ch}
+.field-error{color:var(--danger);font-size:.86rem;font-weight:600}
+
+/* Quiet Mode (Mosque Mode): calmer, still, fewer distractions */
+html.quiet *,html.quiet *::before,html.quiet *::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+html.quiet .nav-soon,html.quiet .update-banner{display:none!important}
+html.quiet .hero{background:var(--surface-2);color:var(--text)}
+
+/* ═══ Kids Mode ═══ */
+body.kids-lock{--nav-w:0px;--bottomnav-h:0px}
+body.kids-lock .sidenav,body.kids-lock .bottomnav,body.kids-lock #account-btn,body.kids-lock #mode-pill,
+body.kids-lock .skip-link + .sidenav,body.kids-lock .update-banner{display:none!important}
+.kids-view{--kid-r:22px}
+.kid-hello{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-block-end:18px}
+.kid-hello h1{font-size:1.6rem}
+.kid-av{display:grid;place-items:center;inline-size:64px;block-size:64px;border-radius:50%;background:var(--primary-soft);font-size:2.1rem;flex-shrink:0}
+.kid-av.sm{inline-size:44px;block-size:44px;font-size:1.4rem}
+.kid-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+@media (min-width:700px){.kid-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.kid-tile{display:grid;justify-items:center;align-content:center;gap:6px;min-block-size:120px;padding:16px 10px;border-radius:var(--kid-r);
+  border:2px solid var(--border);background:var(--surface);color:var(--text);font-weight:800;font-size:1.05rem;text-align:center}
+.kid-tile:hover{border-color:var(--primary);text-decoration:none}
+.kid-tile .k-emoji{font-size:2.2rem;line-height:1}
+.kid-tile small{font-weight:600;color:var(--text-3);font-size:.8rem}
+.kid-card{border-radius:var(--kid-r);font-size:1.06rem}
+.kid-card h2,.kid-card h3{font-size:1.2rem}
+.kid-steps{display:grid;gap:10px;padding-inline-start:0;list-style:none;counter-reset:ks}
+.kid-steps li{counter-increment:ks;display:flex;gap:12px;align-items:flex-start}
+.kid-steps li::before{content:counter(ks);display:grid;place-items:center;inline-size:32px;block-size:32px;border-radius:50%;background:var(--primary-soft);color:var(--primary-strong);font-weight:800;flex-shrink:0}
+.kid-big{min-block-size:56px;font-size:1.05rem;border-radius:16px}
+.kid-done{display:inline-flex;align-items:center;gap:6px;color:var(--primary-strong);font-weight:800}
+.kid-done .ic{inline-size:18px;block-size:18px}
+.kid-flash{display:grid;place-items:center;text-align:center;min-block-size:200px;padding:20px;border-radius:var(--kid-r);border:2px dashed var(--border);background:var(--surface-2);cursor:pointer;inline-size:100%;color:var(--text)}
+.kid-flash .nm-ar{font-family:var(--font-quran);font-size:2.6rem;line-height:1.6;color:var(--primary-strong)}
+.kid-quiz .qz-opts{grid-template-columns:1fr}
+@media (min-width:600px){.kid-quiz .qz-opts{grid-template-columns:1fr 1fr}}
+.kid-quiz .qz-opts .btn{justify-content:flex-start;text-align:start;white-space:normal;min-block-size:60px}
+.ach-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+.ach{display:grid;justify-items:center;gap:4px;padding:14px 10px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--surface);text-align:center;font-size:.86rem;font-weight:700}
+.ach .a-emoji{font-size:1.8rem;line-height:1}
+.ach.locked{opacity:.55;border-style:dashed}
+.ach small{font-weight:600;color:var(--text-3)}
+.av-pick{display:flex;flex-wrap:wrap;gap:8px;border:none;padding:0;margin:0}
+.av-pick label{position:relative}
+.av-pick input{position:absolute;opacity:0;inline-size:1px;block-size:1px}
+.av-pick span{display:grid;place-items:center;inline-size:48px;block-size:48px;border-radius:50%;border:2px solid var(--border);font-size:1.5rem;cursor:pointer}
+.av-pick input:checked + span{border-color:var(--primary);background:var(--primary-soft);box-shadow:0 0 0 2px var(--primary)}
+.av-pick input:focus-visible + span{outline:2.5px solid var(--primary);outline-offset:2px}
+.check-row{display:flex;flex-wrap:wrap;gap:8px}
+.check-row label{display:inline-flex;align-items:center;gap:8px;min-block-size:44px;padding:6px 12px;border-radius:999px;border:1px solid var(--border);cursor:pointer;font-weight:600;font-size:.9rem}
+.check-row input{inline-size:18px;block-size:18px;accent-color:var(--primary)}
+.fam-child{display:grid;gap:12px}
+.fam-top{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.fam-top .w-body{flex:1;min-inline-size:12ch}
+.fam-acts{display:flex;gap:8px;flex-wrap:wrap}
+.pair-code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:1.8rem;letter-spacing:.18em;font-weight:800;text-align:center;padding:12px;border-radius:var(--radius-sm);background:var(--surface-2);direction:ltr;user-select:all}
+.pin-input{font-size:1.4rem;letter-spacing:.4em;text-align:center;max-inline-size:220px}
+.kid-exit{margin-inline-start:auto}
+@media (prefers-reduced-motion:reduce){.mode-card,.kid-tile{transition:none}}
+.kids-noaudio [data-kaudio],.kids-noaudio .sv-play,body.kids-lock #sv-share{display:none!important}
+button.mode-card{inline-size:100%;text-align:start;font:inherit;color:inherit;cursor:pointer}
+.mode-card .mode-name,.mode-card .mode-desc{display:block}
+.mode-card .mode-name{font-weight:800}
+ul.mode-times,#mq-times .times-list,#tv-dest-times .times-list,#tv-times .times-list{padding:0;list-style:none;margin-block-start:10px}

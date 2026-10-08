@@ -14,7 +14,30 @@ const crypto = require("crypto");
 const URL_BASE = "https://test.supabase.co";
 const b64u = (o) => Buffer.from(JSON.stringify(o)).toString("base64url");
 
-function createMock() {
+/** A real Postgres (PGlite) running backend/supabase-schema.sql, for the
+    3.0 Family & Kids functions: the mock forwards family_* and kid_* RPCs to
+    it as the signed-in user (or anonymously), like PostgREST would. */
+async function familyDb() {
+  const fs = require("fs"), path = require("path");
+  const { PGlite } = await import("@electric-sql/pglite");
+  const pg = new PGlite();
+  await pg.exec(`
+    create role anon nologin; create role authenticated nologin;
+    create schema auth;
+    create table auth.users (id uuid primary key, email text, phone text, raw_user_meta_data jsonb default '{}'::jsonb);
+    create function auth.uid() returns uuid language sql stable as
+      $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
+    create publication supabase_realtime;
+    grant usage on schema public, auth to authenticated, anon;
+    grant execute on function auth.uid() to authenticated, anon;
+  `);
+  await pg.exec(fs.readFileSync(path.join(__dirname, "..", "..", "backend", "supabase-schema.sql"), "utf8"));
+  await pg.exec("grant select, insert, update, delete on all tables in schema public to authenticated, anon;");
+  return pg;
+}
+
+function createMock(opts) {
+  opts = opts || {};
   const users = new Map(); // id → user
   const rows = []; // sync_records
   const profiles = new Map();
@@ -182,6 +205,8 @@ function createMock() {
 
     /* ── REST ── */
     const u = userFromAuth(req);
+    const fam = p.match(/^\/rest\/v1\/rpc\/((?:family|kid)_[a-z_]+)$/);
+    if (fam && opts.pg) return familyRpc(route, fam[1], body, u);
     if (p.indexOf("/rest/v1/") === 0 && !u) return json(route, 401, { code: "PGRST301", message: "JWT required" });
     if (p === "/rest/v1/rpc/sync_push") {
       const rejected = [];
@@ -214,6 +239,27 @@ function createMock() {
     return json(route, 404, { message: "mock: no route for " + method + " " + p });
   }
 
+  // One statement at a time: "set role" + call + "reset role" must not interleave.
+  let queue = Promise.resolve();
+  function familyRpc(route, fn, body, u) {
+    const run = queue.then(async () => {
+      const pg = opts.pg, uid = u ? u.id : "";
+      if (uid) await pg.query("insert into auth.users (id) values ($1) on conflict do nothing", [uid]);
+      const names = Object.keys(body || {}).filter((n) => /^p_[a-z_]+$/.test(n));
+      const args = names.map((n) => (body[n] !== null && typeof body[n] === "object" ? JSON.stringify(body[n]) : body[n]));
+      await pg.exec(`set role ${uid ? "authenticated" : "anon"}; select set_config('request.jwt.claim.sub', '${uid}', false);`);
+      try {
+        const r = await pg.query(`select public.${fn}(${names.map((n, i) => `${n} => $${i + 1}`).join(", ")}) as r`, args);
+        return { status: 200, body: r.rows[0].r === undefined ? null : r.rows[0].r };
+      } catch (e) {
+        return { status: e.code === "42501" || e.code === "28000" ? 401 : 400, body: { code: e.code, message: e.message, details: null, hint: null } };
+      } finally { await pg.exec("reset role;"); }
+    });
+    queue = run.catch(() => {});
+    state.log.push({ fam: fn, user: u ? u.id : null });
+    return run.then((r) => json(route, r.status, r.body));
+  }
+
   let nextCtx = 1;
   return {
     state,
@@ -234,4 +280,4 @@ function createMock() {
   };
 }
 
-module.exports = { createMock, URL_BASE };
+module.exports = { createMock, familyDb, URL_BASE };

@@ -10,10 +10,16 @@ SalaamStreet began as an Islamic-themed Shopify shop that Ibrahim built when he 
 
 **Our promise:** everything you need — prayer times, Qibla, Qur'an, duas, dhikr, the prayer tracker, Arabic learning and (when it arrives) sync — stays free forever. Any future paid extras (subscription or one-time) will only be for things that genuinely cost money to provide.
 
-Current version: **2.9.5 — More Stories, and a cleaner app** (see `SS.VERSION` / `SS.CHANGELOG` in `js/content.js`).
+Current version: **3.0.0 — Modes** (see `SS.VERSION` / `SS.CHANGELOG` in `js/content.js`).
 
 ## Features
 
+- **Modes (3.0)** — choose how SalaamStreet works for what you're doing right now, from Account → Modes, the sidebar or the More menu. Each mode puts its own dashboard on Home and its tools first; your mode syncs when you're signed in. Details: [`docs/06-modes.md`](docs/06-modes.md)
+  - **Normal** — the full SalaamStreet, unchanged
+  - **Travel** — local prayer times with a countdown, Qibla and Hijri date wherever you are (with or without location permission), a destination and saved places, travel duas, a travel checklist, and sourced guidance on shortening and combining prayers that sets out where the schools differ
+  - **Kids** — a parent-managed space for children: parents add each child (first name, age range, avatar) on the Family page, choose what they can use, and see their progress; a child's device connects with a one-time code and never gets the parent's password. Prayer and wudu lessons, short surahs, everyday duas, stories by age, Names of Allah, manners and history, quizzes and gentle achievements — restrictions enforced by the server
+  - **Hajj & Umrah** — 7-step Umrah and 11-step Hajj guides with sources, duas and scholarly differences; progress, resume and a preparation checklist
+  - **Mosque** — choose and save your mosque (OpenStreetMap), its calculated prayer times, next Friday, Qibla, mosque duas, a Jumu'ah time you note yourself, and an optional Quiet Mode
 - **Free accounts (optional) + Guest Mode** — use everything without an account, or sign in with Apple, Google, phone or email to keep bookmarks, streaks, Qur'an progress and settings in sync on all your devices. Guest data is merged in when you sign in; nothing is lost. Setup: [`backend/README-backend.md`](backend/README-backend.md)
 - **Your SalaamStreet (Account page)** — prayer and dhikr streaks (current and best), Continue Reading across devices, Qur'an progress, recently read, bookmark collections with notes and search, saved duas, sign-in methods and sync status
 - **Prayer times** — device location or a city you type in, 7 calculation methods, Standard/Hanafi Asr, today's times and a monthly timetable (AlAdhan API, cached; calculated on the device when there's no connection)
@@ -32,7 +38,7 @@ Current version: **2.9.5 — More Stories, and a cleaner app** (see `SS.VERSION`
 - **Prayer reminders** — opt-in notifications at (or before) each prayer with an “I prayed” button, a soft chime, a Friday Al-Kahf reminder and morning/evening adhkar reminders; optionally they arrive even when SalaamStreet is closed (Web Push, see [`backend/README-push.md`](backend/README-push.md))
 - **Made for the installed app** — “Did you pray?” check-in on Home, a daily Qur'an goal, an app-icon badge for prayers not yet ticked, a recitation sleep timer, the screen kept on while reading, a Friday summary of your week, and a prompt when a new version is ready
 - **Morning & evening adhkar** — a guided routine with a counter for each remembrance and automatic progress
-- **Ramadan mode** — appears automatically in Ramadan: suhoor/iftar times and countdown, plus a fasting log
+- **Ramadan card** — appears automatically in Ramadan: suhoor/iftar times and countdown, plus a fasting log
 - **Qur'an reading plans** — finish the Qur'an in 30 (one juz a day), 60, 120 or 365 days
 - **Memorize mode** — hide the Arabic, recite, tap to check; loop an ayah 3×, 5×, 10× or endlessly
 - **Juz navigation, translation search, 9 translation languages** (English, Urdu, Indonesian, Turkish, Bengali, French, Malay, Spanish, German)
@@ -92,6 +98,8 @@ Safe-area insets (iPhone notch / home indicator), 16px form inputs (no iOS zoom)
 │   ├── account.js        Sign-in, account linking, sync wiring, Account dashboard
 │   ├── vendor/supabase.js  supabase-js (MIT), loaded only when someone uses accounts
 │   ├── vendor/pdfjs/     Mozilla pdf.js (Apache-2.0), loaded only for the Qur'an PDF
+│   ├── modes.js          3.0 Modes: registry, active mode, #/modes picker, Home mode panel, suggestions, Quiet Mode
+│   ├── modes/            Mode modules, loaded only when opened: travel.js, hajj.js, mosque.js, kids.js (Family + Kids)
 │   └── app.js            Router, theme, dialogs, audio player, boot
 ├── files/                The Qur'an PDF (see SS.QURAN_PDF in js/config.js)
 ├── sw.js                 Service worker (offline app shell; keeps the ss-offline-* caches)
@@ -137,10 +145,11 @@ npm run lint         # ESLint
 - `tests/sync.test.js` — sync engine across simulated devices (conflicts, offline, guest migration)
 - `tests/schema.test.js` — `backend/supabase-schema.sql` in a real Postgres (RLS, newest-wins, delete account)
 - `tests/qibla.test.js` — Qibla bearings vs published values, WMM2025 declination, orientation maths
+- `tests/family.test.js` — 3.0 Family & Kids Mode in a real Postgres: parents only reach their own children, a child's device only its own child, single-use expiring pairing codes, server-enforced restrictions, achievements, deletion
 - `tests/praytimes.test.js` — on-device prayer times vs the adhan library (8 cities, 4 seasons, every method)
 - `tests/push.test.js` — the reminder server: what's due when, sent once, in the device's language
 - `tests/offline.test.js` — Offline Qur'an in Chromium with real IndexedDB/Cache API: storage, read-path fallback, resume after a dropped connection or closed tab, quota errors, PDF card hidden while the file is missing
-- `tests/e2e.test.js` — the app in Chromium: startup theme, Tafsir, Qibla compass/camera, guest mode, every sign-in method driven through the real supabase-js client against a mock Supabase API, and the Offline Qur'an (text, audio across surahs, the PDF viewer offline)
+- `tests/e2e.test.js` — the app in Chromium: startup theme, Tafsir, Qibla compass/camera, guest mode, every sign-in method driven through the real supabase-js client against a mock Supabase API, and the Offline Qur'an (text, audio across surahs, the PDF viewer offline), and every 3.0 mode: switching and persistence, Travel without location and offline, Hajj & Umrah progress, Mosque and Quiet Mode, suggestions, the full parent/child flow against the real database functions, and layout in light and dark
 
 ## Run locally
 
@@ -175,4 +184,4 @@ Responses are cached in localStorage, so surahs you've read and today's prayer t
 
 ## Roadmap
 
-See [`docs/05-roadmap.md`](docs/05-roadmap.md).
+What's planned after 3.0 (Personalization, Qur'an, Learning, Community, Ramadan, Tools, Family, Notifications, Polish): [`ROADMAP.md`](ROADMAP.md). Release history: [`docs/05-roadmap.md`](docs/05-roadmap.md) and [`docs/release-notes/`](docs/release-notes/).
