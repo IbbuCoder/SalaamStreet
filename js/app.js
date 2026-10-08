@@ -350,16 +350,17 @@
 
   /* ── Router ─────────────────────────────────────────────────── */
   var VIEWS = ["home", "prayer", "qibla", "quran", "surah", "hadith", "duas", "dhikr", "calendar", "settings",
-    "adhkar", "names", "mosques", "learn", "about", "account", "stories"];
+    "adhkar", "names", "mosques", "learn", "about", "account", "stories", "modes", "mode", "family", "kids"];
   // Which nav item to highlight for views that aren't themselves nav items.
-  var NAV_ALIAS = { surah: "quran" };
+  var NAV_ALIAS = { surah: "quran", mode: "modes" };
   // Destinations that live in the phone "More" sheet light up the More tab.
-  var IN_MORE = { hadith: 1, duas: 1, dhikr: 1, calendar: 1, settings: 1, adhkar: 1, names: 1, mosques: 1, learn: 1, about: 1, account: 1, stories: 1 };
+  var IN_MORE = { hadith: 1, duas: 1, dhikr: 1, calendar: 1, settings: 1, adhkar: 1, names: 1, mosques: 1, learn: 1, about: 1, account: 1, stories: 1, modes: 1, family: 1 };
   var TITLE_KEY = {
     home: "nav.dashboard", prayer: "prayer.title", qibla: "qibla.title", quran: "quran.title", surah: "quran.title",
     hadith: "hadith.title", duas: "duas.title", dhikr: "dhikr.title", calendar: "cal.title", settings: "settings.title",
     adhkar: "adhkar.title", names: "names.title", mosques: "mosques.title", learn: "learn.title", about: "about.title",
-    account: "account.title", stories: "stories.title",
+    account: "account.title", stories: "stories.title", modes: "modes.title", mode: "modes.title",
+    family: "family.title", kids: "kids.title",
   };
   var currentView = "", currentHash = "";
   var HOME_TITLE = document.title;
@@ -372,6 +373,11 @@
     // The MSA preview tab was removed in 2.9.5; old links land on Home.
     if (view === "msa") { try { history.replaceState(null, "", "#/home"); } catch (e) { /* file:// */ } view = "home"; parts = []; }
     if (VIEWS.indexOf(view) === -1) view = "home";
+    // Kids Mode (3.0) keeps a child's device inside the Kids area.
+    if (SS.modes && SS.modes.kidLocked() && view !== "kids") {
+      try { history.replaceState(null, "", "#/kids"); } catch (e) { /* file:// */ }
+      view = "kids"; parts = [];
+    }
     return { view: view, params: parts };
   }
 
@@ -385,6 +391,7 @@
       try { SS.leave[prevView](); } catch (e) { if (window.console) console.error(e); }
     }
     currentView = r.view;
+    if (SS.modes) SS.modes.apply();
 
     for (var i = 0; i < VIEWS.length; i++) {
       var sec = $("view-" + VIEWS[i]);
@@ -496,6 +503,7 @@
     if (SS.dailyBoot) SS.dailyBoot();
     if (SS.aboutBoot) SS.aboutBoot();
     if (SS.accountBoot) SS.accountBoot();
+    if (SS.modesBoot) SS.modesBoot();
     window.addEventListener("hashchange", function () { navigate(); });
     if (!location.hash) {
       try { history.replaceState(null, "", "#/home"); } catch (e) { location.hash = "#/home"; }

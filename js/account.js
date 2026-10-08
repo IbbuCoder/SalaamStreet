@@ -103,6 +103,7 @@
     if (ret && /^#\//.test(ret) && location.hash !== ret) location.hash = ret;
     var dlg = $("acct-dialog");
     if (dlg && dlg.open && dlgStep !== "merge") dlg.close();
+    document.dispatchEvent(new CustomEvent("ss:auth", { detail: { signedIn: true } }));
   }
   function startSession(user, announce) {
     var res = engine.beginSession(user.id);
@@ -124,6 +125,7 @@
     clearTimeout(syncTimer);
     renderNav();
     if (SS.currentView() === "account" || SS.currentView() === "settings") SS.navigate(true);
+    document.dispatchEvent(new CustomEvent("ss:auth", { detail: { signedIn: false } }));
   }
 
   /* ── Supabase backend for the sync engine ─────────────────────── */
@@ -1023,13 +1025,26 @@
     return "";
   }
 
+  /* 3.0: Modes and the family area start from here. */
+  function modesCard() {
+    if (!SS.modes) return "";
+    var id = SS.modes.active(), m = SS.modes.get(id);
+    return '<article class="card acct-modes"><div class="card-title"><h2>' + esc(t("modes.title")) + "</h2></div>" +
+      '<div class="widget-list"><a class="widget" href="#/modes"><span class="w-ic mode-emoji sm" aria-hidden="true">' + m.emoji + "</span>" +
+      '<span class="w-body"><span class="w-title">' + esc(f("modes.current", { m: t("modes.name_" + id) })) + "</span>" +
+      '<span class="w-sub wrap-text">' + esc(t("modes.cardSub")) + "</span></span>" + icon("chev-r", "chev") + "</a>" +
+      '<a class="widget" href="#/family"><span class="w-ic">' + icon("users") + "</span>" +
+      '<span class="w-body"><span class="w-title">' + esc(t("family.title")) + '</span><span class="w-sub wrap-text">' + esc(t("family.cardSub")) + "</span></span>" +
+      icon("chev-r", "chev") + "</a></div></article>";
+  }
+
   function render() {
     var root = $("ac-root");
     if (!root) return;
     $("ac-sub").textContent = state.user ? t("account.subMember") : t("account.subGuest");
     root.innerHTML =
       '<div class="acct-grid">' +
-      '<div class="acct-col">' + profileCard() + statsCard() + readingCard() + "</div>" +
+      '<div class="acct-col">' + profileCard() + modesCard() + statsCard() + readingCard() + "</div>" +
       '<div class="acct-col">' + bookmarksCard() + savedCard() + manageCard() + "</div>" +
       "</div>";
     wire();
@@ -1130,6 +1145,11 @@
     openSignIn: function () { openDialog("methods"); },
     signOut: signOut,
     syncNow: function () { return state.user ? engine.sync() : Promise.resolve([]); },
+    /** The Supabase client (3.0 Family uses its RPCs). Rejects when accounts aren't configured or offline. */
+    client: function () { return client(); },
+    /** Make sure a stored sign-in is restored (e.g. on #/family before visiting Account). */
+    restore: function () { if (configured() && !state.user && hasStoredSession()) boot(); },
+    hasStoredSession: hasStoredSession,
     engine: engine,
   };
   SS.views.account = accountInit;

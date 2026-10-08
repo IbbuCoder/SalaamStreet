@@ -194,6 +194,8 @@
       <symbol id="i-open-book" viewBox="0 0 24 24"><path d="M2.5 4.5h6a3.5 3.5 0 0 1 3.5 3.5v12.5a2.6 2.6 0 0 0-2.6-2.6H2.5zM21.5 4.5h-6A3.5 3.5 0 0 0 12 8v12.5a2.6 2.6 0 0 1 2.6-2.6h6.9z"/></symbol>
       <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8.5" y="8.5" width="12" height="12" rx="2"/><path d="M15.5 8.5V5.5a2 2 0 0 0-2-2h-8a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3"/></symbol>
       <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+      <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 3.5 9 4.5-9 4.5L3 8z"/><path d="m3 12 9 4.5 9-4.5"/><path d="m3 16 9 4.5 9-4.5"/></symbol>
+      <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></symbol>
       <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
       <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
       <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></symbol>
@@ -232,6 +234,7 @@
     </a>
     <div class="nav-group">
       <a class="navlink" href="#/home" data-nav="home"><svg class="ic" aria-hidden="true"><use href="#i-home"/></svg><span data-i18n="nav.dashboard">Home</span></a>
+      <a class="navlink" href="#/modes" data-nav="modes"><svg class="ic" aria-hidden="true"><use href="#i-layers"/></svg><span data-i18n="modes.nav">Modes</span><span class="nav-mode" data-mode-now aria-hidden="true"></span></a>
       <p class="nav-label" data-i18n="nav.worship">Worship</p>
       <a class="navlink" href="#/prayer" data-nav="prayer"><svg class="ic" aria-hidden="true"><use href="#i-clock"/></svg><span data-i18n="nav.prayer">Prayer Times</span></a>
       <a class="navlink" href="#/qibla" data-nav="qibla"><svg class="ic" aria-hidden="true"><use href="#i-compass"/></svg><span data-i18n="nav.qibla">Qibla</span></a>
@@ -263,6 +266,7 @@
     </a>
     <span class="tb-title" id="tb-title" aria-hidden="true"></span>
     <span class="spacer"></span>
+    <a class="tb-btn mode-pill" id="mode-pill" href="#/modes" hidden><span id="mode-pill-emoji" aria-hidden="true"></span><span id="mode-pill-label"></span></a>
     <button class="tb-btn" id="locale-toggle" type="button" aria-haspopup="dialog" aria-label="Language / اللغة">
       <svg class="ic" aria-hidden="true"><use href="#i-globe"/></svg><span id="locale-label">العربية</span>
     </button>
@@ -293,6 +297,7 @@
 
       <div class="home-grid">
         <div class="home-main">
+          <section class="card mode-home" id="mode-home" aria-label="Current mode" hidden></section>
           <div class="banner" id="loc-banner" hidden>
             <svg class="ic" aria-hidden="true"><use href="#i-pin"/></svg>
             <p data-i18n="dash.setLocation">Set your location for accurate prayer times</p>
@@ -301,7 +306,7 @@
 
           <div id="ramadan-card" hidden></div>
           <div id="friday-card" hidden></div>
-          <article class="card week-card" id="week-card" aria-labelledby="week-h" hidden></article>
+          <article class="card week-card" id="week-card" aria-labelledby="week-h" data-home="week" data-quiet="hide" hidden></article>
           <article class="card hero" aria-labelledby="np-label">
             <div class="hero-top">
               <p class="hero-greet" data-i18n="dash.greeting">As-salamu alaykum</p>
@@ -325,7 +330,7 @@
             </div>
           </article>
 
-          <article class="card" aria-labelledby="da-h">
+          <article class="card" aria-labelledby="da-h" data-home="ayah" data-quiet="hide">
             <div class="card-title">
               <h2 id="da-h" data-i18n="dash.dailyAyah">Ayah of the day</h2>
               <a class="badge" id="da-ref" href="#/quran"></a>
@@ -335,11 +340,11 @@
               <div class="skeleton mt-1" style="block-size:18px;inline-size:80%"></div>
             </div>
           </article>
-          <article class="card name-card" id="name-of-day" aria-labelledby="nod-h"></article>
+          <article class="card name-card" id="name-of-day" aria-labelledby="nod-h" data-home="name" data-quiet="hide"></article>
         </div>
 
         <aside class="home-side">
-          <nav class="quick-grid" aria-label="Quick links">
+          <nav class="quick-grid" id="quick-grid" aria-label="Quick links">
             <a class="quick" href="#/qibla"><span class="q-ic"><svg aria-hidden="true"><use href="#i-compass"/></svg></span><span data-i18n="nav.qibla">Qibla</span></a>
             <a class="quick" href="#/quran"><span class="q-ic"><svg aria-hidden="true"><use href="#i-book"/></svg></span><span data-i18n="nav.quran">Qur'an</span></a>
             <a class="quick" href="#/adhkar"><span class="q-ic"><svg aria-hidden="true"><use href="#i-sunrise"/></svg></span><span data-i18n="nav.adhkar">Adhkar</span></a>
@@ -348,7 +353,7 @@
             <a class="quick" href="#/dhikr"><span class="q-ic"><svg aria-hidden="true"><use href="#i-beads"/></svg></span><span data-i18n="nav.dhikr">Dhikr</span></a>
           </nav>
 
-          <div class="card plan-mini" id="plan-widget" hidden></div>
+          <div class="card plan-mini" id="plan-widget" data-home="plan" data-quiet="hide" hidden></div>
 
           <div class="card widget-list">
             <a class="widget" href="#/prayer" id="track-widget">
@@ -389,7 +394,7 @@
           </div>
         </aside>
       </div>
-      <nav class="browse-links mt-3" aria-labelledby="browse-h">
+      <nav class="browse-links mt-3" aria-labelledby="browse-h" data-home="browse" data-quiet="hide">
         <h2 class="h-sm" id="browse-h" data-i18n="home.browse">Browse SalaamStreet</h2>
         <p>
           <a href="prayer-times/" data-i18n="home.browseTimes">Prayer times by city</a> ·
@@ -932,6 +937,43 @@
       <div id="ac-root"></div>
     </section>
 
+    <!-- ═══════════ MODES (3.0) ═══════════ -->
+    <section class="view view-narrow" id="view-modes" hidden aria-labelledby="modes-h">
+      <header class="page-head">
+        <h1 id="modes-h" tabindex="-1" data-i18n="modes.choose">Choose Your Mode</h1>
+        <p data-i18n="modes.chooseSub">Choose the experience that fits what you’re doing right now.</p>
+      </header>
+      <div class="mode-list" id="modes-list"></div>
+      <p class="tiny mt-2" data-i18n="modes.note">Switching modes never deletes anything: your bookmarks, progress and settings stay as they are. Signed in, your mode and progress follow you to your other devices.</p>
+    </section>
+
+    <section class="view" id="view-mode" hidden aria-labelledby="mode-h">
+      <a class="back-link" href="#/modes"><svg class="ic flip" aria-hidden="true"><use href="#i-chev-l"/></svg><span data-i18n="modes.all">All modes</span></a>
+      <header class="page-head mode-head">
+        <span class="mode-emoji" id="mode-emoji" aria-hidden="true"></span>
+        <div><h1 id="mode-h" tabindex="-1"></h1><p id="mode-sub"></p></div>
+      </header>
+      <div class="banner mode-off" id="mode-off" hidden>
+        <svg class="ic" aria-hidden="true"><use href="#i-layers"/></svg>
+        <p id="mode-off-text"></p>
+        <button class="btn btn-sm" id="mode-off-btn" type="button" data-i18n="modes.activate">Turn on</button>
+      </div>
+      <div id="mode-root"></div>
+    </section>
+
+    <section class="view view-narrow" id="view-family" hidden aria-labelledby="fam-h">
+      <a class="back-link" href="#/account"><svg class="ic flip" aria-hidden="true"><use href="#i-chev-l"/></svg><span data-i18n="account.title">Your SalaamStreet</span></a>
+      <header class="page-head">
+        <h1 id="fam-h" tabindex="-1" data-i18n="family.title">Family &amp; Kids Mode</h1>
+        <p data-i18n="family.sub">Set up a safe learning space for each of your children and follow their progress.</p>
+      </header>
+      <div id="fam-root"></div>
+    </section>
+
+    <section class="view kids-view" id="view-kids" hidden aria-labelledby="kids-h">
+      <div id="kids-root"></div>
+    </section>
+
     <!-- ═══════════ SETTINGS ═══════════ -->
     <section class="view view-narrow" id="view-settings" hidden aria-labelledby="st-h">
       <header class="page-head st-main"><h1 id="st-h" tabindex="-1" data-i18n="settings.title">Settings</h1></header>
@@ -1209,6 +1251,7 @@
       </div>
       <nav class="more-grid" aria-label="More">
         <a href="#/account" data-nav="account"><span class="q-ic"><svg aria-hidden="true"><use href="#i-user"/></svg></span><span data-i18n="nav.account">Account</span></a>
+        <a href="#/modes" data-nav="modes"><span class="q-ic"><svg aria-hidden="true"><use href="#i-layers"/></svg></span><span data-i18n="modes.nav">Modes</span></a>
         <a href="#/adhkar" data-nav="adhkar"><span class="q-ic"><svg aria-hidden="true"><use href="#i-sunrise"/></svg></span><span data-i18n="nav.adhkar">Adhkar</span></a>
         <a href="#/mosques" data-nav="mosques"><span class="q-ic"><svg aria-hidden="true"><use href="#i-mosque"/></svg></span><span data-i18n="nav.mosques">Mosques</span></a>
         <a href="#/names" data-nav="names"><span class="q-ic"><svg aria-hidden="true"><use href="#i-sparkle"/></svg></span><span data-i18n="nav.names">99 Names</span></a>
@@ -1385,6 +1428,7 @@
   <script src="js/config.js" defer></script>
   <script src="js/sync.js" defer></script>
   <script src="js/account.js" defer></script>
+  <script src="js/modes.js" defer></script>
   <script src="js/app.js" defer></script>
 </body>
 </html>

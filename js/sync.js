@@ -98,6 +98,13 @@
     { key: "dhikr:preset" },
     { key: "learn:best", merge: MERGE.max },
     { prefix: "dhikr:day:", merge: MERGE.maxMap },
+    // 3.0 Modes. Places, mosques and Kids Mode stay on each device on purpose
+    // (where you are, and which child uses a device, belong to that device).
+    { key: "mode:active" },
+    { key: "travel:checklist", map: true },
+    { key: "hajj:state" },
+    { prefix: "hajj:progress:", map: true },
+    { key: "hajj:checklist", map: true },
   ];
   var META_KEY = "sync:meta";
 

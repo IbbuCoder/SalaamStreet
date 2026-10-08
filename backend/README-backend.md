@@ -53,6 +53,28 @@ This creates:
 - Row-Level Security on both tables: each person can only read or write their
   own rows. Realtime is enabled on `sync_records` so devices update instantly.
 
+**3.0 — Family & Kids Mode.** The same file also creates, with Row-Level
+Security on each:
+
+- `family_children` — a parent's child profiles (first name or nickname, age
+  range, avatar, which sections are on, two switches). Parents can read only
+  their own; all writes go through functions.
+- `child_progress`, `child_achievements` — each child's learning; achievements
+  are awarded by the database from progress.
+- `child_devices`, `child_pair_codes` — SHA-256 hashes of each device token and
+  each one-time pairing code. Nobody can read these tables through the API.
+- `family_*()` functions for the signed-in parent (list, save, delete, detail,
+  reset, pairing code, "use on this device", remove a device) and `kid_*()`
+  functions for a child's device (pair, session, progress, save, unpair). The
+  kid functions are callable without an account but only act for the one child
+  whose token is passed, and refuse progress in sections the parent switched
+  off. `tests/family.test.js` checks all of this in a real Postgres.
+
+**Upgrading an existing project to 3.0:** run the whole updated file again in the
+SQL Editor. Existing tables and data are untouched; the new tables and
+functions are added. Until this is done, the Family page shows an error with
+"Try again"; everything else keeps working.
+
 If you created the old pre-2.5 draft tables (`preferences`, `bookmarks`,
 `progress`, `favorites`), they are unused — see the comment at the end of the
 schema to drop them.
@@ -166,7 +188,9 @@ email account — they can link Apple from **Account → Sign-in methods** inste
 - Pull is incremental via `server_at`; push goes through `sync_push`. Offline
   changes stay queued (in `localStorage`) and sync when the connection returns.
   Realtime + a 5-minute poll + on-focus sync keep devices in step.
-- Location and reminder on/off stay per device by design.
+- Location and reminder on/off stay per device by design. So do 3.0 travel
+  places, chosen/saved mosques and Kids Mode device tokens; the active mode,
+  travel checklist and Hajj/Umrah progress sync.
 - The auth session is stored under the `ss-auth` key (outside the app's data
   prefix, so "Export my data" never includes tokens).
 

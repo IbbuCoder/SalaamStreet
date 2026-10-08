@@ -257,3 +257,33 @@ test("merge functions are commutative", () => {
   assert.deepEqual(MERGE.recent(r1, r2), MERGE.recent(r2, r1));
   assert.deepEqual(MERGE.union(["b", "a"], ["c", "a"]), ["a", "b", "c"]);
 });
+
+test("3.0 Modes: the mode, checklists and pilgrimage progress sync; places, mosques and Kids Mode stay on the device", async () => {
+  const server = makeServer();
+  const phone = makeDevice(server), laptop = makeDevice(server);
+  phone.signIn("u1"); laptop.signIn("u1");
+  phone.set("mode:active", { id: "hajj", at: 1 });
+  phone.set("hajj:state", { type: "umrah", step: "u-tawaf" });
+  phone.set("hajj:progress:umrah", { "u-prep": 1, "u-ihram": 1 });
+  phone.set("hajj:checklist", { passport: 1 });
+  phone.set("travel:checklist", { docs: 1 });
+  phone.set("travel:places", { dest: { label: "Istanbul", lat: 41.01, lng: 28.98 }, saved: [] });
+  phone.set("mosque:selected", { id: "node/1", name: "X", lat: 1, lng: 2 });
+  phone.set("kids:device", { active: "a", profiles: { a: { token: "kid_" + "0".repeat(64), child: { id: "a", name: "A" } } } });
+  phone.set("kids:lock", { salt: "00", hash: "11" });
+  await phone.sync();
+  await laptop.sync();
+  assert.deepEqual(laptop.get("mode:active"), { id: "hajj", at: 1 });
+  assert.deepEqual(laptop.get("hajj:state"), { type: "umrah", step: "u-tawaf" });
+  assert.deepEqual(laptop.get("hajj:progress:umrah"), { "u-prep": 1, "u-ihram": 1 });
+  assert.deepEqual(laptop.get("hajj:checklist"), { passport: 1 });
+  assert.deepEqual(laptop.get("travel:checklist"), { docs: 1 });
+  for (const k of ["travel:places", "mosque:selected", "kids:device", "kids:lock"]) assert.equal(laptop.get(k), null, k + " never leaves the device");
+  assert.ok(![...server.rows.values()].some((r) => /kid_|Istanbul|node\/1/.test(JSON.stringify(r))), "nothing location- or child-specific reached the server");
+  // Unticking one step on the laptop removes it on the phone (a tombstone, not a resurrection).
+  laptop.advance(60000);
+  laptop.set("hajj:progress:umrah", { "u-prep": 1 });
+  await laptop.sync();
+  await phone.sync();
+  assert.deepEqual(phone.get("hajj:progress:umrah"), { "u-prep": 1 });
+});
