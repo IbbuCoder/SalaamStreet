@@ -174,6 +174,43 @@ email account — they can link Apple from **Account → Sign-in methods** inste
 
 ---
 
+## 3.1 — NVHS MSA announcements
+
+**Upgrading to 3.1:** run the whole updated `supabase-schema.sql` again in the
+SQL Editor (safe to re-run). Until then the MSA page shows an error with
+"Try again" and Home shows no MSA card; everything else keeps working.
+
+The schema adds:
+
+- `msa_posts` — the announcements (title, text, an optional image stored as a
+  small data URL, "show on Home", "pinned", an optional end date). Nothing is
+  reachable through the table API.
+- `msa_admins` — who may post: SHA-256 hashes of lower-cased email addresses,
+  never the addresses themselves (this repository is public). The file comes
+  with the MSA's four posting accounts already on the list.
+- `msa_feed()` and `msa_image(id)` — read by anyone, signed in or not; expired
+  posts disappear from both.
+- `msa_is_poster()`, `msa_post_save(p)`, `msa_post_delete(id)` — for posters.
+  Each checks that the signed-in account's email is on the list; anyone else
+  gets "not an MSA poster". At most 30 new posts an hour.
+
+Posters sign in with the account whose email is on the list (Google works for
+school Google accounts if the school allows signing in to outside apps; the
+emailed code works for any address). Then a **New** button appears on the
+MSA page, and **Edit** / **Delete** on each post.
+
+**Add a poster** (SQL Editor):
+
+```sql
+insert into public.msa_admins (email_hash)
+values (sha256(convert_to(lower('name@example.org'), 'UTF8')));
+```
+
+**Remove a poster:** run the same `sha256(...)` expression in a
+`delete from public.msa_admins where email_hash = …` statement.
+
+`tests/msa.test.js` checks all of this in a real Postgres.
+
 ## How sync works (for maintainers)
 
 - `js/sync.js` is a storage- and backend-agnostic engine. Every write the app

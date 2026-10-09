@@ -275,50 +275,98 @@
   function stepIndex(type, id) { var g = GUIDES[type]; for (var i = 0; i < g.length; i++) if (g[i].id === id) return i; return -1; }
   function typeName(type) { return t(type === "hajj" ? "hajj.hajj" : "hajj.umrah"); }
 
-  /* ═══════════ Home panel ═══════════ */
-  var gen = 0;
+  /* ═══════════ Home: inside the prayer card ═══════════ */
   function home(el) {
-    var my = ++gen, s = state();
+    var s = state();
     if (!s.type) {
-      el.innerHTML = '<p class="muted">' + esc(t("hajj.askType")) + '</p><a class="btn btn-sm mt-1" href="#/mode/hajj">' + esc(t("hajj.choose")) + "</a>";
+      el.innerHTML = '<p class="hm-lead">' + esc(t("hajj.askType")) + "</p>" +
+        '<div class="hm-acts"><button class="hm-btn gold" type="button" data-hj-type="umrah">' + esc(t("hajj.umrah")) + "</button>" +
+        '<button class="hm-btn gold" type="button" data-hj-type="hajj">' + esc(t("hajj.hajj")) + "</button></div>";
+      el.onclick = function (e) {
+        var b = e.target.closest("[data-hj-type]");
+        if (!b) return;
+        saveState({ type: b.getAttribute("data-hj-type"), step: null });
+        home(el);
+      };
       return;
     }
-    var sm = summary(s.type), c = M.checklistCount("hajj:checklist", CHECKLIST);
-    el.innerHTML = '<div class="mode-tiles">' +
-      '<a class="mode-tile" href="#/mode/hajj"><small>' + esc(t("hajj.preparing")) + "</small><b>" + esc(typeName(s.type)) + "</b></a>" +
-      '<a class="mode-tile" href="#/mode/hajj"><small>' + esc(t("hajj.progress")) + "</small><b>" + esc(f("modes.doneOf", { n: sm.n, total: sm.total })) + "</b></a>" +
-      '<a class="mode-tile" href="' + (sm.cur ? "#/mode/hajj/step/" + sm.cur.id : "#/mode/hajj") + '"><small>' + esc(t("hajj.current")) + "</small><b>" + esc(sm.cur ? L(sm.cur.title) : t("hajj.allDone")) + "</b></a>" +
-      '<div class="mode-tile"><small>' + esc(t("dash.nextPrayer")) + '</small><b id="hj-h-next">…</b></div>' +
-      '<a class="mode-tile" href="#/qibla"><small>' + esc(t("nav.qibla")) + '</small><b id="hj-h-qibla">…</b></a>' +
-      '<a class="mode-tile" href="#/mode/hajj/checklist"><small>' + esc(t("hajj.checklist")) + "</small><b>" + esc(f("modes.doneOf", { n: c.n, total: c.total })) + "</b></a></div>" +
-      '<a class="btn btn-sm mt-1" href="' + (sm.cur ? "#/mode/hajj/step/" + sm.cur.id : "#/mode/hajj") + '">' + esc(t(sm.cur ? "hajj.continue" : "modes.openDash")) + "</a>";
-    nextPrayer(my, "hj-h-next", "hj-h-qibla");
+    el.onclick = null;
+    var sm = summary(s.type), i = sm.cur ? stepIndex(s.type, sm.cur.id) : -1;
+    el.innerHTML = sm.cur
+      ? '<a class="hm-row" href="#/mode/hajj/step/' + sm.cur.id + '"><span class="hm-step" aria-hidden="true">' + (i + 1) + "</span>" +
+        '<span class="hm-row-t"><span>' + esc(f("hajj.nextStepOf", { t: typeName(s.type), n: i + 1, total: sm.total })) + "</span><b>" + esc(L(sm.cur.title)) + "</b></span>" + icon("chev-r", "chev flip") + "</a>"
+      : '<p class="hm-lead">' + icon("check") + " " + esc(f("hajj.allDoneX", { t: typeName(s.type) })) + "</p>";
+    el.innerHTML += '<div class="hm-acts"><a class="hm-btn gold" href="#/mode/hajj/count">' + icon("repeat") + "<span>" + esc(t("hajj.countRounds")) + "</span></a>" +
+      '<a class="hm-btn" href="#/mode/hajj">' + esc(t("hajj.openGuide")) + "</a></div>";
   }
-  function nextPrayer(my, nextId, qiblaId) {
-    SS.geo.resolve().then(function (loc) {
-      if (my !== gen || !$(nextId)) return;
-      $(qiblaId).textContent = loc.isFallback ? "—" : Math.round(SS.qiblaBearing(loc.lat, loc.lng)) + "°";
-      var s = SS.store.settings();
-      return SS.api.prayerTimes({ lat: loc.lat, lng: loc.lng, method: s.method, school: s.school }).then(function (r) {
-        if (my !== gen || !$(nextId)) return;
-        var k = SS.ui.nextPrayerKey(r.timings) || "Fajr";
-        $(nextId).textContent = loc.isFallback ? "—" : t("prayer." + k) + " · " + SS.formatTime(r.timings[k]);
-      });
-    }).catch(function () { if ($(nextId)) $(nextId).textContent = "—"; });
+
+  /* ═══════════ Round counter (3.1.5): 7 rounds of tawaf or sa'i ═══════════ */
+  // On this device only: you count on the phone in your hand.
+  function counter() {
+    var c = SS.store.get("hajj:counter");
+    c = c && typeof c === "object" ? c : {};
+    return { kind: c.kind === "sai" ? "sai" : "tawaf", n: Math.max(0, Math.min(7, c.n | 0)) };
+  }
+  function saveCounter(c) { SS.store.set("hajj:counter", { kind: c.kind, n: c.n, at: Date.now() }); }
+  function roundNote(kind, n) {
+    // n = the round about to be walked (1–7).
+    if (kind === "sai") return f(n % 2 ? "hajj.saiOdd" : "hajj.saiEven", { n: n });
+    return n <= 3 ? f("hajj.tawafFirst", { n: n }) : f("hajj.tawafRest", { n: n });
+  }
+  function countTab(el) {
+    var c = counter();
+    function draw() {
+      var done = c.n >= 7;
+      el.innerHTML = '<article class="card counter-card">' +
+        '<div class="segmented counter-kind" role="group" aria-label="' + esc(t("hajj.countWhat")) + '">' +
+        ["tawaf", "sai"].map(function (k) { return '<button type="button" data-kind="' + k + '" aria-pressed="' + (c.kind === k) + '">' + esc(t("hajj.count_" + k)) + "</button>"; }).join("") + "</div>" +
+        '<button class="round-btn' + (done ? " done" : "") + '" type="button" id="hj-tap"' + (done ? " disabled" : "") + ' aria-describedby="hj-round-note">' +
+        '<svg class="round-ring" viewBox="0 0 120 120" aria-hidden="true">' + ringDots(c.n) + "</svg>" +
+        '<span class="round-n" aria-live="polite">' + esc(done ? t("hajj.roundsDone") : f("hajj.roundOf", { n: c.n, total: 7 })) + "</span>" +
+        '<span class="round-tap">' + esc(done ? "" : t(c.n ? "hajj.tapAfter" : "hajj.tapStart")) + "</span></button>" +
+        '<p class="counter-note" id="hj-round-note">' + esc(done ? t(c.kind === "sai" ? "hajj.saiDoneNote" : "hajj.tawafDoneNote") : roundNote(c.kind, c.n + 1)) + "</p>" +
+        '<div class="form-row counter-acts"><button class="btn btn-outline btn-sm" type="button" id="hj-undo"' + (c.n ? "" : " disabled") + ">" + icon("undo") + "<span>" + esc(t("hajj.undo")) + "</span></button>" +
+        '<button class="btn btn-ghost btn-sm" type="button" id="hj-zero"' + (c.n ? "" : " disabled") + ">" + icon("refresh") + "<span>" + esc(t("hajj.startAgain")) + "</span></button></div>" +
+        '<p class="tiny guide-src"><span class="badge badge-src">' + esc(t("modes.source")) + "</span> " + esc(t("hajj.countSrc")) + "</p></article>" +
+        '<a class="btn btn-ghost btn-sm mt-1" href="#/mode/hajj/step/' + (c.kind === "sai" ? "u-sai" : "u-tawaf") + '">' + esc(t(c.kind === "sai" ? "hajj.readSai" : "hajj.readTawaf")) + "</a>";
+      $("hj-tap").onclick = function () {
+        if (c.n >= 7) return;
+        c.n++; saveCounter(c);
+        if (SS.ui.vibrate) SS.ui.vibrate(c.n === 7 ? [60, 80, 60] : 30);
+        draw();
+        var b = $("hj-tap"); if (b && !b.disabled) b.focus();
+      };
+      $("hj-undo").onclick = function () { if (c.n) { c.n--; saveCounter(c); draw(); } };
+      $("hj-zero").onclick = function () { c.n = 0; saveCounter(c); draw(); };
+      el.querySelector(".counter-kind").onclick = function (e) {
+        var b = e.target.closest("[data-kind]");
+        if (!b || b.getAttribute("data-kind") === c.kind) return;
+        if (c.n && !window.confirm(t("hajj.switchConfirm"))) return;
+        c = { kind: b.getAttribute("data-kind"), n: 0 }; saveCounter(c); draw();
+      };
+    }
+    draw();
+  }
+  function ringDots(n) {
+    var out = "";
+    for (var i = 0; i < 7; i++) {
+      var a = (i / 7) * Math.PI * 2 - Math.PI / 2, x = 60 + 50 * Math.cos(a), y = 60 + 50 * Math.sin(a);
+      out += '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="7" class="' + (i < n ? "on" : "") + '"/>';
+    }
+    return out;
   }
 
   /* ═══════════ Full page ═══════════ */
   function page(el, params) {
-    gen++;
     el.onclick = null;
     var s = state();
     if (!s.type || params[0] === "choose") return chooseType(el, s.type);
     if (params[0] === "step" && stepIndex(s.type, params[1]) > -1) return stepView(el, s.type, params[1]);
-    var tab = params[0] === "duas" || params[0] === "checklist" ? params[0] : "guide";
+    var tab = params[0] === "duas" || params[0] === "checklist" || params[0] === "count" ? params[0] : "guide";
     el.innerHTML = '<div class="segmented mode-tabs" id="hj-tabs" aria-label="' + esc(t("modes.sections")) + '"></div><div id="hj-body" role="tabpanel" aria-labelledby="mt-' + tab + '"></div>';
-    M.tabs($("hj-tabs"), [["guide", t("hajj.guide")], ["duas", t("hajj.duas")], ["checklist", t("hajj.checklist")]], tab,
+    M.tabs($("hj-tabs"), [["guide", t("hajj.guide")], ["count", t("hajj.counter")], ["duas", t("hajj.duas")], ["checklist", t("hajj.checklist")]], tab,
       function (k) { location.hash = "#/mode/hajj" + (k === "guide" ? "" : "/" + k); });
-    ({ guide: overview, duas: duasTab, checklist: checklistTab })[tab]($("hj-body"), s.type);
+    ({ guide: overview, count: countTab, duas: duasTab, checklist: checklistTab })[tab]($("hj-body"), s.type);
   }
 
   function chooseType(el, cur) {
@@ -327,7 +375,7 @@
       '<div class="mode-list mt-1" role="group" aria-labelledby="hj-ask">' +
       ["umrah", "hajj"].map(function (k) {
         return '<button class="card mode-card' + (cur === k ? " on" : "") + '" type="button" data-type="' + k + '" aria-pressed="' + (cur === k) + '">' +
-          '<span class="mode-emoji" aria-hidden="true">' + (k === "hajj" ? "🕋" : "🕌") + "</span>" +
+          M.icon(k === "hajj" ? "hajj" : "mosque") +
           '<span class="mode-body"><span class="mode-name">' + esc(typeName(k)) + '</span><span class="mode-desc">' + esc(t("hajj.desc_" + k)) + "</span></span>" +
           (cur === k ? '<span class="badge mode-active">' + icon("check") + "<span>" + esc(t("modes.active")) + "</span></span>" : "") + "</button>";
       }).join("") + "</div></article>";
@@ -341,7 +389,7 @@
   }
 
   function overview(el, type) {
-    var my = gen, sm = summary(type), p = progress(type), s = state();
+    var sm = summary(type), p = progress(type), s = state();
     var resume = s.step && stepIndex(type, s.step) > -1 && !p[s.step] ? s.step : sm.cur && sm.cur.id;
     var pct = Math.round(sm.n / sm.total * 100);
     var html = '<div class="mode-grid"><div class="stack">' +
@@ -362,12 +410,10 @@
       }).join("") + "</ol>" +
       '<button class="btn btn-ghost btn-sm" type="button" id="hj-reset">' + icon("refresh") + "<span>" + esc(t("hajj.reset")) + "</span></button>" +
       "</div><div class=\"stack\">" +
-      '<article class="card"><div class="card-title"><h2>' + esc(t("dash.nextPrayer")) + '</h2></div><p class="h-sm" id="hj-next">…</p></article>' +
-      '<article class="card"><div class="card-title"><h2>' + esc(t("nav.qibla")) + '</h2></div><p class="h-sm" id="hj-qibla">…</p><a class="btn btn-sm mt-1" href="#/qibla">' + icon("compass") + "<span>" + esc(t("travel.openCompass")) + "</span></a></article>" +
+      '<a class="card counter-link" href="#/mode/hajj/count">' + icon("repeat") + '<span class="w-body"><span class="w-title">' + esc(t("hajj.countRounds")) + '</span><span class="w-sub">' + esc(t("hajj.countSub")) + "</span></span>" + icon("chev-r", "chev flip") + "</a>" +
       '<article class="card guide-text"><h2 class="h-sm">' + esc(t("hajj.aboutGuide")) + "</h2><p>" + esc(t("hajj.aboutGuideText")) + '</p><p class="consult">' + esc(t("modes.consult")) + "</p></article>" +
       "</div></div>";
     el.innerHTML = html;
-    nextPrayer(my, "hj-next", "hj-qibla");
     $("hj-reset").onclick = function () {
       if (!window.confirm(f("hajj.resetConfirm", { t: typeName(type) }))) return;
       SS.store.set("hajj:progress:" + type, {});
@@ -416,5 +462,5 @@
     M.checklist($("hj-checklist"), "hajj:checklist", CHECKLIST);
   }
 
-  SS.modeModules.hajj = { home: home, page: page, leave: function () { gen++; }, GUIDES: GUIDES, DUAS: DUAS, CHECKLIST: CHECKLIST };
+  SS.modeModules.hajj = { home: home, page: page, leave: function () { /* nothing running */ }, GUIDES: GUIDES, DUAS: DUAS, CHECKLIST: CHECKLIST };
 })();

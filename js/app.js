@@ -350,17 +350,17 @@
 
   /* ── Router ─────────────────────────────────────────────────── */
   var VIEWS = ["home", "prayer", "qibla", "quran", "surah", "hadith", "duas", "dhikr", "calendar", "settings",
-    "adhkar", "names", "mosques", "learn", "about", "account", "stories", "modes", "mode", "family", "kids"];
+    "adhkar", "names", "mosques", "learn", "about", "account", "stories", "modes", "mode", "family", "kids", "msa"];
   // Which nav item to highlight for views that aren't themselves nav items.
   var NAV_ALIAS = { surah: "quran", mode: "modes" };
   // Destinations that live in the phone "More" sheet light up the More tab.
-  var IN_MORE = { hadith: 1, duas: 1, dhikr: 1, calendar: 1, settings: 1, adhkar: 1, names: 1, mosques: 1, learn: 1, about: 1, account: 1, stories: 1, modes: 1, family: 1 };
+  var IN_MORE = { hadith: 1, duas: 1, dhikr: 1, calendar: 1, settings: 1, adhkar: 1, names: 1, mosques: 1, learn: 1, about: 1, account: 1, stories: 1, modes: 1, family: 1, msa: 1 };
   var TITLE_KEY = {
     home: "nav.dashboard", prayer: "prayer.title", qibla: "qibla.title", quran: "quran.title", surah: "quran.title",
     hadith: "hadith.title", duas: "duas.title", dhikr: "dhikr.title", calendar: "cal.title", settings: "settings.title",
     adhkar: "adhkar.title", names: "names.title", mosques: "mosques.title", learn: "learn.title", about: "about.title",
     account: "account.title", stories: "stories.title", modes: "modes.title", mode: "modes.title",
-    family: "family.title", kids: "kids.title",
+    family: "family.title", kids: "kids.title", msa: "msa.title",
   };
   var currentView = "", currentHash = "";
   var HOME_TITLE = document.title;
@@ -370,8 +370,6 @@
     var h = (location.hash || "#/home").replace(/^#\/?/, "");
     var parts = h.split("/");
     var view = parts.shift() || "home";
-    // The MSA preview tab was removed in 2.9.5; old links land on Home.
-    if (view === "msa") { try { history.replaceState(null, "", "#/home"); } catch (e) { /* file:// */ } view = "home"; parts = []; }
     if (VIEWS.indexOf(view) === -1) view = "home";
     // Kids Mode (3.0) keeps a child's device inside the Kids area.
     if (SS.modes && SS.modes.kidLocked() && view !== "kids") {
@@ -504,6 +502,7 @@
     if (SS.aboutBoot) SS.aboutBoot();
     if (SS.accountBoot) SS.accountBoot();
     if (SS.modesBoot) SS.modesBoot();
+    if (SS.msaBoot) SS.msaBoot();
     window.addEventListener("hashchange", function () { navigate(); });
     if (!location.hash) {
       try { history.replaceState(null, "", "#/home"); } catch (e) { location.hash = "#/home"; }

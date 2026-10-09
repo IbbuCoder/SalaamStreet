@@ -642,3 +642,151 @@ revoke all on function public.kid_pair(text, text), public.kid_session(text), pu
     public.kid_save(text, jsonb), public.kid_unpair(text) from public;
 grant execute on function public.kid_pair(text, text), public.kid_session(text), public.kid_progress(text),
     public.kid_save(text, jsonb), public.kid_unpair(text) to anon, authenticated;
+
+-- ════════════════════════════════════════════════════════════════════════
+--  3.1 — NVHS MSA announcements
+--  Anyone (signed in or not) can read the MSA's current announcements.
+--  Only the MSA's posters can write them: a signed-in account whose email is
+--  on the list below. The list stores SHA-256 hashes of the lower-cased
+--  emails, never the emails themselves (this file is public). To add a
+--  poster, run in the SQL editor:
+--    insert into public.msa_admins (email_hash)
+--    values (sha256(convert_to(lower('name@example.org'), 'UTF8')));
+--  and to remove one, delete that row.
+--
+--  Images are stored in the post itself as a small JPEG/WebP/PNG data URL
+--  that the poster's device has already shrunk (and, by redrawing it, stripped
+--  of camera and location metadata). The feed lists posts without images;
+--  each image is fetched on its own with msa_image().
+-- ════════════════════════════════════════════════════════════════════════
+create table if not exists public.msa_admins (
+    email_hash bytea primary key check (octet_length(email_hash) = 32),
+    added_at   timestamptz not null default now()
+);
+insert into public.msa_admins (email_hash) values
+    ('\x4965025fa5005a32f580f131c0c930d7ef8a0a3052b04e1b74b01b9543b32e1b'),
+    ('\x39c76647a7029b8701f186f01077b36112eb0422fc7cc94737cd9ae22cbc0b52'),
+    ('\xcbc1fadb78b0b103643d757f8865d225bb163dfa348f0e8410ab64899ffe29a8'),
+    ('\x0359ef19e11b6941875be3039743b7d627855fa162b587982a5142cf558e6276')
+on conflict do nothing;
+
+create table if not exists public.msa_posts (
+    id         uuid primary key default gen_random_uuid(),
+    title      text not null check (char_length(btrim(title)) between 1 and 120),
+    body       text not null default '' check (char_length(body) <= 4000),
+    image      text check (image is null or (char_length(image) <= 700000
+                   and image ~ '^data:image/(jpeg|webp|png);base64,[A-Za-z0-9+/]+=*$')),
+    on_home    boolean not null default false,   -- also shown on everyone's Home
+    pinned     boolean not null default false,   -- kept at the top of the MSA page
+    expires_at timestamptz,                      -- hidden from everyone after this
+    created_by uuid references auth.users(id) on delete set null,
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now()
+);
+create index if not exists msa_posts_order on public.msa_posts (pinned desc, created_at desc);
+
+-- No policies: nothing is reachable through the table API. Reading and
+-- writing go through the functions below.
+alter table public.msa_admins enable row level security;
+alter table public.msa_posts  enable row level security;
+revoke all on public.msa_admins, public.msa_posts from anon, authenticated;
+
+/** The signed-in poster's id, or an error for anyone else. */
+create or replace function public.msa_poster()
+returns uuid language plpgsql stable security definer set search_path = public as $$
+declare uid uuid := auth.uid(); mail text;
+begin
+    if uid is null then raise exception 'not signed in' using errcode = '28000'; end if;
+    select lower(btrim(email)) into mail from auth.users where id = uid;
+    if mail is null or mail = '' or not exists (
+        select 1 from public.msa_admins where email_hash = sha256(convert_to(mail, 'UTF8'))
+    ) then
+        raise exception 'not an MSA poster' using errcode = '42501';
+    end if;
+    return uid;
+end;
+$$;
+
+create or replace function public.msa_post_json(p public.msa_posts)
+returns jsonb language sql immutable set search_path = public as $$
+    select jsonb_build_object('id', p.id, 'title', p.title, 'body', p.body, 'has_image', p.image is not null,
+        'on_home', p.on_home, 'pinned', p.pinned, 'expires_at', p.expires_at,
+        'created_at', p.created_at, 'updated_at', p.updated_at);
+$$;
+
+/** Current announcements, pinned first, then newest (at most 30). */
+create or replace function public.msa_feed()
+returns jsonb language sql stable security definer set search_path = public as $$
+    select coalesce(jsonb_agg(public.msa_post_json(p) order by p.pinned desc, p.created_at desc), '[]'::jsonb)
+    from (select * from public.msa_posts
+          where expires_at is null or expires_at > now()
+          order by pinned desc, created_at desc limit 30) p;
+$$;
+
+/** One announcement's image (a data URL), or null. */
+create or replace function public.msa_image(p_id uuid)
+returns text language sql stable security definer set search_path = public as $$
+    select image from public.msa_posts where id = p_id and (expires_at is null or expires_at > now());
+$$;
+
+/** Is the signed-in account allowed to post? */
+create or replace function public.msa_is_poster()
+returns boolean language plpgsql stable security definer set search_path = public as $$
+begin
+    perform public.msa_poster();
+    return true;
+exception when others then
+    return false;
+end;
+$$;
+
+/**
+ * Create (no id) or edit (with id) an announcement.
+ * p: { id?, title, body, image?: data URL | null | "keep", on_home, pinned, expires_at? }
+ */
+create or replace function public.msa_post_save(p jsonb)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare uid uuid := public.msa_poster(); r public.msa_posts; pid uuid; img text;
+begin
+    if jsonb_typeof(p) is distinct from 'object' then raise exception 'a post is an object' using errcode = '22023'; end if;
+    pid := nullif(p->>'id', '')::uuid;
+    img := case when p ? 'image' then p->>'image' else 'keep' end;
+    if (select count(*) from public.msa_posts where created_at > now() - interval '1 hour') >= 30 and pid is null then
+        raise exception 'too many posts this hour' using errcode = '54000';
+    end if;
+    if pid is null then
+        insert into public.msa_posts (title, body, image, on_home, pinned, expires_at, created_by)
+        values (btrim(p->>'title'), btrim(coalesce(p->>'body', '')), nullif(img, 'keep'),
+                coalesce((p->>'on_home')::boolean, false), coalesce((p->>'pinned')::boolean, false),
+                nullif(p->>'expires_at', '')::timestamptz, uid)
+        returning * into r;
+    else
+        update public.msa_posts set
+            title = btrim(p->>'title'),
+            body = btrim(coalesce(p->>'body', '')),
+            image = case when img = 'keep' then image else img end,
+            on_home = coalesce((p->>'on_home')::boolean, on_home),
+            pinned = coalesce((p->>'pinned')::boolean, pinned),
+            expires_at = nullif(p->>'expires_at', '')::timestamptz,
+            updated_at = now()
+        where id = pid
+        returning * into r;
+        if r.id is null then raise exception 'no such post' using errcode = 'P0002'; end if;
+    end if;
+    return public.msa_post_json(r);
+end;
+$$;
+
+create or replace function public.msa_post_delete(p_id uuid)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+    perform public.msa_poster();
+    delete from public.msa_posts where id = p_id;
+end;
+$$;
+
+revoke all on function public.msa_poster(), public.msa_post_json(public.msa_posts) from public, anon, authenticated;
+revoke all on function public.msa_feed(), public.msa_image(uuid), public.msa_is_poster(),
+    public.msa_post_save(jsonb), public.msa_post_delete(uuid) from public;
+grant execute on function public.msa_feed(), public.msa_image(uuid) to anon, authenticated;
+grant execute on function public.msa_is_poster(), public.msa_post_save(jsonb), public.msa_post_delete(uuid) to authenticated;

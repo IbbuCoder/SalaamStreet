@@ -224,8 +224,50 @@
   ];
 
   /* ── Version & release notes (newest first) ──────────────────────── */
-  SS.VERSION = "3.0.0";
+  SS.VERSION = "3.1.5";
   SS.CHANGELOG = [
+    {
+      v: "3.1.5", date: "2026-10-09",
+      en: "Modes, made useful", ar: "أوضاع أنفع",
+      den: "Each mode now answers one question the moment you open the app — and switching takes one tap.",
+      dar: "صار كل وضع يجيب عن سؤال واحد بمجرد فتح التطبيق — والتبديل بلمسة واحدة.",
+      groups: [
+        { en: "Every mode has a point", ar: "لكل وضع فائدة واضحة", items: [
+          { en: "Travel Mode tells you how to pray: Dhuhr, Asr and Isha as 2 rak'ahs, and when you may combine — with sources, right in the prayer card on Home", ar: "وضع السفر يخبرك كيف تصلي: الظهر والعصر والعشاء ركعتين، ومتى يجوز الجمع — مع الأدلة، داخل بطاقة الصلاة في الرئيسية" },
+          { en: "Travel Mode: set the day you're coming home; after it, Home asks once and \u201cI'm home\u201d switches the mode off and your prayer times back to home", ar: "وضع السفر: حدّد يوم عودتك؛ بعده تسألك الرئيسية مرة واحدة، و«عدتُ إلى البيت» يوقف الوضع ويعيد مواقيت مدينتك" },
+          { en: "Mosque Mode: one big \u201cI'm at the mosque\u201d button turns on Quiet Mode for an hour, and it ends by itself", ar: "وضع المسجد: زر كبير «أنا في المسجد» يشغّل الوضع الهادئ لساعة، وينتهي من تلقاء نفسه" },
+          { en: "Hajj & Umrah Mode: your next step on Home, and a round counter for tawaf and sa'i that says where each round goes", ar: "وضع الحج والعمرة: خطوتك التالية في الرئيسية، وعدّاد لأشواط الطواف والسعي يبيّن اتجاه كل شوط" },
+        ] },
+        { en: "Cleaner and easier", ar: "أنظف وأسهل", items: [
+          { en: "No more box of grey tiles above Home: the mode's answer sits inside the prayer card, and Home gets shorter", ar: "لا مزيد من المربعات الرمادية أعلى الرئيسية: إجابة الوضع داخل بطاقة الصلاة، والرئيسية أقصر" },
+          { en: "Tap the mode badge in the top bar to switch modes without leaving the page", ar: "المس شارة الوضع في الشريط العلوي لتبديل الوضع دون مغادرة الصفحة" },
+          { en: "A simpler mode picker: one row per mode, one tap, and a line saying what each is for", ar: "منتقي أوضاع أبسط: سطر لكل وضع، ولمسة واحدة، وجملة توضح فائدة كل وضع" },
+          { en: "The app's own icons and a colour for each mode, instead of emoji", ar: "أيقونات التطبيق ولون لكل وضع بدل الرموز التعبيرية" },
+          { en: "Kids Mode is set up from the Family page (linked from Modes), since it belongs to a child's device", ar: "يُعدّ وضع الأطفال من صفحة العائلة (برابط من الأوضاع)، لأنه يخص جهاز الطفل" },
+        ] },
+        { en: "Fixes", ar: "إصلاحات", items: [
+          { en: "If your location can't be found, Travel Mode and Mosque Mode say so instead of loading forever", ar: "إذا تعذّر تحديد موقعك، يوضح وضعا السفر والمسجد ذلك بدل التحميل بلا نهاية" },
+          { en: "On a Friday afternoon, Mosque Mode shows next Friday's Jumu'ah, not today's", ar: "بعد ظهر الجمعة يعرض وضع المسجد جمعة الأسبوع القادم لا جمعة اليوم" },
+          { en: "Long Names of Allah no longer push the Name of the day card off the edge of small phones", ar: "لم تعد أسماء الله الطويلة تدفع بطاقة اسم اليوم خارج حافة الهواتف الصغيرة" },
+        ] },
+      ],
+    },
+    {
+      v: "3.1.0", date: "2026-10-09",
+      en: "NVHS MSA", ar: "رابطة الطلاب المسلمين في NVHS",
+      den: "A home for the Neuqua Valley High School Muslim Student Association: its announcements, with pictures, for everyone.",
+      dar: "مكان لرابطة الطلاب المسلمين في مدرسة نيوكوا فالي الثانوية: إعلاناتها بالصور للجميع.",
+      groups: [
+        { en: "New: NVHS MSA", ar: "جديد: رابطة NVHS", items: [
+          { en: "An NVHS MSA page in the menu and sidebar with the club's announcements — no account needed to read them", ar: "صفحة لرابطة NVHS في القائمة والشريط الجانبي فيها إعلانات الرابطة — دون حاجة إلى حساب لقراءتها" },
+          { en: "Each announcement can have a picture; long ones fold with \u201cRead more\u201d, and web links can be tapped", ar: "يمكن أن يكون لكل إعلان صورة؛ وتُطوى الإعلانات الطويلة مع «اقرأ المزيد»، والروابط قابلة للنقر" },
+          { en: "Important announcements also appear as one slim card on everyone's Home, which you can hide", ar: "تظهر الإعلانات المهمة أيضًا كبطاقة صغيرة في رئيسية الجميع، ويمكنك إخفاؤها" },
+          { en: "The MSA's posters sign in to post, edit, pin and delete — with a title, text and a photo, and an end date so old posts disappear", ar: "ينشر منسقو الرابطة بعد تسجيل الدخول ويعدّلون ويثبّتون ويحذفون — بعنوان ونص وصورة وتاريخ انتهاء لتختفي الإعلانات القديمة" },
+          { en: "Only the MSA's own accounts can post, and the server checks it every time; photos are shrunk and their location data removed before upload", ar: "لا ينشر إلا حسابات الرابطة نفسها، ويتحقق الخادم من ذلك في كل مرة؛ وتُصغّر الصور وتُزال منها بيانات الموقع قبل الرفع" },
+          { en: "Works offline with the last announcements loaded; Kids Mode never shows them", ar: "تعمل دون اتصال بآخر الإعلانات المحمّلة؛ ولا تظهر أبدًا في وضع الأطفال" },
+        ] },
+      ],
+    },
     {
       v: "3.0.0", date: "2026-10-08",
       en: "Modes", ar: "الأوضاع",
@@ -528,31 +570,31 @@
   });
   /* What's planned — honest plans in order, never dates. Nothing here is released yet. */
   SS.ROADMAP = [
-    { v: "3.1.0", icon: "user", en: "Personalization", ar: "التخصيص",
+    { v: "3.2.0", icon: "user", en: "Personalization", ar: "التخصيص",
       den: "A Home screen you arrange yourself: dashboard cards, favourite tools and shortcuts, more notification choices and better mode suggestions.",
       dar: "شاشة رئيسية ترتّبها بنفسك: بطاقات وأدوات مفضلة واختصارات، وخيارات أكثر للتنبيهات، واقتراحات أفضل للأوضاع." },
-    { v: "3.2.0", icon: "book", en: "Qur'an Experience", ar: "تجربة القرآن",
+    { v: "3.3.0", icon: "book", en: "Qur'an Experience", ar: "تجربة القرآن",
       den: "A more cohesive reader: reading history, more translations side by side, better audio and repeat controls, and memorization progress.",
       dar: "قارئ أكثر تكاملًا: سجل القراءة، وترجمات أكثر جنبًا إلى جنب، وتحكم أفضل بالصوت والتكرار، وتتبع الحفظ." },
-    { v: "3.3.0", icon: "open-book", en: "Islamic Learning", ar: "التعلّم الإسلامي",
+    { v: "3.4.0", icon: "mosque", en: "Community: mosque pages", ar: "المجتمع: صفحات المساجد",
+      den: "Mosque pages with verified Jumu'ah and iqamah times, events and announcements, built on the NVHS MSA page — and shown in Mosque Mode.",
+      dar: "صفحات للمساجد بأوقات جمعة وإقامة وفعاليات وإعلانات موثقة، مبنية على صفحة رابطة NVHS — وتظهر في وضع المسجد." },
+    { v: "3.5.0", icon: "open-book", en: "Islamic Learning", ar: "التعلّم الإسلامي",
       den: "Organized learning paths with lessons, quizzes and flashcards — Seerah, history and hadith — shared with Kids Mode.",
       dar: "مسارات تعلّم منظّمة بدروس واختبارات وبطاقات — السيرة والتاريخ والحديث — مشتركة مع وضع الأطفال." },
-    { v: "3.4.0", icon: "mosque", en: "Community", ar: "المجتمع",
-      den: "Mosque and MSA pages with verified Jumu'ah times, events and announcements, starting with the Neuqua Valley High School (NVHS) MSA.",
-      dar: "صفحات للمساجد وروابط الطلاب بأوقات جمعة وفعاليات وإعلانات موثقة، بدءًا برابطة مدرسة Neuqua Valley الثانوية (NVHS)." },
-    { v: "3.5.0", icon: "moon", en: "Ramadan Experience", ar: "تجربة رمضان",
-      den: "A fuller Ramadan dashboard: suhoor and iftar, fasting tracker, Qur'an goals, Laylat al-Qadr and an Eid countdown — a seasonal feature, not a sixth mode.",
-      dar: "لوحة رمضان أشمل: السحور والإفطار، ومتابعة الصيام، وأهداف القرآن، وليلة القدر، والعد التنازلي للعيد — ميزة موسمية لا وضعًا سادسًا." },
-    { v: "3.6.0", icon: "compass", en: "Advanced Islamic Tools", ar: "أدوات إسلامية متقدمة",
+    { v: "3.6.0", icon: "moon", en: "Ramadan Experience", ar: "تجربة رمضان",
+      den: "A fuller Ramadan dashboard: suhoor and iftar, fasting tracker, Qur'an goals, Laylat al-Qadr and an Eid countdown — a seasonal feature, not another mode.",
+      dar: "لوحة رمضان أشمل: السحور والإفطار، ومتابعة الصيام، وأهداف القرآن، وليلة القدر، والعد التنازلي للعيد — ميزة موسمية لا وضعًا آخر." },
+    { v: "3.7.0", icon: "compass", en: "Advanced Islamic Tools", ar: "أدوات إسلامية متقدمة",
       den: "A Hijri date converter, a zakat calculator, better tool search and more that works offline — with every assumption explained.",
       dar: "محوّل التاريخ الهجري، وحاسبة الزكاة، وبحث أفضل في الأدوات، والمزيد مما يعمل دون اتصال — مع شرح كل افتراض." },
-    { v: "3.7.0", icon: "users", en: "Family Ecosystem", ar: "منظومة العائلة",
+    { v: "3.8.0", icon: "users", en: "Family Ecosystem", ar: "منظومة العائلة",
       den: "Building on Kids Mode: shared family learning goals, better progress summaries and family-friendly Ramadan tools.",
       dar: "امتداد لوضع الأطفال: أهداف تعلّم عائلية مشتركة، وملخصات تقدّم أفضل، وأدوات رمضان مناسبة للعائلة." },
-    { v: "3.8.0", icon: "bell", en: "Notifications", ar: "التنبيهات",
-      den: "Useful, configurable reminders — Jumu'ah, Qur'an, learning and events — with custom schedules and no spam.",
-      dar: "تذكيرات مفيدة قابلة للضبط — الجمعة والقرآن والتعلّم والفعاليات — بجداول مخصصة ودون إزعاج." },
-    { v: "3.9.0", icon: "sparkle", en: "Performance, Security & Polish", ar: "الأداء والأمان والتحسين",
+    { v: "3.9.0", icon: "bell", en: "Notifications", ar: "التنبيهات",
+      den: "Useful, configurable reminders — Jumu'ah, Qur'an, learning, MSA and mosque announcements — with custom schedules and no spam.",
+      dar: "تذكيرات مفيدة قابلة للضبط — الجمعة والقرآن والتعلّم وإعلانات الرابطة والمساجد — بجداول مخصصة ودون إزعاج." },
+    { v: "3.10.0", icon: "sparkle", en: "Performance, Security & Polish", ar: "الأداء والأمان والتحسين",
       den: "Faster loading, better offline support, an accessibility and security review, and bug fixes.",
       dar: "تحميل أسرع، ودعم أفضل دون اتصال، ومراجعة لإمكانية الوصول والأمان، وإصلاح الأخطاء." },
   ];

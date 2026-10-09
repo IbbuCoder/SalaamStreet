@@ -73,15 +73,23 @@ laptops and large monitors. Core worship features are, and will stay, free.
   OpenStreetMap mosque selection, calculated times, Jumu'ah note, Quiet Mode. Full notes:
   [`release-notes/3.0.0.md`](release-notes/3.0.0.md)
 
+- **3.1.0 — NVHS MSA:** an MSA page with the Neuqua Valley High School MSA's announcements (pictures, pinning,
+  end dates), the important ones as a slim card on everyone's Home; only the MSA's own accounts can post, checked by
+  the database. Full notes: [`release-notes/3.1.0.md`](release-notes/3.1.0.md)
+- **3.1.5 — Modes, made useful:** each mode answers one question inside Home's prayer card (Travel: how many
+  rak'ahs and when to combine, plus a trip end date; Mosque: one-tap "I'm at the mosque" quiet hour; Hajj & Umrah:
+  next step and a tawaf/sa'i round counter); a quick switcher from the top-bar badge; a simpler picker; icons instead
+  of emoji. Full notes: [`release-notes/3.1.5.md`](release-notes/3.1.5.md)
+
 ## Planned (no release dates; plans may change)
 
 The plan after 3.0 lives in [`ROADMAP.md`](../ROADMAP.md) (with status, dependencies, risks and completion
 criteria for each release). The same list appears in the app under About → Updates (`SS.ROADMAP` in
 `js/content.js`).
 
-- **3.1 Personalization · 3.2 Qur'an Experience · 3.3 Islamic Learning · 3.4 Community (MSA + mosques) ·
-  3.5 Ramadan Experience · 3.6 Advanced Islamic Tools · 3.7 Family Ecosystem · 3.8 Notifications ·
-  3.9 Performance, Security & Polish** — then a 4.0 proposal
+- **3.2 Personalization · 3.3 Qur'an Experience · 3.4 Community: mosque pages · 3.5 Islamic Learning ·
+  3.6 Ramadan Experience · 3.7 Advanced Islamic Tools · 3.8 Family Ecosystem · 3.9 Notifications ·
+  3.10 Performance, Security & Polish** — then a 4.0 proposal
 
 Also open: native-speaker
 review of the draft Urdu, Bengali, Indonesian, Turkish and French translations.

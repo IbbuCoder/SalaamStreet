@@ -58,7 +58,10 @@ pre-caches them in the background so they work offline after installation.
 | `hajj:checklist` | synced (per item) | |
 | `travel:places` | this device | destination and saved places — location stays on the device, as it always has |
 | `mosque:selected`, `mosque:saved`, `mosque:notes` | this device | a chosen mosque reveals where you are |
-| `modes:quiet`, `mode:dismissed` | this device | |
+| `modes:quiet` | this device | `true` (until switched off) or `{until}` — "I'm at the mosque" sets an hour (3.1.5) |
+| `mode:dismissed` | this device | |
+| `travel:trip` | this device | `{end: "YYYY-MM-DD"}` — the day you're coming home (3.1.5) |
+| `hajj:counter` | this device | `{kind: "tawaf"\|"sai", n}` — the round counter (3.1.5) |
 | `kids:device` | this device | `{active, profiles: {childId: {token, child}}}` — a device token per child using this device (siblings can share one) |
 | `kids:lock` | this device | PBKDF2 hash of the grown-up PIN that leaves Kids Mode |
 
@@ -107,3 +110,30 @@ instead of choosing one. Qur'an text in Kids Mode is loaded from the app's
 Qur'an source, never typed in. Mosque information comes only from
 OpenStreetMap and is labelled as such; prayer times shown for a mosque are
 calculated start times, not the mosque's iqamah times.
+
+## 5. 3.1.5 — Modes, made useful
+
+Feedback on 3.0: the modes looked busy and didn't change much. Turning on
+Travel Mode added a box of six grey tiles above Home (most reading "No location
+yet" or "—"), directly above the location banner and the prayer card that
+already showed the same things. The redesign gives every mode one job:
+
+| Mode | The question it answers on Home |
+|---|---|
+| Travel | "How do I pray today, here?" — Dhuhr, Asr and Isha as 2 rak'ahs, when you may combine, with sources; after the trip's end date, "Back home?" switches the mode off and prayer times back to home in one tap |
+| Mosque | "Is my phone ready for the mosque?" — one "I'm at the mosque" tap turns Quiet Mode on for an hour, and it ends by itself |
+| Hajj & Umrah | "What do I do next?" — the next step, and a counter for the 7 rounds of tawaf or sa'i that says where each round goes |
+
+How:
+
+- The mode's answer is drawn inside Home's prayer card (`#mode-home` in
+  `.hero`), not in a card of its own, so Home gets shorter. Modes also step
+  back the "Your week" card.
+- The top-bar badge opens a quick switcher (`#mode-sheet`): one tap switches
+  and you stay on the page you were on.
+- The picker is one row per mode with a line saying what it is for. Kids Mode
+  is not in it: it belongs to a child's device and is set up from the Family
+  page, which the picker links to.
+- The app's own icons with a colour per mode (`.mode-ic[data-m]`) replace emoji.
+- Nothing on a mode's Home shows "—": where something is missing, it shows the
+  one step that fixes it.

@@ -170,34 +170,60 @@
     return r.onDevice ? t("travel.calcOnDevice") : r.stale ? t("travel.savedTimes") : "";
   }
 
-  /* ═══════════ Home panel ═══════════ */
+  /* ═══════════ How to pray while travelling (3.1.5) ═══════════ */
+  // The one question Travel Mode answers. Rak'ahs: normal → while travelling.
+  var RAKAH = [["Fajr", 2, 2], ["Dhuhr", 4, 2], ["Asr", 4, 2], ["Maghrib", 3, 3], ["Isha", 4, 2]];
+  function rakahStrip(cls) {
+    return '<ul class="' + cls + '" aria-label="' + esc(t("travel.rakahLabel")) + '">' + RAKAH.map(function (r) {
+      var short = r[2] < r[1];
+      return '<li' + (short ? ' class="short"' : "") + "><span>" + esc(t("prayer." + r[0])) + "</span><b>" + r[2] + "</b>" +
+        '<span class="visually-hidden">' + esc(short ? f("travel.rakahShort", { n: r[1] }) : t("travel.rakahSame")) + "</span></li>";
+    }).join("") + "</ul>";
+  }
+
+  /* ═══════════ The trip: when you're coming home (this device only) ═══════════ */
+  function trip() {
+    var v = SS.store.get("travel:trip");
+    return v && typeof v === "object" && /^\d{4}-\d{2}-\d{2}$/.test(v.end || "") ? v : { end: "" };
+  }
+  function tripOver() {
+    var e = trip().end;
+    return !!e && SS.localDate(new Date()) > e;
+  }
+  function tripLabel(ymd) {
+    var p = ymd.split("-"), d = new Date(+p[0], +p[1] - 1, +p[2]);
+    try { return d.toLocaleDateString(SS.i18n.dateLocale(), { weekday: "short", day: "numeric", month: "short" }); } catch (e) { return ymd; }
+  }
+  /** Back home: Normal Mode, and prayer times for home again if a trip changed them. */
+  function comeHome() {
+    var pp = places();
+    SS.store.remove("travel:trip");
+    if (pp.home) { usePlace(pp.home); pp = places(); pp.home = null; savePlaces(pp); }
+    M.set("normal");
+    if (SS.currentView() === "home") SS.navigate(true); else location.hash = "#/home";
+  }
+
+  /* ═══════════ Home: inside the prayer card ═══════════ */
   var gen = 0, timer = null;
   function stopTimer() { clearInterval(timer); timer = null; }
   function home(el) {
-    var my = ++gen, p = places();
-    var c = M.checklistCount("travel:checklist", CHECKLIST);
-    el.innerHTML = '<div class="mode-tiles" id="tv-tiles">' +
-      '<div class="mode-tile"><small>' + esc(t("travel.youAre")) + '</small><b id="tv-h-loc">…</b></div>' +
-      '<div class="mode-tile"><small>' + esc(t("dash.nextPrayer")) + '</small><b id="tv-h-next">…</b></div>' +
-      '<a class="mode-tile" href="#/qibla"><small>' + esc(t("nav.qibla")) + '</small><b id="tv-h-qibla">…</b></a>' +
-      '<div class="mode-tile"><small>' + esc(t("travel.hijri")) + '</small><b id="tv-h-hijri">…</b></div>' +
-      '<a class="mode-tile" href="#/mode/travel/places"><small>' + esc(t("travel.destination")) + "</small><b>" + esc(p.dest ? p.dest.label : t("travel.addDest")) + "</b></a>" +
-      '<a class="mode-tile" href="#/mode/travel/checklist"><small>' + esc(t("travel.checklist")) + "</small><b>" + esc(f("modes.doneOf", { n: c.n, total: c.total })) + "</b></a>" +
-      '</div><div class="row-between mt-1"><a class="btn btn-sm" href="#/mode/travel">' + esc(t("modes.openDash")) + '</a><a class="btn btn-ghost btn-sm" href="#/mode/travel/guide">' + esc(t("travel.guidance")) + "</a></div>";
-    SS.geo.resolve().then(function (loc) {
-      if (my !== gen || !$("tv-h-loc")) return;
-      $("tv-h-loc").textContent = loc.isFallback ? t("travel.noLocation") : SS.ui.locLabel(loc);
-      $("tv-h-qibla").textContent = loc.isFallback ? "—" : Math.round(SS.qiblaBearing(loc.lat, loc.lng)) + "°";
-      return times(loc).then(function (r) {
-        if (my !== gen || !$("tv-h-next")) return;
-        var k = SS.ui.nextPrayerKey(r.timings);
-        $("tv-h-next").textContent = loc.isFallback ? "—" : k ? t("prayer." + k) + " · " + SS.formatTime(r.timings[k]) : t("prayer.Fajr") + " · " + SS.formatTime(r.timings.Fajr);
-        $("tv-h-hijri").textContent = SS.hijriLabel(r.hijri) || "—";
-      });
-    }).catch(function () {
-      if (my !== gen || !$("tv-h-next")) return;
-      $("tv-h-next").textContent = "—"; $("tv-h-hijri").textContent = SS.hijriLabel(SS.hijriOf(new Date())) || "—";
-    });
+    ++gen;
+    var tr = trip();
+    var html = "";
+    if (tripOver()) {
+      html += '<div class="hm-ask" role="group" aria-labelledby="tv-h-back"><p id="tv-h-back"><b>' + esc(t("travel.backHome")) + "</b> " + esc(f("travel.tripEnded", { d: tripLabel(tr.end) })) + "</p>" +
+        '<div class="hm-acts"><button class="hm-btn gold" type="button" id="tv-h-home">' + esc(t("travel.imHome")) + "</button>" +
+        '<button class="hm-btn" type="button" id="tv-h-still">' + esc(t("travel.stillAway")) + "</button></div></div>";
+    }
+    html += '<p class="hm-lead">' + esc(t("travel.shortenLead")) + "</p>" + rakahStrip("hm-rakah") +
+      '<p class="hm-note">' + esc(t("travel.combineShort")) + ' <a href="#/mode/travel/guide">' + esc(t("travel.whyLink")) + "</a></p>" +
+      '<div class="hm-acts"><a class="hm-btn" href="#/mode/travel">' + esc(t("travel.openTravel")) + "</a>" +
+      (tr.end && !tripOver() ? '<span class="hm-meta">' + icon("calendar") + "<span>" + esc(f("travel.homeOn", { d: tripLabel(tr.end) })) + "</span></span>" : "") + "</div>";
+    el.innerHTML = html;
+    if ($("tv-h-home")) {
+      $("tv-h-home").onclick = comeHome;
+      $("tv-h-still").onclick = function () { SS.store.remove("travel:trip"); SS.toast(t("travel.stillAwayToast")); home(el); };
+    }
   }
 
   /* ═══════════ Full page ═══════════ */
@@ -215,7 +241,20 @@
 
   function today(el) {
     var my = gen, p = places();
+    var tr = trip();
     el.innerHTML = '<div class="mode-grid"><div class="stack">' +
+      '<article class="card pray-card" aria-labelledby="tv-pray-h"><div class="card-title"><h2 id="tv-pray-h">' + esc(t("travel.howToPray")) + "</h2>" + M.offlineBadge(true) + "</div>" +
+      rakahStrip("rakah-table") +
+      '<p class="mt-1">' + esc(t("travel.combineShort")) + "</p>" +
+      '<p class="tiny guide-src"><span class="badge badge-src">' + esc(t("modes.source")) + "</span> " + esc(t("travel.praySrc")) + "</p>" +
+      '<a class="btn btn-ghost btn-sm" href="#/mode/travel/guide">' + esc(t("travel.whyLink")) + "</a></article>" +
+      '<article class="card" aria-labelledby="tv-trip-h"><div class="card-title"><h2 id="tv-trip-h">' + esc(t("travel.trip")) + "</h2></div>" +
+      '<form id="tv-trip" class="form-row" novalidate><label class="visually-hidden" for="tv-trip-end">' + esc(t("travel.comingHome")) + "</label>" +
+      '<span class="tiny tv-trip-l" aria-hidden="true">' + esc(t("travel.comingHome")) + "</span>" +
+      '<input class="input" id="tv-trip-end" type="date" value="' + esc(tr.end) + '" min="' + SS.localDate(new Date()) + '" aria-describedby="tv-trip-help" />' +
+      '<button class="btn btn-sm" type="submit">' + esc(t("travel.save")) + "</button></form>" +
+      '<p class="tiny" id="tv-trip-help">' + esc(t("travel.tripHelp")) + "</p>" +
+      '<button class="btn btn-outline btn-sm mt-1" type="button" id="tv-im-home">' + icon("home") + "<span>" + esc(t("travel.imHome")) + "</span></button></article>" +
       '<article class="card" aria-labelledby="tv-here-h"><div class="card-title"><h2 id="tv-here-h">' + esc(t("travel.youAre")) + "</h2>" + M.offlineBadge(false) + "</div>" +
       '<p class="h-sm" id="tv-loc">…</p><p class="tiny" id="tv-loc-note"></p>' +
       '<div class="form-row mt-1"><button class="btn btn-outline btn-sm" type="button" id="tv-use-loc">' + icon("pin") + "<span>" + esc(t("travel.useLocation")) + "</span></button>" +
@@ -231,6 +270,13 @@
       '<p class="tiny">' + esc(t("travel.offlineNote")) + "</p></div></div>";
     var c = M.checklistCount("travel:checklist", CHECKLIST);
     $("tv-cl").textContent = f("modes.doneOf", { n: c.n, total: c.total });
+    $("tv-trip").onsubmit = function (e) {
+      e.preventDefault();
+      var v = $("tv-trip-end").value;
+      if (v && /^\d{4}-\d{2}-\d{2}$/.test(v)) { SS.store.set("travel:trip", { end: v }); SS.toast(f("travel.homeOn", { d: tripLabel(v) })); }
+      else { SS.store.remove("travel:trip"); SS.toast(t("settings.saved")); }
+    };
+    $("tv-im-home").onclick = comeHome;
     $("tv-use-loc").onclick = function () {
       SS.geo.request().then(function (loc) {
         if (!loc) SS.toast(t("travel.locDenied"));
@@ -243,17 +289,17 @@
       $("tv-loc").textContent = loc.isFallback ? t("travel.noLocation") : SS.ui.locLabel(loc);
       $("tv-loc-note").textContent = loc.isFallback ? t("travel.noLocationNote") : SS.ui.locNote(loc);
       $("tv-qibla").textContent = loc.isFallback ? t("travel.noLocationQibla") : qiblaText(loc);
-      times(loc).then(function (r) {
+      return times(loc).then(function (r) {
         if (my !== gen) return;
         $("tv-times").innerHTML = timesList(r.timings);
         $("tv-times").removeAttribute("aria-busy");
         $("tv-hijri").textContent = SS.hijriLabel(r.hijri);
         $("tv-src").textContent = [loc.isFallback ? t("loc.fallbackNote") : "", sourceNote(r)].filter(Boolean).join(" ");
         countdown(r.timings, my);
-      }).catch(function () {
-        if (my !== gen) return;
-        SS.ui.renderState($("tv-times"), { kind: "error", retry: function () { today(el); } });
       });
+    }).catch(function () {
+      if (my !== gen || !$("tv-times")) return;
+      SS.ui.renderState($("tv-times"), { kind: "error", retry: function () { today(el); } });
     });
   }
   function countdown(tm, my) {
