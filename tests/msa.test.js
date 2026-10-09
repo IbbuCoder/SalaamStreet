@@ -127,3 +127,133 @@ test("input is checked: title, length, image format and size; expired posts disa
   assert.deepEqual(feed.map((p) => p.title), ["Next week"]);
   assert.equal(await rpc(pg, null, "msa_image", { p_id: gone.id }), null, "an expired post's image is gone too");
 });
+
+/* ═══════════ 3.1.6 Membership ═══════════ */
+const APPROVER = "44444444-4444-4444-4444-444444444444";
+const AMINA = "55555555-5555-5555-5555-555555555555";
+const FAKE = "66666666-6666-6666-6666-666666666666";
+async function club() {
+  const pg = await db();
+  await pg.query(`insert into public.msa_approvers (email_hash) values (sha256(convert_to('approver@example.org', 'UTF8')))`);
+  await pg.query(`insert into auth.users (id, email) values ($1, 'Approver@example.org'), ($2, 'amina@example.com'), ($3, 'fake@example.com')`, [APPROVER, AMINA, FAKE]);
+  await rpc(pg, APPROVER, "msa_roster_set", { p_names: ["Amina Yusuf", "  Omar   Khan ", "Teachers"] });
+  return pg;
+}
+const join = (pg, uid, name, code) => rpc(pg, uid, "msa_join", code === undefined ? { p_name: name } : { p_name: name, p_code: code });
+const feedTitles = async (pg, uid) => (await rpc(pg, uid, "msa_feed")).map((p) => p.title);
+
+test("members-only posts reach members, posters and the approver — nobody else", async () => {
+  const pg = await club();
+  await save(pg, POSTER, { title: "Public bake sale" });
+  const secret = await save(pg, POSTER, { title: "Meeting in room 1234", members_only: true, image: IMG });
+  assert.equal(secret.members_only, true);
+  assert.deepEqual(await feedTitles(pg, null), ["Public bake sale"]);
+  assert.deepEqual(await feedTitles(pg, AMINA), ["Public bake sale"]);
+  assert.equal(await rpc(pg, AMINA, "msa_image", { p_id: secret.id }), null, "the image is members-only too");
+  assert.equal((await feedTitles(pg, POSTER)).length, 2);
+  assert.equal((await feedTitles(pg, APPROVER)).length, 2);
+  // Amina asks; the approver approves; now she sees it.
+  assert.equal((await join(pg, AMINA, "amina  YUSUF")).status, "pending");
+  assert.deepEqual(await feedTitles(pg, AMINA), ["Public bake sale"], "waiting isn't membership");
+  await rpc(pg, APPROVER, "msa_decide", { p_user: AMINA, p_action: "approve" });
+  assert.deepEqual((await feedTitles(pg, AMINA)).sort(), ["Meeting in room 1234", "Public bake sale"]);
+  assert.equal(await rpc(pg, AMINA, "msa_image", { p_id: secret.id }), IMG);
+  // Membership ends at the end of the school year.
+  await pg.query(`update public.msa_members set expires_at = now() - interval '1 second' where user_id = $1`, [AMINA]);
+  assert.deepEqual(await feedTitles(pg, AMINA), ["Public bake sale"]);
+  assert.equal((await rpc(pg, AMINA, "msa_status")).status, "none");
+});
+
+test("the approver sees requests with the roster check; approves, denies and removes; nobody else can", async () => {
+  const pg = await club();
+  await join(pg, AMINA, "Amina Yusuf");
+  await join(pg, FAKE, "Somebody Else");
+  const people = await rpc(pg, APPROVER, "msa_people");
+  const by = Object.fromEntries(people.map((p) => [p.name, p]));
+  assert.equal(by["Amina Yusuf"].on_roster, true);
+  assert.equal(by["Somebody Else"].on_roster, false);
+  assert.equal(by["Amina Yusuf"].email, "amina@example.com", "the approver sees which account asked");
+  assert.deepEqual(await rpc(pg, APPROVER, "msa_roster_get"), ["Amina Yusuf", "Omar Khan", "Teachers"]);
+  await rpc(pg, APPROVER, "msa_decide", { p_user: FAKE, p_action: "deny" });
+  assert.equal((await rpc(pg, FAKE, "msa_status")).status, "denied");
+  await rpc(pg, APPROVER, "msa_decide", { p_user: AMINA, p_action: "approve" });
+  const st = await rpc(pg, AMINA, "msa_status");
+  assert.equal(st.status, "approved");
+  assert.equal(new Date(st.expires_at).getUTCMonth(), 6, "until 1 July");
+  await rpc(pg, APPROVER, "msa_decide", { p_user: AMINA, p_action: "remove" });
+  assert.equal((await rpc(pg, AMINA, "msa_status")).status, "none");
+  // Students never see the roster, the list of people, or the code — and can't decide anything.
+  for (const uid of [AMINA, POSTER, FAKE]) {
+    for (const fn of ["msa_people", "msa_roster_get", "msa_live_code"]) await assert.rejects(rpc(pg, uid, fn), /not the MSA approver/);
+    await assert.rejects(rpc(pg, uid, "msa_decide", { p_user: AMINA, p_action: "approve" }), /not the MSA approver/);
+    await assert.rejects(rpc(pg, uid, "msa_roster_set", { p_names: ["Me"] }), /not the MSA approver/);
+  }
+  for (const fn of ["msa_status", "msa_people", "msa_live_code"]) await assert.rejects(rpc(pg, null, fn), /permission denied/);
+  await assert.rejects(join(pg, null, "Amina Yusuf"), /permission denied/);
+  for (const t of ["msa_members", "msa_roster", "msa_secret", "msa_approvers", "msa_code_tries"]) {
+    await assert.rejects(as(pg, AMINA, `select * from public.${t}`), /permission denied/);
+  }
+  await assert.rejects(as(pg, AMINA, `insert into public.msa_members (user_id, name, name_key, status, via) values ('${AMINA}', 'x y', 'x y', 'approved', 'code')`), /permission denied/);
+});
+
+test("the live meeting code: only the approver sees it, it changes every 10 minutes, and the right one lets you in at once", async () => {
+  const pg = await club();
+  const live = await rpc(pg, APPROVER, "msa_live_code");
+  assert.match(live.code, /^\d{6}$/);
+  const left = Date.parse(live.changes_at) - Date.now();
+  assert.ok(left > 0 && left <= 600000, "changes within 10 minutes");
+  const w = (await pg.query(`select public.msa_window() as w`)).rows[0].w;
+  const codes = (await pg.query(`select public.msa_code_for($1) a, public.msa_code_for($2) b, public.msa_code_for($3) c`, [w, Number(w) + 1, Number(w) + 2])).rows[0];
+  assert.equal(codes.a, live.code);
+  assert.ok(new Set([codes.a, codes.b, codes.c]).size === 3, "a different code each 10 minutes");
+  // An old code is refused; the right one approves straight away.
+  const old = (await pg.query(`select public.msa_code_for($1) c`, [Number(w) - 5])).rows[0].c;
+  const wrong = await join(pg, AMINA, "Amina Yusuf", old === live.code ? "000000" : old);
+  assert.equal(wrong.error, "wrong-code");
+  assert.equal(wrong.status, "none", "a wrong code changes nothing");
+  const r = await join(pg, AMINA, "Amina Yusuf", " " + live.code.slice(0, 3) + " " + live.code.slice(3));
+  assert.equal(r.status, "approved");
+  const people = await rpc(pg, APPROVER, "msa_people");
+  assert.equal(people[0].via, "code");
+  // Guessing is stopped after 5 wrong tries.
+  for (let i = 0; i < 5; i++) assert.equal((await join(pg, FAKE, "Fake Person", live.code === "111111" ? "222222" : "111111")).error, "wrong-code");
+  await assert.rejects(join(pg, FAKE, "Fake Person", live.code), /too many tries/);
+});
+
+test("one account per name: a second account asking for a member's name is flagged — even with the right code", async () => {
+  const pg = await club();
+  const code = (await rpc(pg, APPROVER, "msa_live_code")).code;
+  assert.equal((await join(pg, AMINA, "Amina Yusuf", code)).status, "approved");
+  assert.equal((await join(pg, FAKE, "AMINA yusuf")).status, "flagged");
+  assert.equal((await join(pg, FAKE, "Amina Yusuf", code)).status, "flagged", "the code doesn't get around it");
+  assert.deepEqual(await feedTitles(pg, FAKE), []);
+  const people = await rpc(pg, APPROVER, "msa_people");
+  assert.equal(people[0].status, "flagged", "flagged requests come first");
+  // The approver settles it in person: approving the second account needs the first one removed.
+  await assert.rejects(rpc(pg, APPROVER, "msa_decide", { p_user: FAKE, p_action: "approve" }), /already belongs to another member/);
+  await rpc(pg, APPROVER, "msa_decide", { p_user: AMINA, p_action: "remove" });
+  await rpc(pg, APPROVER, "msa_decide", { p_user: FAKE, p_action: "approve" });
+  assert.equal((await rpc(pg, FAKE, "msa_status")).status, "approved");
+  // The database itself allows only one approved account per name.
+  await assert.rejects(pg.query(`insert into public.msa_members (user_id, name, name_key, status, via, expires_at) values ($1, 'Amina Yusuf', 'amina yusuf', 'approved', 'code', now() + interval '1 day')`, [AMINA]), /duplicate key/);
+});
+
+test("names are checked: first and last name; a member stays a member; leaving works", async () => {
+  const pg = await club();
+  await assert.rejects(join(pg, AMINA, "Amina"), /first and last name/);
+  await assert.rejects(join(pg, AMINA, "  "), /first and last name/);
+  await assert.rejects(join(pg, AMINA, "x".repeat(81) + " y"), /first and last name/);
+  const code = (await rpc(pg, APPROVER, "msa_live_code")).code;
+  await join(pg, AMINA, "Amina Yusuf", code);
+  assert.equal((await join(pg, AMINA, "Someone Else")).name, "Amina Yusuf", "an approved member can't swap names");
+  await rpc(pg, AMINA, "msa_leave");
+  assert.equal((await rpc(pg, AMINA, "msa_status")).status, "none");
+  assert.equal((await rpc(pg, APPROVER, "msa_status")).approver, true);
+  assert.equal((await rpc(pg, AMINA, "msa_status")).approver, false);
+});
+
+test("the roster and the code secret never appear in the code", () => {
+  const block = SQL.slice(SQL.indexOf("3.1.6 — NVHS MSA membership"));
+  assert.doesNotMatch(block.replace(/name@example\.org/g, ""), /[a-z0-9._-]+@[a-z0-9.-]+\.[a-z]+/i);
+  assert.doesNotMatch(block, /insert into public\.msa_roster \(name_key, name\)\s*values/i, "no names written into the schema");
+});

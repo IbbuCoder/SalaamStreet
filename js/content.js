@@ -224,8 +224,29 @@
   ];
 
   /* ── Version & release notes (newest first) ──────────────────────── */
-  SS.VERSION = "3.1.5";
+  SS.VERSION = "3.1.6";
   SS.CHANGELOG = [
+    {
+      v: "3.1.6", date: "2026-10-09",
+      en: "NVHS MSA members", ar: "أعضاء رابطة NVHS",
+      den: "Join the NVHS MSA in the app — with the code shown at a meeting, or by asking — and see members-only announcements.",
+      dar: "انضم إلى رابطة NVHS من التطبيق — برمز يُعرض في الاجتماع أو بطلب — وشاهد الإعلانات الخاصة بالأعضاء.",
+      groups: [
+        { en: "Join the MSA", ar: "انضم إلى الرابطة", items: [
+          { en: "\u201cJoin the NVHS MSA\u201d on the MSA page: type your first and last name, plus the meeting code if you're at a meeting", ar: "«انضم إلى رابطة NVHS» في صفحة الرابطة: اكتب اسمك الأول واسم العائلة، ورمز الاجتماع إن كنت فيه" },
+          { en: "The meeting code is 6 digits and changes every 10 minutes, so it only works if you're in the room — enter it and you're in straight away", ar: "رمز الاجتماع ٦ أرقام ويتغير كل ١٠ دقائق، فلا يصلح إلا لمن في القاعة — أدخله وتنضم فورًا" },
+          { en: "No code? Send your name and the MSA's approver checks it against the member list", ar: "لا رمز؟ أرسل اسمك ويطابقه المسؤول مع قائمة الأعضاء" },
+          { en: "One account per name: if a name already belongs to a member, the request is flagged and you're asked to see Ibrahim in person", ar: "حساب واحد لكل اسم: إن كان الاسم مسجّلًا لعضو، يُعلَّم الطلب ويُطلب منك مقابلة إبراهيم شخصيًا" },
+          { en: "Posters can mark an announcement \u201cMembers only\u201d — for rooms, times and photos; nobody else receives it", ar: "يمكن للناشرين جعل الإعلان «للأعضاء فقط» — للقاعات والأوقات والصور؛ ولا يصل إلى غيرهم" },
+          { en: "Membership lasts until the end of the school year (1 July); everyone re-joins in the fall", ar: "تستمر العضوية حتى نهاية العام الدراسي (١ يوليو)؛ ويعيد الجميع الانضمام في الخريف" },
+        ] },
+        { en: "For the MSA's approver", ar: "لمسؤول الرابطة", items: [
+          { en: "A Manage page with the live meeting code and a countdown to the next one", ar: "صفحة إدارة فيها رمز الاجتماع المباشر وعدّ تنازلي للرمز التالي" },
+          { en: "Requests with \u201cOn the roster\u201d or \u201cNot on the roster\u201d and the account that asked; approve, deny or remove in one tap; flagged ones first", ar: "الطلبات مع «في القائمة» أو «ليس في القائمة» والحساب الذي طلب؛ موافقة أو رفض أو إزالة بلمسة؛ والمُعلَّمة أولًا" },
+          { en: "Paste the roster from Google Classroom; it's kept only in the private database, never in the app's code", ar: "الصق القائمة من Google Classroom؛ تُحفظ في قاعدة البيانات الخاصة فقط، لا في كود التطبيق" },
+        ] },
+      ],
+    },
     {
       v: "3.1.5", date: "2026-10-09",
       en: "Modes, made useful", ar: "أوضاع أنفع",

@@ -790,3 +790,330 @@ revoke all on function public.msa_feed(), public.msa_image(uuid), public.msa_is_
     public.msa_post_save(jsonb), public.msa_post_delete(uuid) from public;
 grant execute on function public.msa_feed(), public.msa_image(uuid) to anon, authenticated;
 grant execute on function public.msa_is_poster(), public.msa_post_save(jsonb), public.msa_post_delete(uuid) to authenticated;
+
+-- ════════════════════════════════════════════════════════════════════════
+--  3.1.6 — NVHS MSA membership
+--  Members see "members only" announcements. To become a member, a signed-in
+--  person types their full name and either:
+--    • enters the live meeting code (6 digits, changes every 10 minutes, shown
+--      only to the MSA approver, so it proves they were at a meeting), or
+--    • sends a request that the approver approves or denies.
+--  The approver also keeps the roster (the MSA's member list from Google
+--  Classroom). It lives only in this database — never in the code, which is
+--  public — and tells the approver whether a requested name is on it.
+--  One account per name: if a name already belongs to an approved member,
+--  any other account asking for it is FLAGGED and told to see the approver in
+--  person; the approver settles it face to face.
+--  Membership ends every 1 July (the end of the school year).
+--  Approvers are listed like posters, as SHA-256 hashes of lower-cased emails:
+--    insert into public.msa_approvers (email_hash)
+--    values (sha256(convert_to(lower('name@example.org'), 'UTF8')));
+-- ════════════════════════════════════════════════════════════════════════
+create table if not exists public.msa_approvers (
+    email_hash bytea primary key check (octet_length(email_hash) = 32),
+    added_at   timestamptz not null default now()
+);
+insert into public.msa_approvers (email_hash) values
+    ('\x0359ef19e11b6941875be3039743b7d627855fa162b587982a5142cf558e6276')
+on conflict do nothing;
+
+create table if not exists public.msa_roster (
+    name_key text primary key check (char_length(name_key) between 2 and 80),
+    name     text not null check (char_length(name) between 2 and 80)
+);
+
+create table if not exists public.msa_members (
+    user_id    uuid primary key references auth.users(id) on delete cascade,
+    name       text not null check (char_length(btrim(name)) between 2 and 80),
+    name_key   text not null,
+    status     text not null check (status in ('pending', 'approved', 'flagged', 'denied')),
+    via        text not null check (via in ('request', 'code', 'approver')),
+    on_roster  boolean not null default false,
+    created_at timestamptz not null default now(),
+    decided_at timestamptz,
+    expires_at timestamptz
+);
+-- One approved account per name.
+create unique index if not exists msa_members_one_per_name on public.msa_members (name_key) where status = 'approved';
+
+-- The meeting code's secret, and wrong-code tries (to stop guessing).
+create table if not exists public.msa_secret (
+    id     int primary key default 1 check (id = 1),
+    secret text not null
+);
+insert into public.msa_secret (id, secret)
+values (1, replace(gen_random_uuid()::text, '-', '') || replace(gen_random_uuid()::text, '-', ''))
+on conflict do nothing;
+create table if not exists public.msa_code_tries (
+    user_id uuid not null references auth.users(id) on delete cascade,
+    at      timestamptz not null default now()
+);
+create index if not exists msa_code_tries_user on public.msa_code_tries (user_id, at);
+
+alter table public.msa_posts add column if not exists members_only boolean not null default false;
+
+alter table public.msa_approvers  enable row level security;
+alter table public.msa_roster     enable row level security;
+alter table public.msa_members    enable row level security;
+alter table public.msa_secret     enable row level security;
+alter table public.msa_code_tries enable row level security;
+revoke all on public.msa_approvers, public.msa_roster, public.msa_members, public.msa_secret, public.msa_code_tries
+    from anon, authenticated;
+
+/** "Yusuf  Abdullah " → "yusuf abdullah": how names are compared. */
+create or replace function public.msa_name_key(n text)
+returns text language sql immutable set search_path = public as $$
+    select btrim(regexp_replace(regexp_replace(lower(coalesce(n, '')), '[^[:alpha:]'' -]+', ' ', 'g'), '\s+', ' ', 'g'));
+$$;
+
+/** The signed-in account's email, lower-cased (or null). */
+create or replace function public.msa_my_email()
+returns text language sql stable security definer set search_path = public as $$
+    select lower(btrim(email)) from auth.users where id = auth.uid();
+$$;
+create or replace function public.msa_is_approver_now()
+returns boolean language sql stable security definer set search_path = public as $$
+    select coalesce(public.msa_my_email() <> '' and exists (
+        select 1 from public.msa_approvers where email_hash = sha256(convert_to(public.msa_my_email(), 'UTF8'))), false);
+$$;
+/** The signed-in approver's id, or an error for anyone else. */
+create or replace function public.msa_approver()
+returns uuid language plpgsql stable security definer set search_path = public as $$
+declare uid uuid := auth.uid();
+begin
+    if uid is null then raise exception 'not signed in' using errcode = '28000'; end if;
+    if not public.msa_is_approver_now() then raise exception 'not the MSA approver' using errcode = '42501'; end if;
+    return uid;
+end;
+$$;
+/** Members, posters and the approver may see members-only posts. */
+create or replace function public.msa_can_see_all()
+returns boolean language sql stable security definer set search_path = public as $$
+    select auth.uid() is not null and (
+        exists (select 1 from public.msa_members m where m.user_id = auth.uid() and m.status = 'approved' and m.expires_at > now())
+        or public.msa_is_approver_now()
+        or exists (select 1 from public.msa_admins where email_hash = sha256(convert_to(coalesce(public.msa_my_email(), ''), 'UTF8'))));
+$$;
+/** The end of this school year: the next 1 July, Chicago time. */
+create or replace function public.msa_year_end()
+returns timestamptz language sql stable set search_path = public as $$
+    select make_timestamptz(
+        extract(year from now() at time zone 'America/Chicago')::int
+          + case when extract(month from now() at time zone 'America/Chicago') >= 7 then 1 else 0 end,
+        7, 1, 0, 0, 0, 'America/Chicago');
+$$;
+/** The meeting code for a 10-minute window: 6 digits from the secret. */
+create or replace function public.msa_code_for(w bigint)
+returns text language sql stable security definer set search_path = public as $$
+    select lpad(((('x' || substr(encode(sha256(convert_to(s.secret || ':' || w::text, 'UTF8')), 'hex'), 1, 8))::bit(32)::bigint) % 1000000)::text, 6, '0')
+    from public.msa_secret s where s.id = 1;
+$$;
+create or replace function public.msa_window()
+returns bigint language sql stable as $$ select floor(extract(epoch from now()) / 600)::bigint; $$;
+
+/* ── Posts: members-only ones only reach members ── */
+create or replace function public.msa_post_json(p public.msa_posts)
+returns jsonb language sql immutable set search_path = public as $$
+    select jsonb_build_object('id', p.id, 'title', p.title, 'body', p.body, 'has_image', p.image is not null,
+        'on_home', p.on_home, 'pinned', p.pinned, 'members_only', p.members_only, 'expires_at', p.expires_at,
+        'created_at', p.created_at, 'updated_at', p.updated_at);
+$$;
+create or replace function public.msa_feed()
+returns jsonb language sql stable security definer set search_path = public as $$
+    select coalesce(jsonb_agg(public.msa_post_json(p) order by p.pinned desc, p.created_at desc), '[]'::jsonb)
+    from (select * from public.msa_posts
+          where (expires_at is null or expires_at > now()) and (not members_only or public.msa_can_see_all())
+          order by pinned desc, created_at desc limit 30) p;
+$$;
+create or replace function public.msa_image(p_id uuid)
+returns text language sql stable security definer set search_path = public as $$
+    select image from public.msa_posts
+    where id = p_id and (expires_at is null or expires_at > now()) and (not members_only or public.msa_can_see_all());
+$$;
+create or replace function public.msa_post_save(p jsonb)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare uid uuid := public.msa_poster(); r public.msa_posts; pid uuid; img text;
+begin
+    if jsonb_typeof(p) is distinct from 'object' then raise exception 'a post is an object' using errcode = '22023'; end if;
+    pid := nullif(p->>'id', '')::uuid;
+    img := case when p ? 'image' then p->>'image' else 'keep' end;
+    if (select count(*) from public.msa_posts where created_at > now() - interval '1 hour') >= 30 and pid is null then
+        raise exception 'too many posts this hour' using errcode = '54000';
+    end if;
+    if pid is null then
+        insert into public.msa_posts (title, body, image, on_home, pinned, members_only, expires_at, created_by)
+        values (btrim(p->>'title'), btrim(coalesce(p->>'body', '')), nullif(img, 'keep'),
+                coalesce((p->>'on_home')::boolean, false), coalesce((p->>'pinned')::boolean, false),
+                coalesce((p->>'members_only')::boolean, false),
+                nullif(p->>'expires_at', '')::timestamptz, uid)
+        returning * into r;
+    else
+        update public.msa_posts set
+            title = btrim(p->>'title'),
+            body = btrim(coalesce(p->>'body', '')),
+            image = case when img = 'keep' then image else img end,
+            on_home = coalesce((p->>'on_home')::boolean, on_home),
+            pinned = coalesce((p->>'pinned')::boolean, pinned),
+            members_only = coalesce((p->>'members_only')::boolean, members_only),
+            expires_at = nullif(p->>'expires_at', '')::timestamptz,
+            updated_at = now()
+        where id = pid
+        returning * into r;
+        if r.id is null then raise exception 'no such post' using errcode = 'P0002'; end if;
+    end if;
+    return public.msa_post_json(r);
+end;
+$$;
+
+/* ── For everyone signed in ── */
+create or replace function public.msa_member_json(m public.msa_members)
+returns jsonb language sql immutable set search_path = public as $$
+    select case when m.user_id is null then jsonb_build_object('status', 'none')
+        else jsonb_build_object('status', case when m.status = 'approved' and m.expires_at <= now() then 'none' else m.status end,
+            'name', m.name, 'expires_at', m.expires_at) end;
+$$;
+/** Where the signed-in person stands: their membership, and what they may do. */
+create or replace function public.msa_status()
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare m public.msa_members;
+begin
+    if auth.uid() is null then raise exception 'not signed in' using errcode = '28000'; end if;
+    select * into m from public.msa_members where user_id = auth.uid();
+    return public.msa_member_json(m) || jsonb_build_object(
+        'approver', public.msa_is_approver_now(),
+        'poster', exists (select 1 from public.msa_admins where email_hash = sha256(convert_to(coalesce(public.msa_my_email(), ''), 'UTF8'))));
+end;
+$$;
+/**
+ * Ask to join with a full name, and optionally the meeting code.
+ * Right code → approved at once (unless the name is taken). Otherwise the
+ * request waits for the approver. A name that already belongs to another
+ * member is flagged: see the approver in person.
+ */
+create or replace function public.msa_join(p_name text, p_code text default null)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare uid uuid := auth.uid(); nm text := btrim(regexp_replace(coalesce(p_name, ''), '\s+', ' ', 'g'));
+    k text := public.msa_name_key(p_name); cur public.msa_members; w bigint := public.msa_window();
+    code_ok boolean := false; taken boolean; st text; r public.msa_members; code text := regexp_replace(coalesce(p_code, ''), '\D', '', 'g');
+begin
+    if uid is null then raise exception 'not signed in' using errcode = '28000'; end if;
+    if char_length(k) < 2 or char_length(nm) > 80 or position(' ' in k) = 0 then
+        raise exception 'type your first and last name' using errcode = '22023';
+    end if;
+    select * into cur from public.msa_members where user_id = uid;
+    if cur.status = 'approved' and cur.expires_at > now() then return public.msa_member_json(cur); end if;
+    if code <> '' then
+        if (select count(*) from public.msa_code_tries where user_id = uid and at > now() - interval '15 minutes') >= 5 then
+            raise exception 'too many tries' using errcode = '54000';
+        end if;
+        -- The code just replaced still works for its first minute.
+        code_ok := code = public.msa_code_for(w)
+            or (code = public.msa_code_for(w - 1) and extract(epoch from now()) - w * 600 < 60);
+        if not code_ok then
+            -- Returned, not raised: an error would undo the record of this try.
+            insert into public.msa_code_tries (user_id) values (uid);
+            return public.msa_member_json(cur) || jsonb_build_object('error', 'wrong-code');
+        end if;
+    end if;
+    taken := exists (select 1 from public.msa_members where name_key = k and status = 'approved' and expires_at > now() and user_id <> uid);
+    -- An approval that has run out frees its name.
+    delete from public.msa_members where name_key = k and status = 'approved' and expires_at <= now() and user_id <> uid;
+    st := case when taken then 'flagged' when code_ok then 'approved' else 'pending' end;
+    insert into public.msa_members as m (user_id, name, name_key, status, via, on_roster, created_at, decided_at, expires_at)
+    values (uid, nm, k, st, case when code_ok then 'code' else 'request' end,
+            exists (select 1 from public.msa_roster where name_key = k), now(),
+            case when st = 'approved' then now() end, case when st = 'approved' then public.msa_year_end() end)
+    on conflict (user_id) do update set name = excluded.name, name_key = excluded.name_key, status = excluded.status,
+        via = excluded.via, on_roster = excluded.on_roster, created_at = now(),
+        decided_at = excluded.decided_at, expires_at = excluded.expires_at
+    returning * into r;
+    return public.msa_member_json(r);
+end;
+$$;
+/** Leave the MSA (or withdraw a request). */
+create or replace function public.msa_leave()
+returns void language sql security definer set search_path = public as $$
+    delete from public.msa_members where user_id = auth.uid();
+$$;
+
+/* ── For the approver ── */
+/** The live meeting code and when it changes. */
+create or replace function public.msa_live_code()
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare w bigint;
+begin
+    perform public.msa_approver();
+    w := public.msa_window();
+    return jsonb_build_object('code', public.msa_code_for(w), 'changes_at', to_timestamp((w + 1) * 600));
+end;
+$$;
+/** Everyone who asked or joined: flagged first, then waiting, then members. */
+create or replace function public.msa_people()
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+begin
+    perform public.msa_approver();
+    return coalesce((select jsonb_agg(jsonb_build_object('user_id', m.user_id, 'name', m.name, 'status', m.status, 'via', m.via,
+            'on_roster', exists (select 1 from public.msa_roster r where r.name_key = m.name_key),
+            'email', u.email, 'created_at', m.created_at, 'expires_at', m.expires_at)
+        order by case m.status when 'flagged' then 0 when 'pending' then 1 when 'approved' then 2 else 3 end, m.created_at desc)
+        from public.msa_members m join auth.users u on u.id = m.user_id
+        where not (m.status = 'approved' and m.expires_at <= now())), '[]'::jsonb);
+end;
+$$;
+/** approve | deny | remove one person. */
+create or replace function public.msa_decide(p_user uuid, p_action text)
+returns void language plpgsql security definer set search_path = public as $$
+declare m public.msa_members;
+begin
+    perform public.msa_approver();
+    select * into m from public.msa_members where user_id = p_user;
+    if m.user_id is null then raise exception 'no such person' using errcode = 'P0002'; end if;
+    if p_action = 'remove' then
+        delete from public.msa_members where user_id = p_user;
+    elsif p_action = 'deny' then
+        update public.msa_members set status = 'denied', decided_at = now(), expires_at = null where user_id = p_user;
+    elsif p_action = 'approve' then
+        if exists (select 1 from public.msa_members where name_key = m.name_key and status = 'approved' and expires_at > now() and user_id <> p_user) then
+            raise exception 'name already belongs to another member' using errcode = '23505';
+        end if;
+        delete from public.msa_members where name_key = m.name_key and status = 'approved' and expires_at <= now() and user_id <> p_user;
+        update public.msa_members set status = 'approved', via = case when via = 'code' then 'code' else 'approver' end,
+            decided_at = now(), expires_at = public.msa_year_end() where user_id = p_user;
+    else
+        raise exception 'unknown action' using errcode = '22023';
+    end if;
+end;
+$$;
+create or replace function public.msa_roster_get()
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+begin
+    perform public.msa_approver();
+    return coalesce((select jsonb_agg(name order by name) from public.msa_roster), '[]'::jsonb);
+end;
+$$;
+/** Replace the roster with these names (one per line or an array). */
+create or replace function public.msa_roster_set(p_names text[])
+returns int language plpgsql security definer set search_path = public as $$
+begin
+    perform public.msa_approver();
+    if coalesce(array_length(p_names, 1), 0) > 2000 then raise exception 'too many names' using errcode = '54000'; end if;
+    delete from public.msa_roster where true;
+    insert into public.msa_roster (name_key, name)
+    select distinct on (public.msa_name_key(n)) public.msa_name_key(n), left(btrim(regexp_replace(n, '\s+', ' ', 'g')), 80)
+    from unnest(coalesce(p_names, '{}')) n
+    where char_length(public.msa_name_key(n)) between 2 and 80
+    on conflict do nothing;
+    return (select count(*) from public.msa_roster);
+end;
+$$;
+
+revoke all on function public.msa_name_key(text), public.msa_my_email(), public.msa_is_approver_now(), public.msa_approver(),
+    public.msa_can_see_all(), public.msa_year_end(), public.msa_code_for(bigint), public.msa_window(),
+    public.msa_member_json(public.msa_members), public.msa_post_json(public.msa_posts) from public, anon, authenticated;
+revoke all on function public.msa_status(), public.msa_join(text, text), public.msa_leave(), public.msa_live_code(),
+    public.msa_people(), public.msa_decide(uuid, text), public.msa_roster_get(), public.msa_roster_set(text[]) from public, anon;
+grant execute on function public.msa_status(), public.msa_join(text, text), public.msa_leave(), public.msa_live_code(),
+    public.msa_people(), public.msa_decide(uuid, text), public.msa_roster_get(), public.msa_roster_set(text[]) to authenticated;
+revoke all on function public.msa_feed(), public.msa_image(uuid), public.msa_post_save(jsonb) from public;
+grant execute on function public.msa_feed(), public.msa_image(uuid) to anon, authenticated;
+grant execute on function public.msa_post_save(jsonb) to authenticated;

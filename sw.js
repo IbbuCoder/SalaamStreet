@@ -10,7 +10,7 @@
    caches named "ss-offline-…", which belong to the app and survive service
    worker updates. The PDF itself (files/) is fetched by the app, never cached
    here; pdf.js (js/vendor/pdfjs/) is cached on first use like supabase.js. */
-var VERSION = "ss-v18";
+var VERSION = "ss-v19";
 var KEEP = /^ss-offline/;
 var SHELL = [
   "./", "index.html", "css/styles.css",

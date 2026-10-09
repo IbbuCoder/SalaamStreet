@@ -211,6 +211,33 @@ values (sha256(convert_to(lower('name@example.org'), 'UTF8')));
 
 `tests/msa.test.js` checks all of this in a real Postgres.
 
+## 3.1.6 — NVHS MSA membership
+
+**Upgrading to 3.1.6:** run the whole updated `supabase-schema.sql` again in the
+SQL Editor (safe to re-run). Until then, joining and the Manage page show
+errors; announcements keep working.
+
+- `msa_approvers` — who approves members and sees the meeting code (hashes of
+  emails, like `msa_admins`). The file comes with the MSA's approver on it.
+- `msa_roster` — the MSA's member list. The approver pastes it on the MSA
+  page → **Manage**; it is stored only here, never in the code.
+- `msa_members` — one row per account: the name they typed, `pending`,
+  `approved`, `flagged` or `denied`, how they joined, and (when approved)
+  until when — the next 1 July. Only one approved account per name.
+- The meeting code is derived from a random secret in `msa_secret` and the
+  current 10-minute window, so it changes every 10 minutes and only the
+  approver's page shows it. Five wrong codes in 15 minutes lock that account
+  out of code joining for a while.
+- `msa_posts.members_only` — the feed and images leave these out for anyone
+  who isn't an approved member, a poster or the approver.
+
+**Add an approver:**
+
+```sql
+insert into public.msa_approvers (email_hash)
+values (sha256(convert_to(lower('name@example.org'), 'UTF8')));
+```
+
 ## How sync works (for maintainers)
 
 - `js/sync.js` is a storage- and backend-agnostic engine. Every write the app
