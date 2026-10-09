@@ -396,7 +396,8 @@ test("guest mode: everything works, no account prompts, no account network traff
   const mock = createMock();
   const { page, context } = await device({ mock });
   const supabaseHits = [];
-  page.on("request", (r) => { if (/supabase/.test(r.url())) supabaseHits.push(r.url()); });
+  // The MSA's public announcements (3.1) are read without an account; nothing else may reach Supabase.
+  page.on("request", (r) => { if (/supabase/.test(r.url()) && !/\/rest\/v1\/rpc\/msa_(feed|image)$/.test(r.url())) supabaseHits.push(r.url()); });
   for (const v of ["#/home", "#/prayer", "#/qibla", "#/quran", "#/surah/1", "#/duas", "#/dhikr", "#/adhkar", "#/names", "#/learn", "#/calendar", "#/settings", "#/about"]) {
     await open(page, v);
     assert.equal(await page.evaluate(() => !!document.querySelector("dialog[open]")), false, "no dialog on " + v);
@@ -698,12 +699,14 @@ test("ayah of the day: Listen plays just that ayah in the shared player", async 
   await context.close();
 });
 
-test("MSA tab removed (2.9.5): not in the navigation, and old links land on Home", async () => {
-  const { page, context } = await device();
+test("NVHS MSA (3.1): in the sidebar and the More menu, and old #/msa links open it", async () => {
+  const { page, context } = await device({ context: { viewport: { width: 1440, height: 900 } } });
   await open(page, "#/msa");
-  await page.waitForFunction(() => location.hash === "#/home");
-  assert.equal(await page.isVisible("#view-home"), true);
-  assert.equal(await page.locator('a[href="#/msa"]').count(), 0);
+  assert.equal(await page.isVisible("#view-msa"), true);
+  assert.equal(await page.textContent("#msa-h"), "NVHS MSA");
+  assert.equal(await page.locator('.sidenav a[href="#/msa"]').count(), 1);
+  assert.equal(await page.locator('#more-sheet a[href="#/msa"]').count(), 1);
+  assert.equal(await page.getAttribute('.sidenav a[href="#/msa"]', "aria-current"), "page");
   assert.deepEqual(page.errors, []);
   await context.close();
 });
@@ -1109,13 +1112,15 @@ test("modes: Choose Your Mode from the Account page; switch through every mode; 
   page.on("dialog", (d) => d.accept());
   await open(page, "#/account");
   await page.click('.acct-modes a[href="#/modes"]');
-  await page.waitForSelector("#modes-list .mode-card");
+  await page.waitForSelector("#modes-list .mode-row");
   assert.equal(await page.textContent("#modes-h"), "Choose Your Mode");
   assert.match(await page.textContent("#view-modes .page-head p"), /fits what you’re doing right now/);
-  const cards = await page.$$eval("#modes-list .mode-card", (c) => c.map((x) => x.getAttribute("data-m")));
-  assert.deepEqual(cards, ["normal", "travel", "kids", "hajj", "mosque"]);
-  assert.equal(await page.getAttribute('.mode-card[data-m="normal"]', "aria-current"), "true");
-  assert.match(await page.textContent('.mode-card[data-m="normal"]'), /Active/, "the active state is in words, not only colour");
+  const rows = await page.$$eval("#modes-list .mode-row", (c) => c.map((x) => x.getAttribute("data-go")));
+  assert.deepEqual(rows, ["normal", "travel", "hajj", "mosque"], "Kids Mode is set up from Family, not switched on here");
+  assert.equal(await page.getAttribute('.mode-row[data-go="normal"]', "aria-pressed"), "true");
+  assert.match(await page.textContent('.mode-row[data-go="normal"]'), /Active/, "the active state is in words, not only colour");
+  assert.match(await page.textContent('.mode-row[data-go="travel"]'), /how many rak'ahs/, "each mode says what it's for");
+  assert.equal(await page.$("#modes-list .mode-emoji"), null, "the app's own icons, not emoji");
   assert.equal(await page.isVisible("#mode-pill"), false, "no badge in Normal Mode");
 
   // Normal → Travel
@@ -1125,15 +1130,26 @@ test("modes: Choose Your Mode from the Account page; switch through every mode; 
   assert.equal(await page.isVisible("#mode-pill"), true);
   assert.match(await page.textContent("#mode-pill"), /Travel/);
   await page.waitForSelector("#tv-tabs");
-  // Survives a reload, and Home becomes the Travel dashboard.
+  // Survives a reload, and Home's prayer card answers the mode's question.
   await open(page, "#/home");
   assert.equal(await modeOf(page), "travel");
-  await page.waitForSelector("#mode-home #tv-tiles");
+  await page.waitForSelector(".hero #mode-home .hm-rakah");
   assert.match(await page.textContent("#quick-grid"), /Travel duas/);
   assert.equal(await page.isVisible('[data-home="name"]'), false, "Travel Mode steps the Name card back");
-  // Travel → Kids: Kids Mode is parent-managed, so it starts at the Family page and the active mode is untouched.
+  assert.equal(await page.$$eval("#mode-home .mode-tile", (x) => x.length), 0, "no box of tiles above Home any more");
+  // The top-bar badge opens a quick switcher; switching there keeps you where you are.
   await page.click("#mode-pill");
-  await page.click('[data-go="kids"]');
+  await page.waitForSelector("#mode-sheet[open] .mode-row");
+  await page.click('#mode-sheet [data-go="mosque"]');
+  await page.waitForFunction(() => document.documentElement.getAttribute("data-mode") === "mosque");
+  assert.equal(await page.evaluate(() => location.hash), "#/home");
+  await page.waitForSelector("#mode-home [data-visit]");
+  await page.click("#mode-pill");
+  await page.click('#mode-sheet [data-go="travel"]');
+  await page.waitForSelector("#mode-home .hm-rakah");
+  // Kids Mode is parent-managed, so it starts at the Family page and the active mode is untouched.
+  await open(page, "#/modes");
+  await page.click(".mode-kids");
   await page.waitForFunction(() => location.hash === "#/family");
   await page.waitForSelector("#fam-pair");
   assert.equal(await modeOf(page), "travel");
@@ -1183,9 +1199,9 @@ test("modes: the mode follows a guest into their account and onto their other de
   await syncNow(B.page);
   await open(B.page, "#/home");
   assert.equal(await modeOf(B.page), "hajj");
-  await B.page.waitForSelector("#mode-home .mode-tile");
-  assert.match(await B.page.textContent("#mode-home"), /Umrah/);
-  assert.match(await B.page.textContent("#mode-home"), /1 of 7 done/);
+  await B.page.waitForSelector("#mode-home .hm-row");
+  assert.match(await B.page.textContent("#mode-home"), /Umrah · next step, 2 of 7/);
+  assert.match(await B.page.textContent("#mode-home"), /Ihram/);
   // Switching on one device reaches the other.
   await open(B.page, "#/modes");
   await B.page.click('[data-go="normal"]');
@@ -1251,18 +1267,38 @@ test("travel mode: works without location permission — search, destination, sa
   await context.close();
 });
 
-test("travel mode: with location shared, Home shows local prayer, Qibla and Hijri date", async () => {
+test("travel mode: Home says how to pray while travelling; a trip end date brings you home in one tap", async () => {
   const { page, context } = await device({ settings: { location: CHICAGO } });
+  await modeApis(context);
   await open(page, "#/modes");
   await page.click('[data-go="travel"]');
   await page.waitForSelector("#tv-times .times-list");
   assert.match(await page.textContent("#tv-loc"), /Chicago/);
   assert.match(await page.textContent("#tv-qibla"), /Qibla: \d+° from north · .* to Makkah/);
   assert.match(await page.textContent("#tv-cd"), /^\d\d:\d\d:\d\d$/);
+  // The answer: rak'ahs while travelling, with sources.
+  assert.deepEqual(await page.$$eval(".rakah-table li", (l) => l.map((x) => x.querySelector("b").textContent + (x.classList.contains("short") ? "*" : ""))), ["2", "2*", "2*", "3", "2*"]);
+  assert.match(await page.textContent(".pray-card"), /Qur'an 4:101 · Sahih Muslim 686/);
+  // Travelling to Istanbul: the whole app uses it, and home is remembered.
+  await page.fill("#tv-dest-form-q", "Istanbul");
+  await page.click("#tv-dest-form [type=submit]");
+  await page.waitForSelector("#tv-dest-use");
+  await page.click("#tv-dest-use");
+  assert.equal(await page.evaluate(() => SS.store.settings().location.label), "Istanbul");
+  // A trip that has ended: Home asks once, and "I'm home" switches everything back.
+  await page.waitForSelector("#tv-trip-end");
+  await page.fill("#tv-trip-end", "2026-01-02");
+  await page.click("#tv-trip [type=submit]");
   await open(page, "#/home");
-  await page.waitForFunction(() => document.getElementById("tv-h-hijri") && document.getElementById("tv-h-hijri").textContent !== "…");
-  assert.match(await page.textContent("#tv-h-loc"), /Chicago/);
-  assert.match(await page.textContent("#tv-h-hijri"), /1448/);
+  await page.waitForSelector("#mode-home .hm-rakah");
+  assert.match(await page.textContent("#mode-home"), /Dhuhr, Asr and Isha can be prayed as 2 rak'ahs/);
+  assert.equal(await page.$$eval("#mode-home .hm-rakah li.short", (l) => l.length), 3);
+  assert.match(await page.textContent("#mode-home .hm-ask"), /Back home\? Your trip was set to end on/);
+  await page.click("#tv-h-home");
+  await page.waitForFunction(() => document.documentElement.getAttribute("data-mode") === "normal");
+  assert.equal(await page.evaluate(() => SS.store.settings().location.label), "Chicago", "prayer times are for home again");
+  assert.equal(await page.isHidden("#mode-home"), true);
+  assert.deepEqual(page.errors, []);
   await context.close();
 });
 
@@ -1308,6 +1344,23 @@ test("hajj & umrah: choose, follow the guide, progress survives a refresh, chang
   await open(page, "#/mode/hajj/step/h-halq");
   await page.waitForSelector("#hj-done");
   assert.match(await page.textContent("#mode-root"), /Do it — there is no harm/);
+  // The round counter: tap after each round; it says where each round goes and when you're done.
+  await open(page, "#/mode/hajj/count");
+  await page.waitForSelector("#hj-tap");
+  assert.match(await page.textContent("#hj-round-note"), /Round 1: start and end at the line of the Black Stone/);
+  for (let i = 0; i < 7; i++) await page.click("#hj-tap");
+  assert.match(await page.textContent(".round-n"), /7 of 7/);
+  assert.match(await page.textContent("#hj-round-note"), /Maqam Ibrahim/);
+  assert.equal(await page.isDisabled("#hj-tap"), true);
+  await page.click("#hj-undo");
+  assert.match(await page.textContent(".round-n"), /6 of 7/);
+  await page.click('[data-kind="sai"]'); // asks first, then starts a fresh count
+  assert.match(await page.textContent("#hj-round-note"), /Round 1: from Safa to Marwah/);
+  await page.click("#hj-tap");
+  assert.match(await page.textContent("#hj-round-note"), /Round 2: from Marwah back to Safa/);
+  await open(page, "#/mode/hajj/count");
+  await page.waitForSelector("#hj-tap");
+  assert.match(await page.textContent(".round-n"), /1 of 7/, "the count survives leaving the page");
   // Back to Umrah and start over.
   await open(page, "#/mode/hajj/choose");
   await page.click("[data-type=umrah]");
@@ -1359,9 +1412,21 @@ test("mosque mode: near me, choose and save a mosque, honest times, a Jumu'ah no
   assert.notEqual(toasts[1], "Read Al-Kahf", "non-prayer reminder held back");
   assert.match(toasts[2], /Asr now/, "prayer reminder still shown");
   await open(page, "#/home");
-  await page.waitForSelector("#mode-home .mode-tile");
+  await page.waitForSelector("#mode-home .hm-row");
   assert.match(await page.textContent("#mode-home"), /Downtown Islamic Center/);
   assert.match(await page.textContent("#mode-home"), /13:30|1:30/);
+  assert.match(await page.textContent("#mode-home .visit"), /Until you turn it off/);
+  // "I'm at the mosque": one tap from Home, Quiet Mode for an hour, then it ends by itself.
+  await page.click('#mode-home [data-visit="end"]');
+  assert.equal(await page.evaluate(() => document.documentElement.classList.contains("quiet")), false);
+  await page.click('#mode-home [data-visit="start"]');
+  assert.equal(await page.evaluate(() => document.documentElement.classList.contains("quiet")), true);
+  assert.match(await page.textContent("#mode-home .visit"), /Quiet Mode is on.*Until \d/);
+  const until = await page.evaluate(() => SS.modes.quietUntil() - Date.now());
+  assert.ok(until > 59 * 60000 && until <= 60 * 60000, "an hour");
+  await page.evaluate(() => { SS.store.set("modes:quiet", { until: Date.now() + 300 }); SS.modes.apply(); });
+  await page.waitForFunction(() => !document.documentElement.classList.contains("quiet"));
+  await page.waitForSelector('#mode-home [data-visit="start"]');
   // Leaving Mosque Mode turns Quiet Mode's effect off.
   await page.evaluate(() => SS.modes.set("normal"));
   assert.equal(await page.evaluate(() => document.documentElement.classList.contains("quiet")), false);
@@ -1439,7 +1504,7 @@ test("kids mode: parent adds children, a child's device pairs with a code, learn
   const K = await device({ mock, context: { viewport: { width: 820, height: 1180 } } });
   K.page.on("dialog", (d) => d.accept());
   await open(K.page, "#/modes");
-  await K.page.click('[data-go="kids"]');
+  await K.page.click(".mode-kids");
   await K.page.waitForSelector("#fam-code");
   await K.page.fill("#fam-code", "WRONG123");
   await K.page.click("#fam-pair [type=submit]");
@@ -1564,7 +1629,7 @@ test("modes: no horizontal overflow on phone, tablet and desktop, in light and d
       const { page, context } = await device({ mock, context: { viewport: vp }, settings: { location: CHICAGO, theme } });
       await modeApis(context);
       await page.evaluate(() => 0);
-      for (const v of ["#/modes", "#/mode/travel", "#/mode/travel/guide", "#/mode/travel/checklist", "#/mode/hajj", "#/mode/mosque/find", "#/family", "#/kids"]) {
+      for (const v of ["#/modes", "#/mode/travel", "#/mode/travel/guide", "#/mode/travel/checklist", "#/mode/hajj", "#/mode/hajj/count", "#/mode/mosque/find", "#/family", "#/kids", "#/msa"]) {
         await open(page, v);
         await page.waitForTimeout(150);
         const over = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
@@ -1576,5 +1641,91 @@ test("modes: no horizontal overflow on phone, tablet and desktop, in light and d
       await context.close();
     }
   }
+  await pg.close();
+});
+
+/* ═══════════ 3.1 NVHS MSA ═══════════ */
+test("msa: a poster posts an announcement with a photo; everyone sees it on the MSA page and Home; nobody else can post", async () => {
+  const pg = await familyDb();
+  // The real list holds the MSA's own accounts (as hashes); the test adds one of its own the same way.
+  await pg.query(`insert into public.msa_admins (email_hash) values (sha256(convert_to('poster@example.org', 'UTF8')))`);
+  const mock = createMock({ pg });
+
+  // ── A poster signs in, writes an announcement with a photo and puts it on everyone's Home.
+  const A = await device({ mock });
+  A.page.on("dialog", (d) => d.accept());
+  await emailSignIn(A.page, "Poster@Example.org");
+  await A.page.waitForFunction(() => SS.account.signedIn());
+  await open(A.page, "#/msa");
+  await A.page.waitForSelector("#msa-new:not([hidden])");
+  assert.match(await A.page.textContent("#msa-list"), /No announcements right now/);
+  await A.page.click("#msa-new");
+  await A.page.waitForSelector("#msa-dialog[open] #msa-form");
+  await A.page.click("#msa-f-go");
+  assert.match(await A.page.textContent("#msa-f-err"), /Add a title/);
+  await A.page.fill("#msa-f-title", "Bake sale this Friday");
+  await A.page.fill("#msa-f-body", "After school in the cafeteria.\nAll proceeds go to charity: https://example.org/give.");
+  await A.page.setInputFiles("#msa-f-file", path.join(ROOT, "icons", "icon-512.png"));
+  await A.page.waitForSelector(".msa-pick-prev img");
+  const src = await A.page.getAttribute(".msa-pick-prev img", "src");
+  assert.match(src, /^data:image\/jpeg;base64,/, "the photo is re-drawn as a JPEG (no camera or location data)");
+  await A.page.check("#msa-f-home");
+  await A.page.click("#msa-f-go");
+  await A.page.waitForFunction(() => !document.getElementById("msa-dialog").open);
+  await A.page.waitForSelector(".msa-post .msa-img img");
+  assert.equal(await A.page.textContent(".msa-post .msa-title"), "Bake sale this Friday");
+  assert.equal(await A.page.getAttribute(".msa-text a", "href"), "https://example.org/give", "links work; the full stop isn't part of them");
+  await shot(A.page, "msa-poster-390");
+
+  // ── A guest (no account) sees it on Home and on the MSA page, with no way to edit.
+  const G = await device({ mock });
+  await open(G.page, "#/home");
+  await G.page.waitForSelector("#msa-home:not([hidden]) .msa-home-title");
+  assert.equal(await G.page.textContent(".msa-home-title"), "Bake sale this Friday");
+  await G.page.waitForFunction(() => /url\("data:image\/jpeg/.test(document.querySelector(".msa-thumb").style.backgroundImage));
+  await shot(G.page, "msa-home-390");
+  await G.page.click(".msa-home-link");
+  await G.page.waitForFunction(() => location.hash.indexOf("#/msa/") === 0);
+  await G.page.waitForSelector(".msa-post.focus .msa-img img");
+  assert.equal(await G.page.$("[data-edit]"), null);
+  assert.equal(await G.page.isHidden("#msa-new"), true);
+  assert.match(await G.page.textContent("#msa-foot"), /Posting for the MSA\? Sign in/);
+  await shot(G.page, "msa-guest-390");
+  // Hiding the Home card keeps it hidden.
+  await open(G.page, "#/home");
+  await G.page.waitForSelector("#msa-home:not([hidden])");
+  await G.page.click(".msa-home-x");
+  await G.page.reload();
+  await G.page.waitForFunction(() => !document.getElementById("boot"));
+  await G.page.waitForTimeout(300);
+  assert.equal(await G.page.isHidden("#msa-home"), true);
+
+  // ── Someone signed in but not on the list: no buttons, and the database refuses them anyway.
+  const O = await device({ mock });
+  await emailSignIn(O.page, "student@example.com");
+  await O.page.waitForFunction(() => SS.account.signedIn());
+  await open(O.page, "#/msa");
+  await O.page.waitForSelector(".msa-post");
+  await O.page.waitForTimeout(300);
+  assert.equal(await O.page.isHidden("#msa-new"), true);
+  const refused = await O.page.evaluate(() => SS.account.client().then((c) => c.rpc("msa_post_save", { p: { title: "Not allowed" } })).then((r) => r.error && r.error.message));
+  assert.match(refused, /not an MSA poster/);
+
+  // ── The poster edits (removes the photo, unpins from Home) and then deletes it.
+  await open(A.page, "#/msa");
+  await A.page.waitForSelector("[data-edit]");
+  await A.page.click("[data-edit]");
+  await A.page.waitForSelector("#msa-dialog[open] #msa-f-rm");
+  await A.page.click("#msa-f-rm");
+  await A.page.uncheck("#msa-f-home");
+  await A.page.fill("#msa-f-title", "Bake sale moved to Monday");
+  await A.page.click("#msa-f-go");
+  await A.page.waitForFunction(() => /Bake sale moved to Monday/.test(document.getElementById("msa-list").textContent));
+  assert.equal(await A.page.$(".msa-img"), null);
+  await A.page.click("[data-del]");
+  await A.page.waitForFunction(() => /No announcements right now/.test(document.getElementById("msa-list").textContent));
+
+  assert.deepEqual(A.page.errors, []); assert.deepEqual(G.page.errors, []); assert.deepEqual(O.page.errors, []);
+  await A.context.close(); await G.context.close(); await O.context.close();
   await pg.close();
 });

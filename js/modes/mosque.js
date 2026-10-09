@@ -83,15 +83,17 @@
     return SS.api.prayerTimes({ lat: m.lat, lng: m.lng, method: s.method, school: s.school, date: date });
   }
   function nextFriday() {
-    var d = new Date(); d.setHours(12, 0, 0, 0);
-    d.setDate(d.getDate() + ((5 - d.getDay() + 7) % 7));
+    var now = new Date(), d = new Date(now); d.setHours(12, 0, 0, 0);
+    var add = (5 - d.getDay() + 7) % 7;
+    if (add === 0 && now.getHours() >= 15) add = 7; // this Friday's Jumu'ah is over
+    d.setDate(d.getDate() + add);
     return d;
   }
   function dateLabel(d) {
     try { return d.toLocaleDateString(SS.i18n.dateLocale(), { weekday: "long", day: "numeric", month: "long" }); } catch (e) { return SS.localDate(d); }
   }
   function quietSwitch(id) {
-    var on = !!SS.store.get("modes:quiet");
+    var on = M.quietUntil() === Infinity;
     return '<div class="set-row"><span id="' + id + '-l"><b>' + esc(t("mosque.quiet")) + '</b><br><span class="tiny">' + esc(t("mosque.quietSub")) + "</span></span>" +
       '<label class="switch"><input type="checkbox" id="' + id + '" aria-labelledby="' + id + '-l"' + (on ? " checked" : "") + ' /><span class="trk"></span><span class="th"></span></label></div>';
   }
@@ -99,36 +101,60 @@
     var cb = $(id);
     if (!cb) return;
     cb.onchange = function () {
-      SS.store.set("modes:quiet", cb.checked);
-      M.apply();
+      M.setQuiet(cb.checked);
       SS.toast(t(cb.checked ? "mosque.quietOn" : "mosque.quietOff"));
       if (after) after();
     };
   }
 
-  /* ═══════════ Home panel ═══════════ */
+  /* ═══════════ "I'm at the mosque" (3.1.5) ═══════════ */
+  // One tap: Quiet Mode for an hour, then it ends by itself.
+  var VISIT_MS = 60 * 60000;
+  function atMosque() { return M.active() === "mosque" && M.quietUntil() > Date.now(); }
+  function visitHtml(id) {
+    var until = M.quietUntil();
+    if (atMosque()) {
+      return '<div class="visit on" id="' + id + '"><span class="visit-ic" aria-hidden="true">' + icon("moon") + "</span>" +
+        '<span class="visit-t"><b>' + esc(t("mosque.visitOn")) + "</b><span>" +
+        esc(until === Infinity ? t("mosque.quietUntilOff") : f("mosque.quietUntil", { t: SS.formatTime(clock(new Date(until))) })) + "</span></span>" +
+        '<button class="btn btn-sm visit-end" type="button" data-visit="end">' + esc(t("mosque.visitEnd")) + "</button></div>";
+    }
+    return '<button class="visit" type="button" id="' + id + '" data-visit="start"><span class="visit-ic" aria-hidden="true">' + icon("mosque") + "</span>" +
+      '<span class="visit-t"><b>' + esc(t("mosque.visitStart")) + "</b><span>" + esc(t("mosque.visitSub")) + "</span></span></button>";
+  }
+  function clock(d) { return (d.getHours() < 10 ? "0" : "") + d.getHours() + ":" + (d.getMinutes() < 10 ? "0" : "") + d.getMinutes(); }
+  function wireVisit(el, redraw) {
+    el.addEventListener("click", function (e) {
+      var b = e.target.closest("[data-visit]");
+      if (!b) return;
+      if (b.getAttribute("data-visit") === "start") {
+        M.setQuiet({ until: Date.now() + VISIT_MS });
+        SS.toast(t("mosque.visitToast"));
+      } else {
+        M.setQuiet(false);
+        SS.toast(t("mosque.quietOff"));
+      }
+      redraw();
+    });
+  }
+
+  /* ═══════════ Home: inside the prayer card ═══════════ */
   var gen = 0;
   function home(el) {
     var my = ++gen, m = selected();
-    el.innerHTML = '<div class="mode-tiles">' +
-      '<a class="mode-tile" href="#/mode/mosque' + (m ? "" : "/find") + '"><small>' + esc(t("mosque.yourMosque")) + "</small><b>" + esc(m ? nameOf(m) : t("mosque.choose")) + "</b></a>" +
-      '<div class="mode-tile"><small>' + esc(t("dash.nextPrayer")) + '</small><b id="mq-h-next">' + (m ? "…" : "—") + "</b></div>" +
-      '<div class="mode-tile"><small>' + esc(t("mosque.jumuah")) + '</small><b id="mq-h-jum">' + (m ? "…" : "—") + "</b></div>" +
-      '<a class="mode-tile" href="#/qibla"><small>' + esc(t("nav.qibla")) + "</small><b>" + (m ? Math.round(SS.qiblaBearing(m.lat, m.lng)) + "°" : "—") + "</b></a>" +
-      "</div>" + quietSwitch("mq-h-quiet") +
-      '<a class="btn btn-sm mt-1" href="#/mode/mosque">' + esc(t("modes.openDash")) + "</a>";
-    wireQuiet("mq-h-quiet", function () { if (SS.currentView() === "home") SS.navigate(true); });
+    el.innerHTML = visitHtml("mq-h-visit") +
+      (m ? '<a class="hm-row" href="#/mode/mosque">' + icon("mosque") + '<span class="hm-row-t"><b>' + esc(nameOf(m)) + '</b><span id="mq-h-jum">' + esc(t("mosque.jumuah")) + "</span></span>" + icon("chev-r", "chev flip") + "</a>"
+        : '<a class="hm-row" href="#/mode/mosque/find">' + icon("search") + '<span class="hm-row-t"><b>' + esc(t("mosque.choose")) + "</b><span>" + esc(t("mosque.chooseSub")) + "</span></span>" + icon("chev-r", "chev flip") + "</a>");
+    if (!el.getAttribute("data-wired")) { el.setAttribute("data-wired", "1"); wireVisit(el, function () { M.home(); }); }
     if (!m) return;
-    times(m).then(function (r) {
-      if (my !== gen || !$("mq-h-next")) return;
-      var k = SS.ui.nextPrayerKey(r.timings) || "Fajr";
-      $("mq-h-next").textContent = t("prayer." + k) + " · " + SS.formatTime(r.timings[k]);
-    }).catch(function () { if ($("mq-h-next")) $("mq-h-next").textContent = "—"; });
     var n = note(m.id);
-    if (n) $("mq-h-jum").textContent = SS.formatTime(n.jumuah) + " · " + t("mosque.yourNoteShort");
-    else times(m, nextFriday()).then(function (r) {
-      if (my === gen && $("mq-h-jum")) $("mq-h-jum").textContent = f("mosque.dhuhrFrom", { t: SS.formatTime(r.timings.Dhuhr) });
-    }).catch(function () { if ($("mq-h-jum")) $("mq-h-jum").textContent = "—"; });
+    if (n) { $("mq-h-jum").textContent = f("mosque.jumuahNoteShort", { t: SS.formatTime(n.jumuah) }); return; }
+    times(m, nextFriday()).then(function (r) {
+      if (my === gen && $("mq-h-jum")) $("mq-h-jum").textContent = f("mosque.jumuahDhuhrShort", { d: dayShort(nextFriday()), t: SS.formatTime(r.timings.Dhuhr) });
+    }).catch(function () { /* the mosque's name is enough */ });
+  }
+  function dayShort(d) {
+    try { return d.toLocaleDateString(SS.i18n.dateLocale(), { weekday: "short", day: "numeric", month: "short" }); } catch (e) { return SS.localDate(d); }
   }
 
   /* ═══════════ Full page ═══════════ */
@@ -149,6 +175,7 @@
     if (m.website) contact += '<a class="btn btn-outline btn-sm" href="' + esc(m.website) + '" target="_blank" rel="noopener nofollow">' + icon("globe") + "<span>" + esc(t("mosque.website")) + "</span></a>";
     if (m.phone) contact += '<a class="btn btn-outline btn-sm" href="tel:' + esc(m.phone.replace(/[^\d+]/g, "")) + '">' + icon("phone") + "<span>" + esc(m.phone) + "</span></a>";
     el.innerHTML = '<div class="mode-grid"><div class="stack">' +
+      (M.active() === "mosque" ? '<div class="visit-wrap">' + visitHtml("mq-visit") + "</div>" : "") +
       '<article class="card" aria-labelledby="mq-name"><div class="fam-top"><span class="w-ic">' + icon("mosque") + '</span><div class="w-body"><h2 class="h-sm" id="mq-name">' + esc(nameOf(m)) + "</h2>" +
       '<p class="tiny">' + esc(addrOf(m) || t("mosque.noAddress")) + "</p></div></div>" +
       '<div class="form-row mt-1"><a class="btn btn-sm" href="' + esc(mapsLink(m)) + '" target="_blank" rel="noopener">' + esc(t("mosques.directions")) + "</a>" + contact +
@@ -169,7 +196,7 @@
       "</div><div class=\"stack\">" +
       '<article class="card"><div class="card-title"><h2>' + esc(t("nav.qibla")) + "</h2></div><p class=\"h-sm\">" + esc(f("travel.qiblaDeg", { d: Math.round(SS.qiblaBearing(m.lat, m.lng)) })) + "</p>" +
       '<a class="btn btn-sm mt-1" href="#/qibla">' + icon("compass") + "<span>" + esc(t("travel.openCompass")) + "</span></a></article>" +
-      '<article class="card">' + quietSwitch("mq-quiet") + '<p class="tiny mt-1">' + esc(t("mosque.quietLimits")) + "</p></article>" +
+      (M.active() === "mosque" ? '<article class="card">' + quietSwitch("mq-quiet") + '<p class="tiny mt-1">' + esc(t("mosque.quietLimits")) + "</p></article>" : "") +
       '<article class="card" aria-labelledby="mq-ann-h"><div class="card-title"><h2 id="mq-ann-h">' + esc(t("mosque.news")) + "</h2></div>" +
       '<div class="state state-inline"><span class="s-ic">' + icon("bell") + "</span><p>" + esc(t("mosque.newsEmpty")) + "</p>" +
       (m.website ? '<a class="btn btn-outline btn-sm" href="' + esc(m.website) + '" target="_blank" rel="noopener nofollow">' + esc(t("mosque.checkWebsite")) + "</a>" : "") + "</div></article>" +
@@ -205,6 +232,8 @@
     };
     if ($("mq-jclear")) $("mq-jclear").onclick = function () { setNote(m.id, ""); today(el); };
     wireQuiet("mq-quiet");
+    var vw = el.querySelector(".visit-wrap");
+    if (vw) wireVisit(vw, function () { today(el); });
   }
 
   /* ── Find: near me, search an area, saved ── */
@@ -235,7 +264,7 @@
           });
         }
         load(loc, t("mosque.nearYou"));
-      });
+      }).catch(function () { $("mq-area-err").textContent = t("mosque.locDenied"); });
     };
     $("mq-area").onsubmit = function (e) {
       e.preventDefault();

@@ -32,15 +32,23 @@
     prayer: ["#/prayer", "clock", "nav.prayerShort"], calendar: ["#/calendar", "calendar", "nav.calendar"],
     travelDuas: ["#/duas/travel", "heart", "modes.travelDuas"],
   };
-  /* The five official modes. home: quick links on Home, in order. hide: Home
-     blocks that step back while the mode is on (data-home="…" in index.html). */
+  /* The modes. icon: the app's own icon (3.1.5: no emoji); home: quick links on
+     Home, in order; hide: Home blocks that step back while the mode is on
+     (data-home="…" in index.html). Kids Mode isn't in the picker: it belongs
+     to a child's device and is set up from the Family page. */
   var MODES = [
-    { id: "normal", emoji: "🏠", home: ["qibla", "quran", "adhkar", "mosques", "duas", "dhikr"], hide: [] },
-    { id: "travel", emoji: "✈️", module: "travel", home: ["prayer", "qibla", "travelDuas", "mosques", "quran", "calendar"], hide: ["name", "browse"] },
-    { id: "kids", emoji: "🧒", module: "kids", home: [], hide: [] },
-    { id: "hajj", emoji: "🕋", module: "hajj", home: ["prayer", "qibla", "duas", "dhikr", "quran", "calendar"], hide: ["name", "browse"] },
-    { id: "mosque", emoji: "🕌", module: "mosque", home: ["prayer", "qibla", "dhikr", "duas", "quran", "adhkar"], hide: ["ayah", "name", "browse", "plan"] },
+    { id: "normal", icon: "home", home: ["qibla", "quran", "adhkar", "mosques", "duas", "dhikr"], hide: [] },
+    { id: "travel", icon: "plane", module: "travel", home: ["prayer", "qibla", "travelDuas", "mosques", "quran", "calendar"], hide: ["name", "browse", "week"] },
+    { id: "hajj", icon: "kaaba", module: "hajj", home: ["prayer", "qibla", "duas", "dhikr", "quran", "calendar"], hide: ["name", "browse", "week"] },
+    { id: "mosque", icon: "mosque", module: "mosque", home: ["prayer", "qibla", "dhikr", "duas", "quran", "adhkar"], hide: ["ayah", "name", "browse", "plan", "week"] },
+    { id: "kids", icon: "star", module: "kids", home: [], hide: [], picker: false },
   ];
+  function picker() { return MODES.filter(function (m) { return m.picker !== false; }); }
+  /** A mode's icon on its own colour (see .mode-ic[data-m] in styles.css). */
+  function modeIcon(id, cls) {
+    var m = get(id);
+    return '<span class="mode-ic' + (cls ? " " + cls : "") + '" data-m="' + id + '" aria-hidden="true"><svg class="ic"><use href="#i-' + (m ? m.icon : "layers") + '"/></svg></span>';
+  }
   function get(id) { for (var i = 0; i < MODES.length; i++) if (MODES[i].id === id) return MODES[i]; return null; }
 
   /* ── Active mode ─────────────────────────────────────────────── */
@@ -71,7 +79,15 @@
     apply();
     if (!silent && was !== id) SS.toast(f("modes.nowOn", { m: t("modes.name_" + id) }));
   }
-  function quietOn() { return active() === "mosque" && !!SS.store.get("modes:quiet"); }
+  /* Quiet Mode (Mosque Mode): "modes:quiet" is true (until switched off) or
+     {until: ms} ("I'm at the mosque" turns it on for a while). */
+  function quietUntil() {
+    var q = SS.store.get("modes:quiet");
+    if (q === true) return Infinity;
+    return q && typeof q === "object" && typeof q.until === "number" && q.until > Date.now() ? q.until : 0;
+  }
+  function quietOn() { return active() === "mosque" && quietUntil() > 0; }
+  var quietTimer = null;
 
   /** Reflect the active mode everywhere outside the views (cheap; runs on every navigation). */
   function apply() {
@@ -82,12 +98,17 @@
     var pill = $("mode-pill");
     if (pill) {
       pill.hidden = id === "normal" || id === "kids";
-      $("mode-pill-emoji").textContent = m.emoji;
+      pill.setAttribute("data-m", id);
+      $("mode-pill-ic").innerHTML = '<svg class="ic"><use href="#i-' + m.icon + '"/></svg>';
       $("mode-pill-label").textContent = t("modes.short_" + id);
       pill.setAttribute("aria-label", f("modes.current", { m: t("modes.name_" + id) }) + ". " + t("modes.change"));
     }
     var nav = document.querySelectorAll("[data-mode-now]");
-    for (var i = 0; i < nav.length; i++) nav[i].textContent = id === "normal" ? "" : m.emoji;
+    for (var i = 0; i < nav.length; i++) { nav[i].textContent = ""; nav[i].setAttribute("data-m", id); }
+    // A timed Quiet Mode ends by itself.
+    clearTimeout(quietTimer);
+    var until = quietOn() ? quietUntil() : 0;
+    if (until && until !== Infinity) quietTimer = setTimeout(function () { apply(); if (SS.currentView() === "home") homeMode(); }, Math.min(until - Date.now() + 50, 2147483000));
   }
 
   /* ── Lazy-loaded mode modules ────────────────────────────────── */
@@ -110,40 +131,66 @@
   }
   /** Load a module into el, with a loading state and a retry on failure. */
   function withModule(name, el, draw) {
-    if (!SS.modeModules[name]) el.innerHTML = '<div aria-busy="true">' + SS.ui.skeletons(3, 90) + "</div>";
+    if (!SS.modeModules[name]) el.innerHTML = '<div aria-busy="true">' + SS.ui.skeletons(el.id === "mode-home-body" ? 1 : 3, el.id === "mode-home-body" ? 44 : 90) + "</div>";
     return load(name).then(draw, function () {
       SS.ui.renderState(el, { kind: "error", retry: function () { withModule(name, el, draw); } });
     });
   }
 
   /* ═══════════ #/modes — Choose Your Mode ═══════════ */
-  function modesInit() {
-    var cur = active(), kid = kidDevice();
-    var html = "";
-    MODES.forEach(function (m) {
+  /** One row per mode: tap to switch. The active one says so in words. */
+  function rowsHtml(cur) {
+    return picker().map(function (m) {
       var on = m.id === cur;
-      var action = on ? t(m.id === "normal" ? "modes.openHome" : "modes.openDash") : t("modes.activate");
-      if (m.id === "kids") action = kid ? t("modes.openKids") : t("modes.kidsSetup");
-      html += '<article class="card mode-card' + (on ? " on" : "") + '" data-m="' + m.id + '"' + (on ? ' aria-current="true"' : "") + ' aria-labelledby="mc-' + m.id + '">' +
-        '<span class="mode-emoji" aria-hidden="true">' + m.emoji + "</span>" +
-        '<div class="mode-body"><h2 class="mode-name" id="mc-' + m.id + '">' + esc(t("modes.name_" + m.id)) + "</h2>" +
-        '<p class="mode-desc" id="md-' + m.id + '">' + esc(t("modes.desc_" + m.id)) + "</p></div>" +
-        (on ? '<span class="badge mode-active">' + icon("check") + "<span>" + esc(t("modes.active")) + "</span></span>" : "") +
-        '<button class="btn' + (on ? " btn-outline" : "") + ' mode-go" type="button" data-go="' + m.id + '" aria-describedby="md-' + m.id + '">' +
-        "<span>" + esc(action) + '</span><span class="visually-hidden"> — ' + esc(t("modes.name_" + m.id)) + "</span></button></article>";
-    });
-    $("modes-list").innerHTML = html;
+      return '<button class="mode-row' + (on ? " on" : "") + '" type="button" data-go="' + m.id + '" aria-pressed="' + on + '">' +
+        modeIcon(m.id) +
+        '<span class="mode-row-t"><span class="mode-name">' + esc(t("modes.name_" + m.id)) + "</span>" +
+        '<span class="mode-desc">' + esc(t("modes.what_" + m.id)) + "</span></span>" +
+        (on ? '<span class="mode-row-on">' + icon("check") + "<span>" + esc(t("modes.active")) + "</span></span>"
+          : '<span class="mode-row-go">' + esc(t("modes.use")) + "</span>") + "</button>";
+    }).join("");
+  }
+  function kidsHtml() {
+    return '<a class="mode-kids" href="' + (kidDevice() ? "#/kids" : "#/family") + '">' + modeIcon("kids") +
+      '<span class="mode-row-t"><span class="mode-name">' + esc(t("modes.name_kids")) + '</span><span class="mode-desc">' + esc(t("modes.kidsWhere")) + "</span></span>" +
+      icon("chev-r", "chev flip") + "</a>";
+  }
+  function modesInit() {
+    var cur = active();
+    $("modes-list").innerHTML = '<div class="mode-rows" role="group" aria-label="' + esc(t("modes.choose")) + '">' + rowsHtml(cur) + "</div>" +
+      (cur !== "normal" ? '<a class="btn btn-outline mode-open" href="#/mode/' + cur + '">' + modeIcon(cur, "sm") + "<span>" + esc(f("modes.openX", { m: t("modes.name_" + cur) })) + "</span></a>" : "") +
+      '<h2 class="group-label mt-2">' + esc(t("modes.forFamilies")) + "</h2>" + kidsHtml();
     $("modes-list").onclick = function (e) {
       var b = e.target.closest("[data-go]");
       if (!b) return;
       choose(b.getAttribute("data-go"));
     };
   }
-  /** What tapping a mode card does. */
+  /** What tapping a mode does on the Modes page: switch, and show what it's for. */
   function choose(id) {
     if (id === "kids") { location.hash = kidDevice() ? "#/kids" : "#/family"; return; }
     setMode(id);
     location.hash = id === "normal" ? "#/home" : "#/mode/" + id;
+  }
+
+  /* ── The quick switcher: tap the mode badge in the top bar ── */
+  function openSheet() {
+    var dlg = $("mode-sheet");
+    if (!dlg || typeof dlg.showModal !== "function") { location.hash = "#/modes"; return; }
+    $("mode-sheet-list").innerHTML = '<div class="mode-rows compact">' + rowsHtml(active()) + "</div>";
+    $("mode-sheet-list").onclick = function (e) {
+      var b = e.target.closest("[data-go]");
+      if (!b) return;
+      var id = b.getAttribute("data-go"), was = active();
+      dlg.close();
+      if (id === was) { location.hash = id === "normal" ? "#/home" : "#/mode/" + id; return; }
+      setMode(id);
+      // Stay where you are; Home and a mode page redraw for the new mode.
+      var v = SS.currentView();
+      if (v === "mode") location.hash = id === "normal" ? "#/home" : "#/mode/" + id;
+      else if (v === "home" || v === "modes") SS.navigate(true);
+    };
+    if (!dlg.open) SS.openDialog(dlg);
   }
 
   /* ═══════════ #/mode/<id> — a mode's full dashboard ═══════════ */
@@ -154,8 +201,8 @@
     if (id === "kids") { location.replace(kidDevice() ? "#/kids" : "#/family"); return; }
     var on = active() === id;
     $("mode-h").textContent = t("modes.name_" + id);
-    $("mode-emoji").textContent = m.emoji;
-    $("mode-sub").textContent = t("modes.desc_" + id);
+    $("mode-emoji").outerHTML = modeIcon(id, "lg").replace('class="mode-ic', 'id="mode-emoji" class="mode-ic');
+    $("mode-sub").textContent = t("modes.what_" + id);
     document.title = t("modes.name_" + id) + " — SalaamStreet";
     $("tb-title").textContent = t("modes.name_" + id);
     var bar = $("mode-off");
@@ -189,14 +236,16 @@
     for (var i = 0; i < blocks.length; i++) {
       blocks[i].classList.toggle("mode-hidden", m.hide.indexOf(blocks[i].getAttribute("data-home")) > -1 || (quietOn() && blocks[i].getAttribute("data-quiet") === "hide"));
     }
-    var panel = $("mode-home");
+    // 3.1.5: the mode's answer lives inside the prayer card, not in a box of its own.
+    var panel = $("mode-home"), hero = panel && panel.closest(".hero");
     if (!panel) return;
+    if (hero) hero.setAttribute("data-m", id);
     if (!m.module || id === "kids") { panel.hidden = true; panel.innerHTML = ""; return; }
     panel.hidden = false;
-    panel.innerHTML = '<div class="mode-strip"><span class="mode-emoji sm" aria-hidden="true">' + m.emoji + "</span>" +
-      '<span class="mode-strip-t"><b>' + esc(t("modes.name_" + id)) + '</b></span><span class="spacer"></span>' +
-      '<a class="btn btn-ghost btn-sm" href="#/modes">' + esc(t("modes.change")) + "</a></div>" +
-      '<div id="mode-home-body"></div>';
+    panel.innerHTML = '<div class="hm-top"><span class="hm-chip">' + modeIcon(id, "xs") + "<span>" + esc(t("modes.name_" + id)) + "</span></span>" +
+      '<button class="hm-change" type="button" id="hm-change">' + esc(t("modes.change")) + "</button></div>" +
+      '<div id="mode-home-body" class="hm-body"></div>';
+    $("hm-change").onclick = openSheet;
     var body = $("mode-home-body");
     withModule(m.module, body, function (mod) { if (SS.currentView() === "home" && active() === id) mod.home(body); });
   }
@@ -214,7 +263,7 @@
     var box = document.createElement("aside");
     box.className = "card mode-suggest";
     box.setAttribute("aria-label", t("modes.suggestLabel"));
-    box.innerHTML = '<span class="mode-emoji sm" aria-hidden="true">' + get(id).emoji + "</span>" +
+    box.innerHTML = modeIcon(id, "sm") +
       '<p class="ms-text">' + esc(t("modes.suggest_" + id)) + "</p>" +
       '<div class="ms-acts"><button class="btn btn-sm" type="button" data-s="try">' + esc(t("modes.tryIt")) + "</button>" +
       '<button class="btn btn-ghost btn-sm" type="button" data-s="no">' + esc(t("modes.notNow")) + "</button></div>";
@@ -336,7 +385,8 @@
   }
 
   SS.modes = {
-    LIST: MODES, get: get, active: active, set: setMode, apply: apply, choose: choose,
+    LIST: MODES, get: get, active: active, set: setMode, apply: apply, choose: choose, icon: modeIcon, openSheet: openSheet,
+    quietUntil: quietUntil, setQuiet: function (v) { SS.store.set("modes:quiet", v); apply(); }, home: function () { if (SS.currentView() === "home") homeMode(); },
     kidDevice: kidDevice, kidLocked: function () { return !!kidDevice(); },
     quiet: quietOn, load: load, withModule: withModule, suggest: suggest,
     L: L, duaHtml: duaHtml, libraryDua: libraryDua, checklist: checklist, checklistCount: checklistCount,
@@ -369,6 +419,8 @@
     after("calendar", function () { suggest("hajj", "calendar"); });
     after("duas", function (p) { if (p && p[0] === "travel") suggest("travel", "duas"); });
     window.addEventListener("hashchange", clearSuggestions);
+    var pill = $("mode-pill");
+    if (pill) pill.addEventListener("click", function (e) { e.preventDefault(); openSheet(); });
     apply();
   };
 })();
