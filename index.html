@@ -986,11 +986,18 @@
           <h1 id="msa-h" tabindex="-1" data-i18n="msa.club">NVHS MSA</h1>
           <p data-i18n="msa.clubFull">Neuqua Valley High School Muslim Student Association</p>
         </div>
-        <button class="btn btn-sm msa-new" id="msa-new" type="button" hidden><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg><span data-i18n="msa.new">New</span></button>
+        <div class="msa-head-acts">
+          <a class="btn btn-outline btn-sm" id="msa-admin-btn" href="#/msa/manage" hidden><svg class="ic" aria-hidden="true"><use href="#i-users"/></svg><span data-i18n="msa.manageShort">Manage</span></a>
+          <button class="btn btn-sm msa-new" id="msa-new" type="button" hidden><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg><span data-i18n="msa.new">New</span></button>
+        </div>
       </header>
-      <h2 class="group-label" data-i18n="msa.announcements">Announcements</h2>
-      <div class="stack msa-list" id="msa-list" aria-live="polite"></div>
-      <p class="tiny msa-foot" id="msa-foot"></p>
+      <div id="msa-feed">
+        <div id="msa-member"></div>
+        <h2 class="group-label" data-i18n="msa.announcements">Announcements</h2>
+        <div class="stack msa-list" id="msa-list" aria-live="polite"></div>
+        <p class="tiny msa-foot" id="msa-foot"></p>
+      </div>
+      <div id="msa-manage" hidden></div>
     </section>
 
     <!-- ═══════════ SETTINGS ═══════════ -->

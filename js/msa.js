@@ -12,7 +12,15 @@
    • Images are shrunk and re-drawn on the poster's device before upload, which
      also strips camera and location metadata. Each image is fetched on its own
      (msa_image) so the feed stays small.
-   • Kids Mode never shows any of this. */
+   • Kids Mode never shows any of this.
+   3.1.6 membership: "members only" announcements reach approved members
+   (and posters) only — the database leaves them out for everyone else. A
+   signed-in person joins with their full name and either the live meeting
+   code (6 digits, changes every 10 minutes, shown only to the approver) or a
+   request the approver decides. A name that already belongs to a member is
+   flagged: see the approver in person. The approver's page (#/msa/manage)
+   shows the live code, requests (with a roster check), members and the
+   roster, which lives only in the database. */
 (function () {
   "use strict";
   window.SS = window.SS || {};
@@ -40,19 +48,25 @@
       return r.json();
     });
   }
+  function signedIn() { return !!(SS.account && SS.account.signedIn()); }
+  function who() { var u = signedIn() && SS.account.user(); return u ? u.id : ""; }
+  /** Reads go with the account when signed in, so members get members-only posts. */
+  function read(fn, args) { return signedIn() ? rpc(fn, args) : call(fn, args); }
   function cached() {
     var c = SS.store.get(FEED_KEY);
-    return c && Array.isArray(c.posts) ? c : null;
+    return c && Array.isArray(c.posts) && (c.who || "") === who() ? c : null;
   }
-  var inflight = null;
+  var inflight = null, inflightWho = null;
   /** The feed: fresh from the server, or the saved copy when offline. */
   function feed(force) {
     var c = cached();
     if (!force && c && Date.now() - c.at < FRESH_MS) return Promise.resolve(c.posts);
-    if (inflight) return inflight;
-    inflight = call("msa_feed").then(function (posts) {
+    var asWho = who();
+    if (inflight && inflightWho === asWho) return inflight;
+    inflightWho = asWho;
+    inflight = read("msa_feed").then(function (posts) {
       posts = Array.isArray(posts) ? posts : [];
-      SS.store.set(FEED_KEY, { at: Date.now(), posts: posts });
+      SS.store.set(FEED_KEY, { at: Date.now(), posts: posts, who: asWho });
       return posts;
     }).catch(function (err) {
       if (c) return c.posts;
@@ -66,20 +80,18 @@
   }
   var images = {};
   function image(id) {
-    if (!images[id]) images[id] = call("msa_image", { p_id: id }).then(function (src) {
+    if (!images[id]) images[id] = read("msa_image", { p_id: id }).then(function (src) {
       if (typeof src !== "string" || !/^data:image\/(jpeg|webp|png);base64,/.test(src)) throw new Error("no image");
       return src;
     }).catch(function (e) { delete images[id]; throw e; });
     return images[id];
   }
 
-  /* Posting (signed-in posters only; the database decides). */
-  var posterFor = null, posterAns = false;
-  function isPoster() {
-    if (!SS.account || !SS.account.signedIn()) return Promise.resolve(false);
-    var uid = SS.account.user() && SS.account.user().id;
-    if (posterFor === uid) return Promise.resolve(posterAns);
-    return rpc("msa_is_poster").then(function (yes) { posterFor = uid; posterAns = yes === true; return posterAns; }, function () { return false; });
+  /* Where the signed-in person stands (membership, poster, approver); the database decides. */
+  var NOBODY = { status: "none", poster: false, approver: false };
+  function status() {
+    if (!signedIn()) return Promise.resolve(NOBODY);
+    return rpc("msa_status").then(function (st) { return st && typeof st === "object" ? st : NOBODY; }, function () { return NOBODY; });
   }
   function rpc(fn, args) {
     return SS.account.client().then(function (c) { return c.rpc(fn, args || {}); }).then(function (r) {
@@ -150,20 +162,26 @@
   }
 
   /* ═══════════ #/msa — the MSA page ═══════════ */
-  var pageGen = 0, poster = false, posts = [];
+  var pageGen = 0, poster = false, me = NOBODY, posts = [];
   function msaInit(params) {
     var my = ++pageGen, focusId = params && params[0];
+    stopCode();
+    if (focusId === "manage") return manageInit(my);
+    $("msa-feed").hidden = false; $("msa-manage").hidden = true;
     var list = $("msa-list");
-    $("msa-new").hidden = true;
-    if (!configured()) { SS.ui.renderState(list, { kind: "empty", icon: "bell", text: t("msa.unavailable") }); return; }
+    $("msa-new").hidden = true; $("msa-admin-btn").hidden = true;
+    if (!configured()) { SS.ui.renderState(list, { kind: "empty", icon: "bell", text: t("msa.unavailable") }); $("msa-member").innerHTML = ""; return; }
     var c = cached();
     if (c) draw(c.posts, focusId); else { list.setAttribute("aria-busy", "true"); list.innerHTML = SS.ui.skeletons(2, 180); }
     if (SS.account && SS.account.restore) SS.account.restore();
-    Promise.all([feed(true), isPoster()]).then(function (r) {
-      if (my !== pageGen || SS.currentView() !== "msa") return;
-      poster = r[1];
+    memberCard();
+    status().then(function (st) {
+      if (my !== pageGen || SS.currentView() !== "msa") return null;
+      me = st; poster = !!st.poster;
       $("msa-new").hidden = !poster;
-      draw(r[0], focusId);
+      $("msa-admin-btn").hidden = !st.approver;
+      memberCard();
+      return feed(true).then(function (all) { if (my === pageGen && SS.currentView() === "msa") draw(all, focusId); });
     }).catch(function () {
       if (my !== pageGen) return;
       if (!cached()) SS.ui.renderState(list, { kind: "error", retry: function () { msaInit(params); } });
@@ -173,11 +191,197 @@
   }
   function footer() {
     var el = $("msa-foot");
-    var signedIn = SS.account && SS.account.signedIn();
-    el.innerHTML = signedIn ? "" : '<button class="link-btn" type="button" id="msa-signin">' + esc(t("msa.posterSignIn")) + "</button>";
-    if ($("msa-signin")) $("msa-signin").onclick = function () { SS.account.openSignIn(); };
+    // 3.1.6: signing in now starts from the "Join the NVHS MSA" card.
+    el.innerHTML = "";
   }
-  function draw(all, focusId) {
+
+  /* ── Membership: join with your name and the meeting code, or ask ── */
+  function memberCard() {
+    var el = $("msa-member");
+    if (!configured()) { el.innerHTML = ""; return; }
+    var st = me.status;
+    if (st === "approved" || me.approver || me.poster) {
+      el.innerHTML = '<p class="msa-chip">' + icon("check") + "<span>" +
+        esc(st === "approved" ? f("msa.memberUntil", { d: dateLabel(me.expires_at) }) : t(me.approver ? "msa.youApprove" : "msa.youPost")) + "</span></p>";
+      return;
+    }
+    if (!signedIn()) {
+      el.innerHTML = '<div class="card msa-join"><div class="msa-join-t"><b>' + esc(t("msa.joinTitle")) + "</b><span>" + esc(t("msa.joinSignIn")) + "</span></div>" +
+        '<button class="btn btn-sm" type="button" id="msa-join-signin">' + esc(t("msa.signInToJoin")) + "</button></div>";
+      $("msa-join-signin").onclick = function () { SS.account.openSignIn(); };
+      return;
+    }
+    if (st === "pending" || st === "flagged") {
+      el.innerHTML = '<div class="card msa-join ' + st + '" role="status"><span class="msa-join-ic" aria-hidden="true">' + icon(st === "flagged" ? "users" : "clock") + "</span>" +
+        '<div class="msa-join-t"><b>' + esc(t(st === "flagged" ? "msa.flaggedTitle" : "msa.pendingTitle")) + "</b><span>" +
+        esc(st === "flagged" ? t("msa.flaggedText") : f("msa.pendingText", { n: me.name })) + "</span>" +
+        (st === "pending" ? '<button class="link-btn" type="button" id="msa-have-code">' + esc(t("msa.haveCode")) + "</button>" : "") + "</div>" +
+        '<button class="btn btn-ghost btn-sm" type="button" id="msa-withdraw">' + esc(t("msa.withdraw")) + "</button></div>";
+      $("msa-withdraw").onclick = function () {
+        rpc("msa_leave").then(function () { me = { status: "none", poster: me.poster, approver: me.approver }; memberCard(); }).catch(function (e) { SS.toast(errText(e)); });
+      };
+      if ($("msa-have-code")) $("msa-have-code").onclick = function () { joinForm(el, me.name); };
+      return;
+    }
+    joinForm(el, "");
+  }
+  function joinForm(el, name) {
+    var denied = me.status === "denied";
+    el.innerHTML = '<form class="card msa-join-form" id="msa-join" novalidate>' +
+      '<h2 class="h-sm">' + esc(t("msa.joinTitle")) + "</h2>" +
+      '<p class="tiny">' + esc(t(denied ? "msa.deniedText" : "msa.joinHelp")) + "</p>" +
+      '<label class="field-l" for="msa-j-name"><b>' + esc(t("msa.fullName")) + "</b></label>" +
+      '<input class="input" id="msa-j-name" autocomplete="name" maxlength="80" value="' + esc(name) + '" aria-describedby="msa-j-err" />' +
+      '<label class="field-l" for="msa-j-code"><b>' + esc(t("msa.meetingCode")) + '</b> <span class="tiny">' + esc(t("msa.codeOptional")) + "</span></label>" +
+      '<input class="input msa-code-in" id="msa-j-code" inputmode="numeric" autocomplete="one-time-code" maxlength="7" placeholder="123456" aria-describedby="msa-j-err msa-j-help" />' +
+      '<p class="tiny" id="msa-j-help">' + esc(t("msa.codeHelp")) + "</p>" +
+      '<p class="field-error" id="msa-j-err" role="alert"></p>' +
+      '<button class="btn" type="submit" id="msa-j-go">' + esc(t("msa.join")) + "</button></form>";
+    $("msa-join").onsubmit = function (e) {
+      e.preventDefault();
+      var nm = $("msa-j-name").value.trim(), code = $("msa-j-code").value.replace(/\D/g, ""), err = $("msa-j-err");
+      err.textContent = "";
+      if (nm.split(/\s+/).length < 2) { err.textContent = t("msa.needFullName"); $("msa-j-name").setAttribute("aria-invalid", "true"); $("msa-j-name").focus(); return; }
+      $("msa-j-name").removeAttribute("aria-invalid");
+      if (code && code.length !== 6) { err.textContent = t("msa.codeSix"); $("msa-j-code").focus(); return; }
+      $("msa-j-go").disabled = true;
+      rpc("msa_join", code ? { p_name: nm, p_code: code } : { p_name: nm }).then(function (r) {
+        if (r && r.error === "wrong-code") {
+          $("msa-j-go").disabled = false;
+          err.textContent = t("msa.wrongCode");
+          $("msa-j-code").setAttribute("aria-invalid", "true"); $("msa-j-code").select();
+          return;
+        }
+        me = Object.assign({}, me, r);
+        SS.toast(t(r.status === "approved" ? "msa.welcome" : r.status === "flagged" ? "msa.flaggedTitle" : "msa.requestSent"));
+        if (r.status === "approved") refresh(); else memberCard();
+      }).catch(function (er) {
+        $("msa-j-go").disabled = false;
+        err.textContent = /too many/.test((er && er.message) || "") ? t("msa.tooManyTries") : /first and last/.test((er && er.message) || "") ? t("msa.needFullName") : errText(er);
+      });
+    };
+  }
+
+  /* ═══════════ #/msa/manage — the approver's page ═══════════ */
+  var codeTimer = null;
+  function stopCode() { clearInterval(codeTimer); codeTimer = null; }
+  function manageInit(my) {
+    $("msa-feed").hidden = true;
+    var root = $("msa-manage");
+    root.hidden = false;
+    root.innerHTML = '<div aria-busy="true">' + SS.ui.skeletons(3, 120) + "</div>";
+    if (SS.account && SS.account.restore) SS.account.restore();
+    status().then(function (st) {
+      if (my !== pageGen) return;
+      me = st;
+      if (!st.approver) { SS.ui.renderState(root, { kind: "empty", icon: "lock", text: t("msa.approverOnly") }); return; }
+      root.innerHTML =
+        '<a class="back-link" href="#/msa">' + icon("chev-l", "flip") + "<span>" + esc(t("msa.club")) + "</span></a>" +
+        '<h2 class="h-sm msa-manage-h">' + esc(t("msa.manage")) + "</h2>" +
+        '<article class="card msa-code-card" aria-labelledby="msa-code-h"><h3 id="msa-code-h">' + esc(t("msa.liveCode")) + "</h3>" +
+        '<p class="msa-code" id="msa-code" aria-live="polite">······</p>' +
+        '<div class="msa-code-bar" aria-hidden="true"><span id="msa-code-bar"></span></div>' +
+        '<p class="tiny" id="msa-code-left"></p><p class="tiny">' + esc(t("msa.liveCodeHelp")) + "</p></article>" +
+        '<section aria-labelledby="msa-req-h"><h3 class="group-label" id="msa-req-h">' + esc(t("msa.requests")) + '</h3><div class="stack" id="msa-req"></div></section>' +
+        '<section aria-labelledby="msa-mem-h"><h3 class="group-label" id="msa-mem-h">' + esc(t("msa.members")) + '</h3><div class="stack" id="msa-mem"></div></section>' +
+        '<section aria-labelledby="msa-roster-h"><h3 class="group-label" id="msa-roster-h">' + esc(t("msa.roster")) + "</h3>" +
+        '<form class="card" id="msa-roster" novalidate><p class="tiny" id="msa-roster-help">' + esc(t("msa.rosterHelp")) + "</p>" +
+        '<label class="visually-hidden" for="msa-roster-in">' + esc(t("msa.roster")) + "</label>" +
+        '<textarea class="input msa-roster-in" id="msa-roster-in" rows="8" aria-describedby="msa-roster-help msa-roster-n"></textarea>' +
+        '<p class="tiny" id="msa-roster-n"></p><button class="btn btn-sm" type="submit">' + esc(t("msa.saveRoster")) + "</button></form></section>";
+      liveCode(my);
+      people(my);
+      rpc("msa_roster_get").then(function (names) {
+        if (my !== pageGen || !$("msa-roster-in")) return;
+        $("msa-roster-in").value = (names || []).join("\n");
+        $("msa-roster-n").textContent = f("msa.rosterCount", { n: (names || []).length });
+      });
+      $("msa-roster").onsubmit = function (e) {
+        e.preventDefault();
+        var names = rosterLines($("msa-roster-in").value);
+        rpc("msa_roster_set", { p_names: names }).then(function (n) {
+          $("msa-roster-in").value = names.join("\n");
+          $("msa-roster-n").textContent = f("msa.rosterCount", { n: n });
+          SS.toast(f("msa.rosterSaved", { n: n }));
+          people(my);
+        }).catch(function (er) { SS.toast(errText(er)); });
+      };
+    });
+  }
+  /** One name per line; list bullets, headings ("Teachers", "124 students") and blanks dropped. */
+  function rosterLines(text) {
+    var seen = {};
+    return String(text || "").split(/\r?\n/).map(function (l) { return l.replace(/^[\s*•\-–·]+/, "").replace(/\s+/g, " ").trim(); })
+      .filter(function (l) {
+        if (!l || /\d/.test(l) || l.split(" ").length < 2 || l.length > 80) return false;
+        var k = l.toLowerCase();
+        if (seen[k]) return false;
+        seen[k] = 1;
+        return true;
+      });
+  }
+  function liveCode(my) {
+    stopCode();
+    var cur = null, fetching = false;
+    function load() {
+      if (fetching) return;
+      fetching = true;
+      rpc("msa_live_code").then(function (r) { fetching = false; cur = r; tick(); }, function () { fetching = false; });
+    }
+    function tick() {
+      if (my !== pageGen || !$("msa-code")) return stopCode();
+      if (!cur) return;
+      var left = Date.parse(cur.changes_at) - Date.now();
+      if (left <= 0) { cur = null; load(); return; }
+      $("msa-code").textContent = cur.code.slice(0, 3) + " " + cur.code.slice(3);
+      var m = Math.floor(left / 60000), sec = Math.floor(left / 1000) % 60;
+      $("msa-code-left").textContent = f("msa.codeChanges", { t: m + ":" + (sec < 10 ? "0" : "") + sec });
+      $("msa-code-bar").style.inlineSize = Math.max(0, Math.min(100, left / 6000)) + "%";
+    }
+    load();
+    codeTimer = setInterval(tick, 1000);
+  }
+  function people(my) {
+    rpc("msa_people").then(function (list) {
+      if (my !== pageGen || !$("msa-req")) return;
+      list = list || [];
+      var reqs = list.filter(function (p) { return p.status !== "approved"; }), mems = list.filter(function (p) { return p.status === "approved"; });
+      $("msa-req").innerHTML = reqs.length ? reqs.map(personRow).join("") : '<p class="muted">' + esc(t("msa.noRequests")) + "</p>";
+      $("msa-mem").innerHTML = mems.length ? mems.map(personRow).join("") : '<p class="muted">' + esc(t("msa.noMembers")) + "</p>";
+      $("msa-manage").onclick = function (e) {
+        var b = e.target.closest("[data-act]");
+        if (!b) return;
+        var act = b.getAttribute("data-act"), uid = b.getAttribute("data-user"), nm = b.getAttribute("data-name");
+        if (act === "remove" && !window.confirm(f("msa.removeConfirm", { n: nm }))) return;
+        b.disabled = true;
+        rpc("msa_decide", { p_user: uid, p_action: act }).then(function () {
+          SS.toast(f("msa.did_" + act, { n: nm }));
+          people(my);
+        }).catch(function (er) {
+          b.disabled = false;
+          SS.toast(/already belongs/.test((er && er.message) || "") ? t("msa.nameTaken") : errText(er));
+        });
+      };
+    }).catch(function () {
+      if ($("msa-req")) SS.ui.renderState($("msa-req"), { kind: "error", retry: function () { people(my); } });
+    });
+  }
+  function personRow(p) {
+    var badge = p.status === "flagged" ? '<span class="badge badge-warn">' + icon("users") + "<span>" + esc(t("msa.flaggedBadge")) + "</span></span>"
+      : p.status === "denied" ? '<span class="badge badge-muted">' + esc(t("msa.deniedBadge")) + "</span>"
+      : p.status === "pending" ? '<span class="badge">' + esc(t("msa.pendingBadge")) + "</span>" : "";
+    var roster = '<span class="msa-roster-tag ' + (p.on_roster ? "yes" : "no") + '">' + icon(p.on_roster ? "check" : "x") + "<span>" + esc(t(p.on_roster ? "msa.onRoster" : "msa.notOnRoster")) + "</span></span>";
+    var acts = p.status === "approved"
+      ? '<button class="btn btn-ghost btn-sm msa-del" type="button" data-act="remove" data-user="' + esc(p.user_id) + '" data-name="' + esc(p.name) + '">' + esc(t("msa.remove")) + "</button>"
+      : '<button class="btn btn-sm" type="button" data-act="approve" data-user="' + esc(p.user_id) + '" data-name="' + esc(p.name) + '">' + esc(t(p.status === "flagged" ? "msa.approveMet" : "msa.approve")) + "</button>" +
+        (p.status !== "denied" ? '<button class="btn btn-ghost btn-sm" type="button" data-act="deny" data-user="' + esc(p.user_id) + '" data-name="' + esc(p.name) + '">' + esc(t("msa.deny")) + "</button>" : "") +
+        '<button class="btn btn-ghost btn-sm msa-del" type="button" data-act="remove" data-user="' + esc(p.user_id) + '" data-name="' + esc(p.name) + '">' + esc(t("msa.delete")) + "</button>";
+    return '<article class="card msa-person' + (p.status === "flagged" ? " flagged" : "") + '"><div class="msa-person-t"><b>' + esc(p.name) + "</b> " + badge +
+      '<span class="tiny">' + esc(p.email || "") + " · " + esc(t("msa.via_" + p.via)) + " · " + esc(dateLabel(p.created_at)) + "</span>" + roster +
+      (p.status === "flagged" ? '<span class="tiny msa-flag-note">' + esc(t("msa.flaggedNote")) + "</span>" : "") + "</div>" +
+      '<div class="msa-person-acts">' + acts + "</div></article>";
+  }
+    function draw(all, focusId) {
     var list = $("msa-list");
     posts = live(all);
     list.removeAttribute("aria-busy");
@@ -226,6 +430,7 @@
       (p.has_image ? '<div class="msa-img" id="msa-img-' + esc(p.id) + '"><div class="skeleton"></div></div>' : "") +
       '<div class="msa-post-body">' +
       '<p class="msa-meta">' + (p.pinned ? '<span class="badge">' + icon("pin") + "<span>" + esc(t("msa.pinned")) + "</span></span>" : "") +
+      (p.members_only ? '<span class="badge badge-gold">' + icon("lock") + "<span>" + esc(t("msa.membersOnly")) + "</span></span>" : "") +
       "<span>" + esc(t("msa.club")) + " · " + '<time datetime="' + esc(p.created_at) + '">' + esc(dateLabel(p.created_at)) + "</time></span></p>" +
       '<h2 class="msa-title" id="msa-t-' + esc(p.id) + '">' + esc(p.title) + "</h2>" +
       (p.body ? '<p class="msa-text">' + richText(p.body) + '</p><button class="link-btn msa-more" type="button" aria-expanded="false" hidden>' + esc(t("msa.more")) + "</button>" : "") +
@@ -310,6 +515,8 @@
       '<p class="tiny msa-photo-note">' + esc(t("msa.photoNote")) + "</p>" +
       '<div class="set-row"><span id="msa-f-home-l"><b>' + esc(t("msa.fHome")) + '</b><br><span class="tiny">' + esc(t("msa.fHomeSub")) + "</span></span>" +
       '<label class="switch"><input type="checkbox" id="msa-f-home" aria-labelledby="msa-f-home-l"' + (p && p.on_home ? " checked" : "") + ' /><span class="trk"></span><span class="th"></span></label></div>' +
+      '<div class="set-row"><span id="msa-f-mem-l"><b>' + esc(t("msa.fMembers")) + '</b><br><span class="tiny">' + esc(t("msa.fMembersSub")) + "</span></span>" +
+      '<label class="switch"><input type="checkbox" id="msa-f-mem" aria-labelledby="msa-f-mem-l"' + (p && p.members_only ? " checked" : "") + ' /><span class="trk"></span><span class="th"></span></label></div>' +
       '<div class="set-row"><span id="msa-f-pin-l"><b>' + esc(t("msa.fPin")) + "</b></span>" +
       '<label class="switch"><input type="checkbox" id="msa-f-pin" aria-labelledby="msa-f-pin-l"' + (p && p.pinned ? " checked" : "") + ' /><span class="trk"></span><span class="th"></span></label></div>' +
       '<div class="set-row"><label for="msa-f-exp"><b>' + esc(t("msa.fExpires")) + "</b></label>" +
@@ -355,7 +562,7 @@
       EXPIRY.forEach(function (x) { if (x[0] === exp) days = x[1]; });
       var post = {
         title: title, body: $("msa-f-body").value.trim(),
-        on_home: $("msa-f-home").checked, pinned: $("msa-f-pin").checked,
+        on_home: $("msa-f-home").checked, pinned: $("msa-f-pin").checked, members_only: $("msa-f-mem").checked,
         expires_at: exp === "keep" ? p.expires_at : days ? new Date(Date.now() + days * 864e5).toISOString() : null,
       };
       if (p) post.id = p.id;
@@ -376,8 +583,15 @@
   }
 
   SS.views.msa = msaInit;
-  SS.msa = { feed: feed, homeCard: homeCard, shrink: shrink, richText: richText };
+  SS.leave.msa = function () { stopCode(); pageGen++; };
+  SS.msa = { feed: feed, homeCard: homeCard, shrink: shrink, richText: richText, rosterLines: rosterLines };
   SS.msaBoot = function () {
+    // Sign-in is restored after the page first draws: redraw for the person, then.
+    document.addEventListener("ss:auth", function () {
+      images = {};
+      if (SS.currentView() === "msa") msaInit((location.hash.split("/").slice(2)));
+      else if (SS.currentView() === "home") homeCard();
+    });
     var prevHome = SS.hooks.homeInit;
     SS.hooks.homeInit = function () { if (prevHome) prevHome.apply(null, arguments); homeCard(); };
   };

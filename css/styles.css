@@ -1902,3 +1902,45 @@ html[data-theme="dark"] .mode-ic[data-m="normal"]{--mc:var(--em-300)}
 .counter-link:hover{text-decoration:none;border-color:color-mix(in srgb,var(--primary) 45%,var(--border))}
 .counter-link > .ic:first-child{inline-size:26px;block-size:26px;color:var(--gold)}
 .counter-link .chev{color:var(--text-3)}
+
+/* ── 3.1.6 NVHS MSA membership ────────────────────────────────── */
+.msa-head-acts{display:flex;gap:8px;flex:none;align-self:center;flex-wrap:wrap;justify-content:flex-end}
+.badge-warn{background:color-mix(in srgb,#f59e0b 18%,var(--surface));color:#92400e}
+html[data-theme="dark"] .badge-warn{color:#fcd34d}
+.badge-muted{background:var(--surface-2);color:var(--text-3)}
+.msa-chip{display:inline-flex;align-items:center;gap:6px;margin:0 0 14px;padding:6px 12px;border-radius:999px;background:var(--primary-soft);color:var(--primary-strong);font-size:.85rem;font-weight:700}
+.msa-chip .ic{inline-size:16px;block-size:16px}
+.msa-join{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-block-end:18px}
+.msa-join-t{display:flex;flex-direction:column;gap:2px;flex:1 1 200px;min-inline-size:0;color:var(--text-2);font-size:.9rem}
+.msa-join-t b{color:var(--text);font-size:1rem}
+.msa-join-t .link-btn{align-self:flex-start}
+.msa-join-ic{display:grid;place-items:center;inline-size:44px;block-size:44px;border-radius:50%;flex:none;background:var(--primary-soft);color:var(--primary-strong)}
+.msa-join-ic .ic{inline-size:22px;block-size:22px}
+.msa-join.flagged{border-color:color-mix(in srgb,#f59e0b 55%,var(--border));background:color-mix(in srgb,#f59e0b 8%,var(--surface))}
+.msa-join.flagged .msa-join-ic{background:color-mix(in srgb,#f59e0b 22%,var(--surface));color:#b45309}
+.msa-join-form{display:flex;flex-direction:column;gap:6px;margin-block-end:18px}
+.msa-join-form .field-l{margin-block-start:8px}
+.msa-join-form .btn[type=submit]{align-self:flex-start;margin-block-start:6px}
+.msa-code-in{font-variant-numeric:tabular-nums;letter-spacing:.2em;max-inline-size:12ch}
+/* The approver's page */
+.msa-manage-h{margin-block:6px 12px}
+#msa-manage > section{margin-block-start:22px}
+.msa-code-card{text-align:center;background:linear-gradient(135deg,var(--em-700),var(--em-900));color:#fff;border:0;box-shadow:var(--shadow)}
+.msa-code-card h3{font-size:.95rem;color:var(--em-100);font-weight:700}
+.msa-code-card .tiny{color:var(--em-100)}
+.msa-code{font-size:clamp(2.6rem,14vw,4.2rem);font-weight:800;letter-spacing:.08em;font-variant-numeric:tabular-nums;line-height:1.1;margin-block:6px 10px;color:#fff}
+.msa-code-bar{block-size:6px;border-radius:999px;background:rgb(255 255 255/.18);overflow:hidden;max-inline-size:280px;margin-inline:auto}
+.msa-code-bar span{display:block;block-size:100%;background:var(--gold-soft);transition:inline-size 1s linear}
+.msa-person{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.msa-person.flagged{border-color:color-mix(in srgb,#f59e0b 55%,var(--border))}
+.msa-person-t{display:flex;flex-direction:column;align-items:flex-start;gap:4px;flex:1 1 220px;min-inline-size:0;overflow-wrap:anywhere}
+.msa-person-t b{font-size:1rem}
+.msa-person-acts{display:flex;gap:6px;flex-wrap:wrap}
+.msa-person-acts .msa-del{color:var(--danger)}
+.msa-roster-tag{display:inline-flex;align-items:center;gap:4px;font-size:.8rem;font-weight:700}
+.msa-roster-tag .ic{inline-size:14px;block-size:14px}
+.msa-roster-tag.yes{color:var(--primary-strong)}
+.msa-roster-tag.no{color:var(--danger)}
+.msa-flag-note{color:#b45309;font-weight:600}
+html[data-theme="dark"] .msa-flag-note{color:#fcd34d}
+.msa-roster-in{min-block-size:180px;resize:vertical;line-height:1.5;margin-block:8px 4px}

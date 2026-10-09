@@ -81,6 +81,11 @@ laptops and large monitors. Core worship features are, and will stay, free.
   next step and a tawaf/sa'i round counter); a quick switcher from the top-bar badge; a simpler picker; icons instead
   of emoji. Full notes: [`release-notes/3.1.5.md`](release-notes/3.1.5.md)
 
+- **3.1.6 — NVHS MSA members:** join with your name and the live meeting code (changes every 10 minutes, shown only
+  to the approver) or by asking; the approver checks requests against a private roster; one account per name, with
+  a second claim flagged for an in-person check; members-only announcements. Full notes:
+  [`release-notes/3.1.6.md`](release-notes/3.1.6.md)
+
 ## Planned (no release dates; plans may change)
 
 The plan after 3.0 lives in [`ROADMAP.md`](../ROADMAP.md) (with status, dependencies, risks and completion

@@ -1689,7 +1689,7 @@ test("msa: a poster posts an announcement with a photo; everyone sees it on the 
   await G.page.waitForSelector(".msa-post.focus .msa-img img");
   assert.equal(await G.page.$("[data-edit]"), null);
   assert.equal(await G.page.isHidden("#msa-new"), true);
-  assert.match(await G.page.textContent("#msa-foot"), /Posting for the MSA\? Sign in/);
+  assert.match(await G.page.textContent("#msa-member"), /Join the NVHS MSA/);
   await shot(G.page, "msa-guest-390");
   // Hiding the Home card keeps it hidden.
   await open(G.page, "#/home");
@@ -1727,5 +1727,111 @@ test("msa: a poster posts an announcement with a photo; everyone sees it on the 
 
   assert.deepEqual(A.page.errors, []); assert.deepEqual(G.page.errors, []); assert.deepEqual(O.page.errors, []);
   await A.context.close(); await G.context.close(); await O.context.close();
+  await pg.close();
+});
+
+test("msa membership: the live meeting code lets you in, a taken name is flagged for an in-person check, the approver decides; members-only posts reach members only", async () => {
+  const pg = await familyDb();
+  await pg.query(`insert into public.msa_admins (email_hash) values (sha256(convert_to('approver@example.org', 'UTF8')))`);
+  await pg.query(`insert into public.msa_approvers (email_hash) values (sha256(convert_to('approver@example.org', 'UTF8')))`);
+  const mock = createMock({ pg });
+  // ── The approver: roster, a members-only post, and the live code.
+  const A = await device({ mock });
+  A.page.on("dialog", (d) => d.accept());
+  await emailSignIn(A.page, "approver@example.org");
+  await A.page.waitForFunction(() => SS.account.signedIn());
+  await open(A.page, "#/msa");
+  await A.page.waitForSelector("#msa-admin-btn:not([hidden])");
+  assert.match(await A.page.textContent("#msa-member"), /You approve MSA members/);
+  await A.page.click("#msa-admin-btn");
+  await A.page.waitForSelector("#msa-roster-in");
+  await A.page.fill("#msa-roster-in", "Teachers\n* Sample Teacher\n\nClassmates\n124 students\nAmina Yusuf\nOmar Khan\n");
+  await A.page.click("#msa-roster [type=submit]");
+  await A.page.waitForFunction(() => /3 names on the roster/.test(document.getElementById("msa-roster-n").textContent));
+  assert.equal(await A.page.inputValue("#msa-roster-in"), "Sample Teacher\nAmina Yusuf\nOmar Khan", "headings and counts are skipped");
+  await A.page.waitForFunction(() => /^\d{3} \d{3}$/.test(document.getElementById("msa-code").textContent));
+  const code = (await A.page.textContent("#msa-code")).replace(/\D/g, "");
+  assert.match(await A.page.textContent("#msa-code-left"), /New code in \d+:\d\d/);
+  await shot(A.page, "msa-manage-390");
+  await open(A.page, "#/msa");
+  await A.page.waitForSelector("#msa-new:not([hidden])");
+  await A.page.click("#msa-new");
+  await A.page.waitForSelector("#msa-dialog[open] #msa-form");
+  await A.page.fill("#msa-f-title", "Meeting moved to room 1234");
+  await A.page.check("#msa-f-mem");
+  await A.page.click("#msa-f-go");
+  await A.page.waitForSelector(".msa-post .badge-gold");
+  assert.match(await A.page.textContent(".msa-post"), /Members only/);
+
+  // ── A guest sees no members-only post, and a join card.
+  const G = await device({ mock });
+  await open(G.page, "#/msa");
+  await G.page.waitForSelector("#msa-list .msa-empty, #msa-list .msa-post");
+  assert.doesNotMatch(await G.page.textContent("#msa-list"), /room 1234/);
+  assert.match(await G.page.textContent("#msa-member"), /Sign in to join/);
+
+  // ── Amina is at the meeting: name + the code on the screen → in at once.
+  const S1 = await device({ mock });
+  await emailSignIn(S1.page, "amina@example.com");
+  await S1.page.waitForFunction(() => SS.account.signedIn());
+  await open(S1.page, "#/msa");
+  await S1.page.waitForSelector("#msa-join");
+  assert.doesNotMatch(await S1.page.textContent("#msa-list"), /room 1234/);
+  await S1.page.fill("#msa-j-name", "Amina");
+  await S1.page.click("#msa-j-go");
+  assert.match(await S1.page.textContent("#msa-j-err"), /first and last name/);
+  await S1.page.fill("#msa-j-name", "Amina Yusuf");
+  await S1.page.fill("#msa-j-code", code === "000000" ? "111111" : "000000");
+  await S1.page.click("#msa-j-go");
+  await S1.page.waitForFunction(() => /wrong or has changed/.test(document.getElementById("msa-j-err").textContent));
+  await S1.page.fill("#msa-j-code", code);
+  await S1.page.click("#msa-j-go");
+  await S1.page.waitForFunction(() => /You're a member · until/.test(document.getElementById("msa-member").textContent));
+  await S1.page.waitForFunction(() => /room 1234/.test(document.getElementById("msa-list").textContent));
+
+  // ── Someone else claims Amina's name — even with the code — and is told to come in person.
+  const S2 = await device({ mock });
+  await emailSignIn(S2.page, "notamina@example.com");
+  await S2.page.waitForFunction(() => SS.account.signedIn());
+  await open(S2.page, "#/msa");
+  await S2.page.waitForSelector("#msa-join");
+  await S2.page.fill("#msa-j-name", "amina yusuf");
+  await S2.page.fill("#msa-j-code", code);
+  await S2.page.click("#msa-j-go");
+  await S2.page.waitForSelector(".msa-join.flagged");
+  assert.match(await S2.page.textContent("#msa-member"), /Please see Ibrahim in person.*next MSA meeting/);
+  assert.doesNotMatch(await S2.page.textContent("#msa-list"), /room 1234/);
+  await shot(S2.page, "msa-flagged-390");
+
+  // ── Omar sends a request without a code; it waits.
+  const S3 = await device({ mock });
+  await emailSignIn(S3.page, "omar@example.com");
+  await S3.page.waitForFunction(() => SS.account.signedIn());
+  await open(S3.page, "#/msa");
+  await S3.page.waitForSelector("#msa-join");
+  await S3.page.fill("#msa-j-name", "Omar Khan");
+  await S3.page.click("#msa-j-go");
+  await S3.page.waitForFunction(() => /Request sent/.test(document.getElementById("msa-member").textContent));
+
+  // ── The approver: the flagged one first, with the roster check; approves Omar, denies the impostor.
+  await open(A.page, "#/msa/manage");
+  await A.page.waitForSelector("#msa-req .msa-person");
+  const rows = await A.page.$$eval("#msa-req .msa-person", (r) => r.map((x) => x.textContent));
+  assert.match(rows[0], /amina yusuf.*Flagged.*notamina@example.com.*On the roster.*Talk to both people in person/);
+  assert.match(rows[1], /Omar Khan.*Waiting.*omar@example.com.*On the roster/);
+  assert.match(await A.page.textContent("#msa-mem"), /Amina Yusuf.*meeting code/);
+  await A.page.click('#msa-req .msa-person:nth-child(1) [data-act="approve"]');
+  await A.page.waitForFunction(() => /already belongs to a member/.test(document.getElementById("toast").textContent));
+  await A.page.click('#msa-req .msa-person:nth-child(1) [data-act="deny"]');
+  await A.page.waitForFunction(() => /Denied/.test(document.getElementById("msa-req").textContent));
+  await A.page.click('#msa-req [data-act="approve"][data-name="Omar Khan"]');
+  await A.page.waitForFunction(() => /Omar Khan/.test(document.getElementById("msa-mem").textContent));
+  await reopen(S3.page, "#/msa");
+  await S3.page.waitForFunction(() => /room 1234/.test(document.getElementById("msa-list").textContent));
+  assert.match(await S3.page.textContent("#msa-member"), /You're a member/);
+  // Members can't open the approver's page.
+  await open(S3.page, "#/msa/manage");
+  await S3.page.waitForFunction(() => /Only the MSA's approver/.test(document.getElementById("msa-manage").textContent));
+  for (const P of [A, G, S1, S2, S3]) { assert.deepEqual(P.page.errors, []); await P.context.close(); }
   await pg.close();
 });

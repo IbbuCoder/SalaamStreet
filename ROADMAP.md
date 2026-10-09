@@ -1,6 +1,6 @@
 # SalaamStreet Roadmap
 
-What we plan to build after **3.1.5 — Modes, made useful**, in order. This is a plan, not a
+What we plan to build after **3.1.6 — NVHS MSA members**, in order. This is a plan, not a
 promise: nothing planned below exists in the app yet, and there are no dates —
 releases ship when they're ready and tested. The same list appears in the app
 under About → Updates (`SS.ROADMAP` in `js/content.js`); keep the two in step.
@@ -24,6 +24,7 @@ under About → Updates (`SS.ROADMAP` in `js/content.js`); keep the two in step.
 | 3.0 | Modes | ✅ Completed |
 | 3.1.0 | NVHS MSA | ✅ Completed |
 | 3.1.5 | Modes, made useful | ✅ Completed |
+| 3.1.6 | NVHS MSA members | ✅ Completed |
 | 3.2 | Personalization | 📋 Planned |
 | 3.3 | Qur'an Experience | 📋 Planned |
 | 3.4 | Community: mosque pages | 📋 Planned |
@@ -88,6 +89,21 @@ the app's own icons with a colour per mode instead of emoji; location errors in
 Travel and Mosque Mode shown instead of loading forever. Release notes:
 [`docs/release-notes/3.1.5.md`](docs/release-notes/3.1.5.md). Design notes:
 [`docs/06-modes.md`](docs/06-modes.md) §5.
+
+## 3.1.6 — NVHS MSA members · ✅ Completed
+
+**Goal:** only real NVHS MSA members see members-only announcements.
+
+Shipped: joining from the MSA page with a full name and either the live
+meeting code (6 digits, changes every 10 minutes, shown only to the approver)
+or a request the approver decides against a roster kept only in the database;
+one approved account per name, with a second claim flagged for an in-person
+check; members-only announcements left out by the database for everyone else;
+membership until 1 July. Release notes:
+[`docs/release-notes/3.1.6.md`](docs/release-notes/3.1.6.md).
+
+Limit: SalaamStreet can't check school accounts (students sign in with
+personal ones), so the meeting code and the approver are the proof.
 
 ## 3.2 — Personalization · 📋 Planned
 
@@ -281,5 +297,7 @@ scheduled.
   wanted sooner, so they shipped on their own; mosque pages stay in **3.4**,
   built on the same tables. Personalization moved to **3.2** and everything
   after it moved down one; Islamic Learning now follows mosque pages.
+- **3.1.6 NVHS MSA members** was added so members-only details (rooms, times,
+  photos) reach only real members.
 - **3.1.5 Modes, made useful** was added after feedback that the 3.0 modes
   looked busy and didn't change much (see `docs/06-modes.md` §5).

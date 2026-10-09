@@ -248,7 +248,8 @@ function createMock(opts) {
       const pg = opts.pg, uid = u ? u.id : "";
       if (uid) await pg.query("insert into auth.users (id, email) values ($1, $2) on conflict (id) do update set email = excluded.email", [uid, u.email || null]);
       const names = Object.keys(body || {}).filter((n) => /^p(_[a-z_]+)?$/.test(n));
-      const args = names.map((n) => (body[n] !== null && typeof body[n] === "object" ? JSON.stringify(body[n]) : body[n]));
+      // Objects go in as JSON; arrays as Postgres arrays (text[]), as PostgREST does.
+      const args = names.map((n) => (body[n] !== null && typeof body[n] === "object" && !Array.isArray(body[n]) ? JSON.stringify(body[n]) : body[n]));
       await pg.exec(`set role ${uid ? "authenticated" : "anon"}; select set_config('request.jwt.claim.sub', '${uid}', false);`);
       try {
         const r = await pg.query(`select public.${fn}(${names.map((n, i) => `${n} => $${i + 1}`).join(", ")}) as r`, args);
