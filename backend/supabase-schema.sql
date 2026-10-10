@@ -1228,8 +1228,9 @@ grant execute on function public.msa_status(), public.msa_roster_status() to aut
 --  poster or approver list any more: msa_admins is the only one.
 --  • The two OWNERS below always stay admins (they can't be removed in the
 --    app). They are stored as hashes, like before — this file is public.
---  • Upgrading from 2.11.7 removes every other poster once (recorded in
---    msa_meta, so admins added later in the app survive re-running this file).
+--  • The first run of this file removes every admin except the owners once,
+--    then re-adds the owners (recorded in msa_meta as 'admins-2.11.8', so
+--    admins added later in the app survive re-running this file).
 --  • Admins add and remove other admins by email on the Manage page. Those
 --    emails are kept in the database (never in this file).
 --  • Admins add students one at a time — a name, and optionally the email
@@ -1250,11 +1251,11 @@ alter table public.msa_admins add column if not exists added_by text;
 
 do $$
 begin
-    if not exists (select 1 from public.msa_meta where key = 'admins-3.1.8') then
+    if not exists (select 1 from public.msa_meta where key = 'admins-2.11.8') then
         delete from public.msa_admins where email_hash not in (
             '\x0d1d4d8e54dba5abd774586630868a3c078c4d7171be9292f4451b54bfd2c0a5'::bytea,
             '\x0359ef19e11b6941875be3039743b7d627855fa162b587982a5142cf558e6276'::bytea);
-        insert into public.msa_meta (key) values ('admins-3.1.8');
+        insert into public.msa_meta (key) values ('admins-2.11.8');
     end if;
 end;
 $$;

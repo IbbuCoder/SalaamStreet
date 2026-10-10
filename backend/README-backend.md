@@ -263,8 +263,10 @@ or with a one-time SQL insert that is **not** kept in this repository.
   `msa_approvers` is no longer read.
 - The file makes the MSA's two **owners** admins (stored as hashes; this
   file is public). Owners can't be removed in the app.
-- The first run on a 2.11.7 database removes every other poster **once**
-  (recorded in `msa_meta`); admins added later survive re-running the file.
+- The first run of this version of the file removes every admin except the
+  two owners **once** (recorded in `msa_meta` as `admins-2.11.8`), then
+  re-adds the owners. Add the other admins again on MSA → Manage → Admins;
+  admins added after that survive re-running the file.
 - Admins add and remove admins by email on MSA → **Manage → Admins**
   (`msa_admin_add`, `msa_admin_remove`, `msa_admin_list`); nobody can remove an
   owner or themselves. Those emails live only in the database. An owner's
