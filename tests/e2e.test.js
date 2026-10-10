@@ -1048,8 +1048,7 @@ test("stories: library in groups, tap-through viewer with Qur'an from the app's 
   await page.waitForSelector("#sv-stage .sv-lesson");
   await page.click("#sv-next");
   await page.waitForFunction(() => location.hash === "#/stories");
-  await page.waitForSelector("#stl-progress");
-  assert.match(await page.textContent("#stl-progress"), /1 of 17 read/);
+  await page.waitForFunction(() => /1 of 17 read/.test((document.getElementById("stl-progress") || {}).textContent || ""), null, { timeout: 5000 });
   assert.match(await page.textContent('#stl-list a[href="#/stories/yunus"]'), /Read ✓/);
   // Today: the day's Name is always available, even offline.
   await open(page, "#/stories/today/2");
@@ -1161,7 +1160,7 @@ test("modes: Choose Your Mode from the Account page; switch through every mode; 
   }
   assert.equal(await page.evaluate(() => location.hash), "#/home");
   assert.equal(await page.isHidden("#mode-home"), true, "Normal Mode restores the standard Home");
-  assert.equal(await page.isVisible('[data-home="name"]'), true);
+  await page.waitForSelector('[data-home="name"]', { state: "visible", timeout: 5000 });
   assert.equal(await page.evaluate(() => localStorage.getItem("salaamstreet:mode:active")), null);
   // Every other combination switches cleanly.
   const ids = ["normal", "travel", "hajj", "mosque"];
@@ -1689,7 +1688,7 @@ test("msa: a poster posts an announcement with a photo; everyone sees it on the 
   await G.page.waitForSelector(".msa-post.focus .msa-img img");
   assert.equal(await G.page.$("[data-edit]"), null);
   assert.equal(await G.page.isHidden("#msa-new"), true);
-  assert.match(await G.page.textContent("#msa-member"), /Join the NVHS MSA/);
+  assert.match(await G.page.textContent("#msa-member"), /Sign in with school email/);
   await shot(G.page, "msa-guest-390");
   // Hiding the Home card keeps it hidden.
   await open(G.page, "#/home");
@@ -1744,11 +1743,14 @@ test("msa membership: the live meeting code lets you in, a taken name is flagged
   await A.page.waitForSelector("#msa-admin-btn:not([hidden])");
   assert.match(await A.page.textContent("#msa-member"), /You approve MSA members/);
   await A.page.click("#msa-admin-btn");
-  await A.page.waitForSelector("#msa-roster-in");
+  await A.page.waitForSelector("#msa-edit summary");
+  assert.match(await A.page.textContent("#msa-manage"), /Teachers and MSA exec will be able to help manage this in a future update/);
+  await A.page.click("#msa-edit summary");
   await A.page.fill("#msa-roster-in", "Teachers\n* Sample Teacher\n\nClassmates\n124 students\nAmina Yusuf\nOmar Khan\n");
   await A.page.click("#msa-roster [type=submit]");
   await A.page.waitForFunction(() => /3 names on the roster/.test(document.getElementById("msa-roster-n").textContent));
   assert.equal(await A.page.inputValue("#msa-roster-in"), "Sample Teacher\nAmina Yusuf\nOmar Khan", "headings and counts are skipped");
+  await A.page.click("#msa-code-wrap summary");
   await A.page.waitForFunction(() => /^\d{3} \d{3}$/.test(document.getElementById("msa-code").textContent));
   const code = (await A.page.textContent("#msa-code")).replace(/\D/g, "");
   assert.match(await A.page.textContent("#msa-code-left"), /New code in \d+:\d\d/);
@@ -1768,7 +1770,7 @@ test("msa membership: the live meeting code lets you in, a taken name is flagged
   await open(G.page, "#/msa");
   await G.page.waitForSelector("#msa-list .msa-empty, #msa-list .msa-post");
   assert.doesNotMatch(await G.page.textContent("#msa-list"), /room 1234/);
-  assert.match(await G.page.textContent("#msa-member"), /Sign in to join/);
+  assert.match(await G.page.textContent("#msa-member"), /school email.*not \u201cContinue with Google\u201d/);
 
   // ── Amina is at the meeting: name + the code on the screen → in at once.
   const S1 = await device({ mock });
@@ -1823,9 +1825,12 @@ test("msa membership: the live meeting code lets you in, a taken name is flagged
   await A.page.click('#msa-req .msa-person:nth-child(1) [data-act="approve"]');
   await A.page.waitForFunction(() => /already belongs to a member/.test(document.getElementById("toast").textContent));
   await A.page.click('#msa-req .msa-person:nth-child(1) [data-act="deny"]');
-  await A.page.waitForFunction(() => /Denied/.test(document.getElementById("msa-req").textContent));
+  await A.page.waitForFunction(() => !/notamina/.test(document.getElementById("msa-req").textContent), null, { timeout: 8000 });
+  assert.match(await A.page.textContent("#msa-stats"), /1\s*members.*1\s*waiting.*1\/3\s*of the list joined/s);
   await A.page.click('#msa-req [data-act="approve"][data-name="Omar Khan"]');
-  await A.page.waitForFunction(() => /Omar Khan/.test(document.getElementById("msa-mem").textContent));
+  await A.page.waitForFunction(() => [...document.querySelectorAll("#msa-mem .msa-row.in")].some((r) => /Omar Khan/.test(r.textContent)));
+  await A.page.fill("#msa-find", "omar");
+  assert.equal(await A.page.$$eval("#msa-mem .msa-row", (r) => r.length), 1);
   await reopen(S3.page, "#/msa");
   await S3.page.waitForFunction(() => /room 1234/.test(document.getElementById("msa-list").textContent));
   assert.match(await S3.page.textContent("#msa-member"), /You're a member/);
@@ -1834,4 +1839,63 @@ test("msa membership: the live meeting code lets you in, a taken name is flagged
   await S3.page.waitForFunction(() => /Only the MSA's approver/.test(document.getElementById("msa-manage").textContent));
   for (const P of [A, G, S1, S2, S3]) { assert.deepEqual(P.page.errors, []); await P.context.close(); }
   await pg.close();
+});
+
+test("msa school accounts: sign in with the school email (not Google) and you're accepted automatically", async () => {
+  const pg = await familyDb();
+  await pg.query(`insert into public.msa_admins (email_hash) values (sha256(convert_to('approver@example.org', 'UTF8')))`);
+  await pg.query(`insert into public.msa_roster (name_key, name, keys) values ('amina yusuf', 'Amina Yusuf', public.msa_email_keys('Amina Yusuf'))`);
+  const mock = createMock({ pg });
+  const P = await device({ mock });
+  await emailSignIn(P.page, "approver@example.org");
+  await P.page.waitForFunction(() => SS.account.signedIn());
+  await open(P.page, "#/msa");
+  await P.page.waitForSelector("#msa-new:not([hidden])");
+  await P.page.click("#msa-new");
+  await P.page.waitForSelector("#msa-dialog[open] #msa-form");
+  await P.page.fill("#msa-f-title", "Members: Friday in room 1234");
+  await P.page.check("#msa-f-mem");
+  await P.page.click("#msa-f-go");
+  await P.page.waitForSelector(".msa-post");
+
+  // A student who signed in with a personal account is told to switch.
+  const S = await device({ mock });
+  await emailSignIn(S.page, "amina.personal@example.com");
+  await S.page.waitForFunction(() => SS.account.signedIn());
+  await open(S.page, "#/msa");
+  await S.page.waitForSelector(".msa-school");
+  const card = await S.page.textContent(".msa-school");
+  assert.match(card, /signed in as amina\.personal@example\.com/);
+  assert.match(card, /@k12\.ipsd\.org/);
+  assert.match(card, /not \u201cContinue with Google\u201d/);
+  await shot(S.page, "msa-school-390");
+  // One tap: signed out, straight to "email me a code" — no Google button in the way.
+  await S.page.click("#msa-school-go");
+  await S.page.waitForSelector("#acct-dialog[open] #acct-input");
+  assert.equal(await S.page.$("#acct-dialog[open] [data-method=google]"), null);
+  await S.page.fill("#acct-input", "aminayus4821@k12.ipsd.org");
+  await S.page.click("#acct-submit");
+  await S.page.waitForSelector("#acct-input.acct-code");
+  await S.page.fill("#acct-input", "123456");
+  await S.page.click("#acct-submit");
+  await S.page.waitForFunction(() => /You're a member · until/.test(document.getElementById("msa-member").textContent), null, { timeout: 15000 });
+  await S.page.waitForFunction(() => /room 1234/.test(document.getElementById("msa-list").textContent));
+  assert.deepEqual(S.page.errors, []);
+  await P.context.close(); await S.context.close();
+  await pg.close();
+});
+
+test("google sign-in always asks which account to use", async () => {
+  const mock = createMock();
+  const { page, context } = await device({ mock });
+  let url = "";
+  await context.route(/accounts\.google\.com|\/auth\/v1\/authorize/, (route) => { url = route.request().url(); return route.fulfill({ status: 200, body: "ok" }); });
+  await open(page, "#/account");
+  await page.click("#ac-signin");
+  await page.waitForSelector('#acct-dialog[open] [data-method="google"]');
+  await page.click('[data-method="google"]');
+  await page.waitForFunction(() => true);
+  for (let i = 0; i < 50 && !url; i++) await page.waitForTimeout(100);
+  assert.match(url, /prompt=select_account/);
+  await context.close();
 });

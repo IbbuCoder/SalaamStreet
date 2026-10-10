@@ -238,6 +238,22 @@ insert into public.msa_approvers (email_hash)
 values (sha256(convert_to(lower('name@example.org'), 'UTF8')));
 ```
 
+## 3.1.7 — School accounts join automatically
+
+**Upgrading to 3.1.7:** run the whole updated `supabase-schema.sql` again (safe to re-run).
+
+NVHS school emails are `<first name><first 3 letters of last name><4 digits>@k12.ipsd.org`.
+When someone signs in with a **confirmed** school email (the emailed code
+confirms it; the school blocks Google sign-in for these accounts) and it fits
+exactly one roster name, `msa_status()` makes them a member at once
+(`via = 'school'`), under the roster's spelling of the name. Names with more
+than two parts or hyphens are matched on any part of the last name
+(`msa_email_keys`). An address that fits two roster names waits for the
+approver. If another account had claimed the name, it is flagged.
+
+The roster is loaded the same way as before (MSA → Manage → Edit the list),
+or with a one-time SQL insert that is **not** kept in this repository.
+
 ## How sync works (for maintainers)
 
 - `js/sync.js` is a storage- and backend-agnostic engine. Every write the app

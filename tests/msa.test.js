@@ -257,3 +257,72 @@ test("the roster and the code secret never appear in the code", () => {
   assert.doesNotMatch(block.replace(/name@example\.org/g, ""), /[a-z0-9._-]+@[a-z0-9.-]+\.[a-z]+/i);
   assert.doesNotMatch(block, /insert into public\.msa_roster \(name_key, name\)\s*values/i, "no names written into the schema");
 });
+
+/* ═══════════ 3.1.7 School accounts join automatically ═══════════ */
+const S1 = "77777777-7777-7777-7777-777777777777";
+const S2 = "88888888-8888-8888-8888-888888888888";
+async function school() {
+  const pg = await club();
+  // Supabase records when an email address was confirmed (signing in with the emailed code does it).
+  await pg.exec(`alter table auth.users add column if not exists email_confirmed_at timestamptz`);
+  await rpc(pg, APPROVER, "msa_roster_set", { p_names: ["Amina Yusuf", "Omar Khan", "Adam Al Jallad", "Zayd Faiz-balagam", "Sara Ali", "Sara Alibhai"] });
+  return pg;
+}
+async function student(pg, uid, email, confirmed) {
+  await pg.query(`insert into auth.users (id, email, email_confirmed_at) values ($1, $2, $3)
+    on conflict (id) do update set email = excluded.email, email_confirmed_at = excluded.email_confirmed_at`, [uid, email, confirmed === false ? null : new Date().toISOString()]);
+}
+
+test("school emails: first name + 3 letters of the last name, for every shape of name", async () => {
+  const pg = await school();
+  const keys = async (n) => (await pg.query(`select public.msa_email_keys($1) k`, [n])).rows[0].k.sort();
+  assert.deepEqual(await keys("Amina Yusuf"), ["aminayus"]);
+  assert.deepEqual(await keys("Adam Al Jallad"), ["adamal", "adamalj", "adamjal"]);
+  assert.deepEqual(await keys("Zayd Faiz-balagam"), ["zaydfai"]);
+  assert.deepEqual(await keys("Sara Ali"), ["saraali"]);
+  assert.deepEqual(await keys("Madonna"), []);
+});
+
+test("a confirmed school email on the roster is a member at once, under the roster's name", async () => {
+  const pg = await school();
+  await save(pg, POSTER, { title: "Meeting in room 1234", members_only: true });
+  await student(pg, S1, "aminayus4821@k12.ipsd.org");
+  const st = await rpc(pg, S1, "msa_status");
+  assert.equal(st.status, "approved");
+  assert.equal(st.name, "Amina Yusuf");
+  assert.equal(st.school, true);
+  assert.deepEqual(await feedTitles(pg, S1), ["Meeting in room 1234"]);
+  const people = await rpc(pg, APPROVER, "msa_people");
+  assert.equal(people.find((p) => p.user_id === S1).via, "school");
+  // Odd names work too.
+  await student(pg, S2, "ADAMJAL0007@K12.IPSD.ORG");
+  assert.equal((await rpc(pg, S2, "msa_status")).name, "Adam Al Jallad");
+  // The approver sees who has joined from the roster.
+  const roster = await rpc(pg, APPROVER, "msa_roster_status");
+  assert.equal(roster.find((r) => r.name === "Amina Yusuf").via, "school");
+  assert.equal(roster.find((r) => r.name === "Omar Khan").user_id, null);
+});
+
+test("no automatic membership without proof: unconfirmed, other domains, not on the roster, or two possible names", async () => {
+  const pg = await school();
+  const status = async (email, confirmed) => { await student(pg, S1, email, confirmed); return (await rpc(pg, S1, "msa_status")).status; };
+  assert.equal(await status("aminayus4821@k12.ipsd.org", false), "none", "an address nobody has confirmed proves nothing");
+  assert.equal(await status("aminayus4821@gmail.com"), "none");
+  assert.equal(await status("aminayus4821@k12.ipsd.org.evil.com"), "none");
+  assert.equal(await status("someonenew1234@k12.ipsd.org"), "none", "not on the roster");
+  assert.equal(await status("saraali1234@k12.ipsd.org"), "none", "fits Sara Ali and Sara Alibhai: the approver decides");
+  assert.equal((await rpc(pg, S1, "msa_status")).school, true);
+});
+
+test("the school account owns its name: someone who claimed it first is flagged", async () => {
+  const pg = await school();
+  const code = (await rpc(pg, APPROVER, "msa_live_code")).code;
+  assert.equal((await join(pg, FAKE, "Amina Yusuf", code)).status, "approved");
+  await student(pg, S1, "aminayus4821@k12.ipsd.org");
+  assert.equal((await rpc(pg, S1, "msa_status")).status, "approved");
+  assert.equal((await rpc(pg, FAKE, "msa_status")).status, "flagged");
+  // Expired members re-join by themselves next year.
+  await pg.query(`update public.msa_members set expires_at = now() - interval '1 second' where user_id = $1`, [S1]);
+  assert.equal((await rpc(pg, S1, "msa_status")).status, "approved");
+  await assert.rejects(rpc(pg, S1, "msa_roster_status"), /not the MSA approver/);
+});

@@ -1117,3 +1117,110 @@ grant execute on function public.msa_status(), public.msa_join(text, text), publ
 revoke all on function public.msa_feed(), public.msa_image(uuid), public.msa_post_save(jsonb) from public;
 grant execute on function public.msa_feed(), public.msa_image(uuid) to anon, authenticated;
 grant execute on function public.msa_post_save(jsonb) to authenticated;
+
+-- ════════════════════════════════════════════════════════════════════════
+--  3.1.7 — School accounts join automatically
+--  NVHS school emails look like  <first name><first 3 letters of last
+--  name><4 digits>@k12.ipsd.org. Signing in with the emailed code proves the
+--  person owns that address, so when a signed-in, CONFIRMED school email
+--  matches exactly one roster name, msa_status() makes them a member at once
+--  (via 'school'), under the roster's spelling of their name. If another
+--  account had claimed that name, the school account wins and the other is
+--  flagged. Addresses that fit two roster names wait for the approver.
+-- ════════════════════════════════════════════════════════════════════════
+alter table public.msa_roster add column if not exists keys text[] not null default '{}';
+alter table public.msa_members drop constraint if exists msa_members_via_check;
+alter table public.msa_members add constraint msa_members_via_check check (via in ('request', 'code', 'approver', 'school'));
+
+/**
+ * The school-email beginnings a roster name can have: first name + first 3
+ * letters of the last name. "Adam Al Jallad" → {adamal, adamjal};
+ * "Zayd Faiz-balagam" → {zaydfai}; "Aasiya Syed Osman" → {aasiyasye, aasiyaosm}.
+ */
+create or replace function public.msa_email_keys(n text)
+returns text[] language sql immutable set search_path = public as $$
+    with w as (
+        select array_remove(regexp_split_to_array(regexp_replace(lower(coalesce(n, '')), '[^a-z ]+', '', 'g'), '\s+'), '') as a
+    ), c as (
+        select a[1] as first, a[2:] as rest from w where coalesce(array_length(a, 1), 0) >= 2
+    )
+    select coalesce(array_agg(distinct first || left(part, 3)), '{}')
+    from c, lateral (select unnest(rest) as part union select array_to_string(rest, '')) p
+    where part <> '';
+$$;
+update public.msa_roster set keys = public.msa_email_keys(name) where keys = '{}';
+
+create or replace function public.msa_roster_set(p_names text[])
+returns int language plpgsql security definer set search_path = public as $$
+begin
+    perform public.msa_approver();
+    if coalesce(array_length(p_names, 1), 0) > 2000 then raise exception 'too many names' using errcode = '54000'; end if;
+    delete from public.msa_roster where true;
+    insert into public.msa_roster (name_key, name, keys)
+    select distinct on (public.msa_name_key(n)) public.msa_name_key(n), left(btrim(regexp_replace(n, '\s+', ' ', 'g')), 80), public.msa_email_keys(n)
+    from unnest(coalesce(p_names, '{}')) n
+    where char_length(public.msa_name_key(n)) between 2 and 80
+    on conflict do nothing;
+    return (select count(*) from public.msa_roster);
+end;
+$$;
+
+/** The one roster name a confirmed school email belongs to (or nothing). */
+create or replace function public.msa_school_match()
+returns public.msa_roster language plpgsql stable security definer set search_path = public as $$
+declare u jsonb; mail text; local text; r public.msa_roster; n int;
+begin
+    select to_jsonb(x) into u from auth.users x where x.id = auth.uid();
+    mail := lower(btrim(coalesce(u->>'email', '')));
+    if mail !~ '^[a-z]+[0-9]*@k12\.ipsd\.org$' or coalesce(u->>'email_confirmed_at', '') = '' then return null; end if;
+    local := regexp_replace(split_part(mail, '@', 1), '[0-9]+$', '');
+    select count(*) into n from public.msa_roster where local = any(keys);
+    if n <> 1 then return null; end if;
+    select * into r from public.msa_roster where local = any(keys);
+    return r;
+end;
+$$;
+
+/** Where the signed-in person stands — a matching school account joins here. */
+create or replace function public.msa_status()
+returns jsonb language plpgsql volatile security definer set search_path = public as $$
+declare uid uuid := auth.uid(); m public.msa_members; r public.msa_roster; mail text := coalesce(public.msa_my_email(), '');
+begin
+    if uid is null then raise exception 'not signed in' using errcode = '28000'; end if;
+    select * into m from public.msa_members where user_id = uid;
+    if not coalesce(m.status = 'approved' and m.expires_at > now(), false) then
+        r := public.msa_school_match();
+        if r.name_key is not null then
+            -- The school account is the real owner of the name.
+            update public.msa_members set status = 'flagged', decided_at = now(), expires_at = null
+            where name_key = r.name_key and user_id <> uid and status = 'approved';
+            insert into public.msa_members as x (user_id, name, name_key, status, via, on_roster, created_at, decided_at, expires_at)
+            values (uid, r.name, r.name_key, 'approved', 'school', true, now(), now(), public.msa_year_end())
+            on conflict (user_id) do update set name = excluded.name, name_key = excluded.name_key, status = 'approved',
+                via = 'school', on_roster = true, decided_at = now(), expires_at = excluded.expires_at
+            returning * into m;
+        end if;
+    end if;
+    return public.msa_member_json(m) || jsonb_build_object(
+        'approver', public.msa_is_approver_now(),
+        'poster', exists (select 1 from public.msa_admins where email_hash = sha256(convert_to(mail, 'UTF8'))),
+        'email', mail,
+        'school', mail ~ '@k12\.ipsd\.org$');
+end;
+$$;
+
+/** The roster with who has joined (for the approver). */
+create or replace function public.msa_roster_status()
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+begin
+    perform public.msa_approver();
+    return coalesce((select jsonb_agg(jsonb_build_object('name', r.name, 'user_id', m.user_id, 'via', m.via, 'email', u.email) order by r.name)
+        from public.msa_roster r
+        left join public.msa_members m on m.name_key = r.name_key and m.status = 'approved' and m.expires_at > now()
+        left join auth.users u on u.id = m.user_id), '[]'::jsonb);
+end;
+$$;
+
+revoke all on function public.msa_email_keys(text), public.msa_school_match() from public, anon, authenticated;
+revoke all on function public.msa_status(), public.msa_roster_status() from public, anon;
+grant execute on function public.msa_status(), public.msa_roster_status() to authenticated;

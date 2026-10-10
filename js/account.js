@@ -280,6 +280,8 @@
     rememberReturn();
     return client().then(function (c) {
       var opts = { provider: provider, options: { redirectTo: returnUrl() } };
+      // Google: always ask which account, instead of silently reusing the last one (3.1.7).
+      if (provider === "google") opts.options.queryParams = { prompt: "select_account" };
       return (link ? c.auth.linkIdentity(opts) : c.auth.signInWithOAuth(opts)).then(function (r) {
         if (r.error) throw r.error;
         // The browser now leaves for Apple/Google and comes back signed in.
@@ -1142,7 +1144,8 @@
     signedIn: function () { return !!state.user; },
     user: function () { return state.user; },
     configured: configured,
-    openSignIn: function () { openDialog("methods"); },
+    /** Open sign-in. method "email" goes straight to "email me a code" (3.1.7: school accounts). */
+    openSignIn: function (method) { if (method === "email") { dlgCtx = {}; openDialog("email"); } else openDialog("methods"); },
     signOut: signOut,
     syncNow: function () { return state.user ? engine.sync() : Promise.resolve([]); },
     /** The Supabase client (3.0 Family uses its RPCs). Rejects when accounts aren't configured or offline. */

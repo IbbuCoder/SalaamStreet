@@ -1944,3 +1944,38 @@ html[data-theme="dark"] .badge-warn{color:#fcd34d}
 .msa-flag-note{color:#b45309;font-weight:600}
 html[data-theme="dark"] .msa-flag-note{color:#fcd34d}
 .msa-roster-in{min-block-size:180px;resize:vertical;line-height:1.5;margin-block:8px 4px}
+
+/* ── 3.1.7 School accounts, simpler Manage page ───────────────── */
+.msa-school{display:flex;flex-direction:column;gap:10px;margin-block-end:14px;border:2px solid var(--primary);background:linear-gradient(180deg,var(--primary-soft),var(--surface) 70%)}
+.msa-school h2{display:flex;align-items:center;gap:8px;margin:0}
+.msa-school h2 .ic{inline-size:22px;block-size:22px;color:var(--primary-strong)}
+.msa-school .btn{align-self:flex-start}
+.msa-school-now{margin:0;color:var(--text-2);font-size:.9rem;overflow-wrap:anywhere}
+.msa-steps{margin:0;padding-inline-start:1.3em;display:grid;gap:4px;font-weight:600}
+.msa-not-google{display:flex;align-items:center;gap:6px;margin:0;font-weight:800;color:var(--danger)}
+.msa-not-google .ic{inline-size:18px;block-size:18px;flex:none}
+.msa-join.notfound .msa-join-ic{background:var(--surface-2);color:var(--text-2)}
+.msa-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-block-end:6px}
+.msa-stat{display:flex;flex-direction:column;align-items:center;gap:2px;padding:12px 6px;border-radius:var(--radius-sm);background:var(--surface);border:1px solid var(--border);text-align:center}
+.msa-stat b{font-size:1.4rem;line-height:1.2;font-variant-numeric:tabular-nums}
+.msa-stat span{font-size:.78rem;color:var(--text-3);font-weight:700}
+.msa-stat.warn{border-color:color-mix(in srgb,#f59e0b 55%,var(--border));background:color-mix(in srgb,#f59e0b 8%,var(--surface))}
+.msa-caught{display:flex;align-items:center;gap:8px;margin:0;color:var(--primary-strong);font-weight:700}
+.msa-caught .ic{inline-size:18px;block-size:18px}
+#msa-manage > details{margin-block-start:18px}
+#msa-manage details > summary{display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:800;list-style:none;min-block-size:28px}
+#msa-manage details > summary::-webkit-details-marker{display:none}
+#msa-manage details > summary .ic{inline-size:18px;block-size:18px;color:var(--primary-strong)}
+.msa-code-wrap[open] > summary{margin-block-end:12px}
+.msa-code-wrap .msa-code-card{border-radius:var(--radius-sm);padding:16px}
+.msa-edit[open] > summary{margin-block-end:8px}
+.msa-roster-list{display:grid;gap:6px}
+.msa-row{display:flex;align-items:center;gap:10px;padding:8px 10px 8px 14px;border-radius:var(--radius-sm);background:var(--surface);border:1px solid var(--border);min-block-size:48px}
+.msa-row.in{border-color:color-mix(in srgb,var(--primary) 40%,var(--border))}
+.msa-row-n{flex:1;min-inline-size:0;font-weight:700;overflow-wrap:anywhere}
+.msa-row-s{display:inline-flex;align-items:center;gap:4px;font-size:.8rem;font-weight:700;color:var(--primary-strong);flex:none}
+.msa-row-s .ic{inline-size:14px;block-size:14px}
+.msa-row-s.no{color:var(--text-3);font-weight:600}
+.msa-row .icon-btn{color:var(--danger)}
+.msa-future{display:flex;align-items:flex-start;gap:8px;margin-block-start:20px}
+.msa-future .ic{inline-size:18px;block-size:18px;flex:none;margin-block-start:2px}

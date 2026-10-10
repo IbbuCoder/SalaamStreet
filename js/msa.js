@@ -205,12 +205,7 @@
         esc(st === "approved" ? f("msa.memberUntil", { d: dateLabel(me.expires_at) }) : t(me.approver ? "msa.youApprove" : "msa.youPost")) + "</span></p>";
       return;
     }
-    if (!signedIn()) {
-      el.innerHTML = '<div class="card msa-join"><div class="msa-join-t"><b>' + esc(t("msa.joinTitle")) + "</b><span>" + esc(t("msa.joinSignIn")) + "</span></div>" +
-        '<button class="btn btn-sm" type="button" id="msa-join-signin">' + esc(t("msa.signInToJoin")) + "</button></div>";
-      $("msa-join-signin").onclick = function () { SS.account.openSignIn(); };
-      return;
-    }
+    if (!signedIn()) { el.innerHTML = schoolHtml(false); wireSchool(el); return; }
     if (st === "pending" || st === "flagged") {
       el.innerHTML = '<div class="card msa-join ' + st + '" role="status"><span class="msa-join-ic" aria-hidden="true">' + icon(st === "flagged" ? "users" : "clock") + "</span>" +
         '<div class="msa-join-t"><b>' + esc(t(st === "flagged" ? "msa.flaggedTitle" : "msa.pendingTitle")) + "</b><span>" +
@@ -223,12 +218,36 @@
       if ($("msa-have-code")) $("msa-have-code").onclick = function () { joinForm(el, me.name); };
       return;
     }
-    joinForm(el, "");
+    // Not a member yet: the school-email way first, then the meeting code or a request.
+    el.innerHTML = (me.school ? '<div class="card msa-join notfound" role="status"><span class="msa-join-ic" aria-hidden="true">' + icon("search") + "</span>" +
+      '<div class="msa-join-t"><b>' + esc(t("msa.notOnListTitle")) + "</b><span>" + esc(f("msa.notOnListText", { e: me.email || "" })) + "</span></div></div>"
+      : schoolHtml(true)) + '<div id="msa-join-other"></div>';
+    wireSchool(el);
+    joinForm($("msa-join-other"), "");
+  }
+  /** "NVHS student? Sign in with your school email — not Google — and you're in." */
+  function schoolHtml(signedInElsewhere) {
+    return '<section class="card msa-school" aria-labelledby="msa-school-h">' +
+      '<h2 class="h-sm" id="msa-school-h">' + icon("users") + "<span>" + esc(t("msa.schoolTitle")) + "</span></h2>" +
+      (signedInElsewhere ? '<p class="msa-school-now">' + esc(f("msa.signedInAs", { e: me.email || "" })) + "</p>" : "") +
+      '<ol class="msa-steps"><li>' + esc(t("msa.step1")) + "</li><li>" + esc(t("msa.step2")) + "</li><li>" + esc(t("msa.step3")) + "</li></ol>" +
+      '<p class="msa-not-google">' + icon("x") + "<span>" + esc(t("msa.notGoogle")) + "</span></p>" +
+      '<button class="btn" type="button" id="msa-school-go">' + icon("mail") + "<span>" + esc(t(signedInElsewhere ? "msa.switchToSchool" : "msa.signInSchool")) + "</span></button>" +
+      '<p class="tiny">' + esc(t("msa.schoolNote")) + "</p></section>";
+  }
+  function wireSchool(el) {
+    var b = el.querySelector("#msa-school-go");
+    if (!b) return;
+    b.onclick = function () {
+      if (!signedIn()) { SS.account.openSignIn("email"); return; }
+      b.disabled = true;
+      SS.account.signOut(true).then(function () { SS.account.openSignIn("email"); }, function () { b.disabled = false; });
+    };
   }
   function joinForm(el, name) {
     var denied = me.status === "denied";
     el.innerHTML = '<form class="card msa-join-form" id="msa-join" novalidate>' +
-      '<h2 class="h-sm">' + esc(t("msa.joinTitle")) + "</h2>" +
+      '<h2 class="h-sm">' + esc(t("msa.otherWay")) + "</h2>" +
       '<p class="tiny">' + esc(t(denied ? "msa.deniedText" : "msa.joinHelp")) + "</p>" +
       '<label class="field-l" for="msa-j-name"><b>' + esc(t("msa.fullName")) + "</b></label>" +
       '<input class="input" id="msa-j-name" autocomplete="name" maxlength="80" value="' + esc(name) + '" aria-describedby="msa-j-err" />' +
@@ -278,18 +297,24 @@
       root.innerHTML =
         '<a class="back-link" href="#/msa">' + icon("chev-l", "flip") + "<span>" + esc(t("msa.club")) + "</span></a>" +
         '<h2 class="h-sm msa-manage-h">' + esc(t("msa.manage")) + "</h2>" +
-        '<article class="card msa-code-card" aria-labelledby="msa-code-h"><h3 id="msa-code-h">' + esc(t("msa.liveCode")) + "</h3>" +
-        '<p class="msa-code" id="msa-code" aria-live="polite">······</p>' +
+        '<div class="msa-stats" id="msa-stats" aria-live="polite"></div>' +
+        '<section aria-labelledby="msa-req-h"><h3 class="group-label" id="msa-req-h">' + esc(t("msa.needsYou")) + '</h3><div class="stack" id="msa-req"></div></section>' +
+        '<details class="card msa-code-wrap" id="msa-code-wrap"><summary>' + icon("lock") + "<span>" + esc(t("msa.showCode")) + "</span></summary>" +
+        '<div class="msa-code-card"><p class="msa-code" id="msa-code" aria-live="polite">······</p>' +
         '<div class="msa-code-bar" aria-hidden="true"><span id="msa-code-bar"></span></div>' +
-        '<p class="tiny" id="msa-code-left"></p><p class="tiny">' + esc(t("msa.liveCodeHelp")) + "</p></article>" +
-        '<section aria-labelledby="msa-req-h"><h3 class="group-label" id="msa-req-h">' + esc(t("msa.requests")) + '</h3><div class="stack" id="msa-req"></div></section>' +
-        '<section aria-labelledby="msa-mem-h"><h3 class="group-label" id="msa-mem-h">' + esc(t("msa.members")) + '</h3><div class="stack" id="msa-mem"></div></section>' +
-        '<section aria-labelledby="msa-roster-h"><h3 class="group-label" id="msa-roster-h">' + esc(t("msa.roster")) + "</h3>" +
-        '<form class="card" id="msa-roster" novalidate><p class="tiny" id="msa-roster-help">' + esc(t("msa.rosterHelp")) + "</p>" +
+        '<p class="tiny" id="msa-code-left"></p><p class="tiny">' + esc(t("msa.liveCodeHelp")) + "</p></div></details>" +
+        '<section aria-labelledby="msa-list-h"><h3 class="group-label" id="msa-list-h">' + esc(t("msa.theList")) + "</h3>" +
+        '<div class="search mb-1">' + icon("search") + '<label class="visually-hidden" for="msa-find">' + esc(t("msa.findName")) + "</label>" +
+        '<input class="input" id="msa-find" type="search" autocomplete="off" placeholder="' + esc(t("msa.findName")) + '" /></div>' +
+        '<div class="msa-roster-list" id="msa-mem"></div></section>' +
+        '<details class="card msa-edit" id="msa-edit"><summary>' + icon("edit") + "<span>" + esc(t("msa.editList")) + "</span></summary>" +
+        '<form id="msa-roster" novalidate><p class="tiny" id="msa-roster-help">' + esc(t("msa.rosterHelp")) + "</p>" +
         '<label class="visually-hidden" for="msa-roster-in">' + esc(t("msa.roster")) + "</label>" +
         '<textarea class="input msa-roster-in" id="msa-roster-in" rows="8" aria-describedby="msa-roster-help msa-roster-n"></textarea>' +
-        '<p class="tiny" id="msa-roster-n"></p><button class="btn btn-sm" type="submit">' + esc(t("msa.saveRoster")) + "</button></form></section>";
-      liveCode(my);
+        '<p class="tiny" id="msa-roster-n"></p><button class="btn btn-sm" type="submit">' + esc(t("msa.saveRoster")) + "</button></form></details>" +
+        '<p class="note msa-future">' + icon("info") + "<span>" + esc(t("msa.futureNote")) + "</span></p>";
+      $("msa-code-wrap").addEventListener("toggle", function () { if (this.open) liveCode(my); else stopCode(); });
+      $("msa-find").oninput = function () { drawList(); };
       people(my);
       rpc("msa_roster_get").then(function (names) {
         if (my !== pageGen || !$("msa-roster-in")) return;
@@ -341,13 +366,22 @@
     load();
     codeTimer = setInterval(tick, 1000);
   }
+  var roster = [], others = [];
   function people(my) {
-    rpc("msa_people").then(function (list) {
+    Promise.all([rpc("msa_people"), rpc("msa_roster_status")]).then(function (r) {
       if (my !== pageGen || !$("msa-req")) return;
-      list = list || [];
-      var reqs = list.filter(function (p) { return p.status !== "approved"; }), mems = list.filter(function (p) { return p.status === "approved"; });
-      $("msa-req").innerHTML = reqs.length ? reqs.map(personRow).join("") : '<p class="muted">' + esc(t("msa.noRequests")) + "</p>";
-      $("msa-mem").innerHTML = mems.length ? mems.map(personRow).join("") : '<p class="muted">' + esc(t("msa.noMembers")) + "</p>";
+      var list = r[0] || [];
+      roster = r[1] || [];
+      var onList = {};
+      roster.forEach(function (x) { if (x.user_id) onList[x.user_id] = 1; });
+      var reqs = list.filter(function (p) { return p.status === "flagged" || p.status === "pending"; });
+      others = list.filter(function (p) { return p.status === "approved" && !onList[p.user_id]; });
+      var joined = roster.filter(function (x) { return x.user_id; }).length;
+      var members = list.filter(function (p) { return p.status === "approved"; }).length;
+      $("msa-stats").innerHTML = stat(members, t("msa.statMembers")) + stat(reqs.length, t("msa.statWaiting"), reqs.length ? "warn" : "") +
+        stat(joined + "/" + roster.length, t("msa.statJoined"));
+      $("msa-req").innerHTML = reqs.length ? reqs.map(personRow).join("") : '<p class="msa-caught">' + icon("check") + "<span>" + esc(t("msa.caughtUp")) + "</span></p>";
+      drawList();
       $("msa-manage").onclick = function (e) {
         var b = e.target.closest("[data-act]");
         if (!b) return;
@@ -365,6 +399,25 @@
     }).catch(function () {
       if ($("msa-req")) SS.ui.renderState($("msa-req"), { kind: "error", retry: function () { people(my); } });
     });
+  }
+  function stat(n, label, cls) {
+    return '<div class="msa-stat' + (cls ? " " + cls : "") + '"><b>' + esc(String(n)) + "</b><span>" + esc(label) + "</span></div>";
+  }
+  /** The list: everyone on the roster (joined or not), then members who joined another way. */
+  function drawList() {
+    var el = $("msa-mem");
+    if (!el) return;
+    var q = (($("msa-find") && $("msa-find").value) || "").trim().toLowerCase();
+    var match = function (n) { return !q || String(n || "").toLowerCase().indexOf(q) > -1; };
+    var rows = roster.filter(function (x) { return match(x.name); }).map(function (x) {
+      return '<div class="msa-row' + (x.user_id ? " in" : "") + '"><span class="msa-row-n">' + esc(x.name) + "</span>" +
+        (x.user_id ? '<span class="msa-row-s">' + icon("check") + "<span>" + esc(t("msa.via_" + x.via)) + "</span></span>" +
+          '<button class="icon-btn msa-del" type="button" data-act="remove" data-user="' + esc(x.user_id) + '" data-name="' + esc(x.name) + '" aria-label="' + esc(f("msa.removeConfirm", { n: x.name })) + '">' + icon("x") + "</button>"
+          : '<span class="msa-row-s no">' + esc(t("msa.notYet")) + "</span>") + "</div>";
+    });
+    var extra = others.filter(function (p) { return match(p.name); });
+    el.innerHTML = (rows.length ? rows.join("") : '<p class="muted">' + esc(t(roster.length ? "msa.noMatch" : "msa.noRosterYet")) + "</p>") +
+      (extra.length ? '<p class="group-label mt-2">' + esc(t("msa.othersJoined")) + "</p>" + extra.map(personRow).join("") : "");
   }
   function personRow(p) {
     var badge = p.status === "flagged" ? '<span class="badge badge-warn">' + icon("users") + "<span>" + esc(t("msa.flaggedBadge")) + "</span></span>"

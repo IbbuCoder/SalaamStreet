@@ -86,6 +86,10 @@ laptops and large monitors. Core worship features are, and will stay, free.
   a second claim flagged for an in-person check; members-only announcements. Full notes:
   [`release-notes/3.1.6.md`](release-notes/3.1.6.md)
 
+- **3.1.7 — NVHS MSA: join with your school email:** students on the roster who sign in with their school email
+  (emailed code, not Google) are accepted automatically; simpler Manage page; Google always asks which account. Full
+  notes: [`release-notes/3.1.7.md`](release-notes/3.1.7.md)
+
 ## Planned (no release dates; plans may change)
 
 The plan after 3.0 lives in [`ROADMAP.md`](../ROADMAP.md) (with status, dependencies, risks and completion

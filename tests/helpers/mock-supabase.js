@@ -35,6 +35,8 @@ async function familyDb() {
   `);
   await pg.exec(fs.readFileSync(path.join(__dirname, "..", "..", "backend", "supabase-schema.sql"), "utf8"));
   await pg.exec("grant select, insert, update, delete on all tables in schema public to authenticated, anon;");
+  // Supabase records when an address was confirmed; the mock's email-code sign-in confirms it.
+  await pg.exec("alter table auth.users add column if not exists email_confirmed_at timestamptz;");
   return pg;
 }
 
@@ -246,7 +248,7 @@ function createMock(opts) {
   function familyRpc(route, fn, body, u) {
     const run = queue.then(async () => {
       const pg = opts.pg, uid = u ? u.id : "";
-      if (uid) await pg.query("insert into auth.users (id, email) values ($1, $2) on conflict (id) do update set email = excluded.email", [uid, u.email || null]);
+      if (uid) await pg.query("insert into auth.users (id, email, email_confirmed_at) values ($1, $2, $3) on conflict (id) do update set email = excluded.email, email_confirmed_at = excluded.email_confirmed_at", [uid, u.email || null, u.email_confirmed_at || null]);
       const names = Object.keys(body || {}).filter((n) => /^p(_[a-z_]+)?$/.test(n));
       // Objects go in as JSON; arrays as Postgres arrays (text[]), as PostgREST does.
       const args = names.map((n) => (body[n] !== null && typeof body[n] === "object" && !Array.isArray(body[n]) ? JSON.stringify(body[n]) : body[n]));
