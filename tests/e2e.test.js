@@ -335,7 +335,7 @@ test("qibla camera mode: live camera, real direction overlay, clear exit", async
   await context.close();
 });
 
-test("qibla camera mode (3.1.8): an iPhone held upright stays steady — no 180° spin when its angles flip", async () => {
+test("qibla camera mode (2.11.8): an iPhone held upright stays steady — no 180° spin when its angles flip", async () => {
   const { page, context } = await device();
   await context.grantPermissions(["camera"], { origin: base.slice(0, -1) });
   await open(page, "#/qibla");
@@ -376,7 +376,7 @@ test("qibla camera mode (3.1.8): an iPhone held upright stays steady — no 180�
   await context.close();
 });
 
-test("qibla camera mode (3.1.8): opened from a link or a reload, the overlay gets the Qibla once the location arrives", async () => {
+test("qibla camera mode (2.11.8): opened from a link or a reload, the overlay gets the Qibla once the location arrives", async () => {
   const { page, context } = await device();
   await context.grantPermissions(["camera"], { origin: base.slice(0, -1) });
   await open(page, "#/qibla/camera");
@@ -461,7 +461,7 @@ test("guest mode: everything works, no account prompts, no account network traff
   const mock = createMock();
   const { page, context } = await device({ mock });
   const supabaseHits = [];
-  // The MSA's public announcements (3.1) are read without an account; nothing else may reach Supabase.
+  // The MSA's public announcements (2.11) are read without an account; nothing else may reach Supabase.
   page.on("request", (r) => { if (/supabase/.test(r.url()) && !/\/rest\/v1\/rpc\/msa_(feed|image)$/.test(r.url())) supabaseHits.push(r.url()); });
   for (const v of ["#/home", "#/prayer", "#/qibla", "#/quran", "#/surah/1", "#/duas", "#/dhikr", "#/adhkar", "#/names", "#/learn", "#/calendar", "#/settings", "#/about"]) {
     await open(page, v);
@@ -764,7 +764,7 @@ test("ayah of the day: Listen plays just that ayah in the shared player", async 
   await context.close();
 });
 
-test("NVHS MSA (3.1): in the sidebar and the More menu, and old #/msa links open it", async () => {
+test("NVHS MSA (2.11): in the sidebar and the More menu, and old #/msa links open it", async () => {
   const { page, context } = await device({ context: { viewport: { width: 1440, height: 900 } } });
   await open(page, "#/msa");
   assert.equal(await page.isVisible("#view-msa"), true);
@@ -1152,7 +1152,7 @@ test("stories: Play recites each slide and moves on by itself; Pause stops", asy
   await context.close();
 });
 
-/* ═══════════ 3.0 Modes ═══════════ */
+/* ═══════════ 2.10 Modes ═══════════ */
 const ISTANBUL = { lat: 41.01, lng: 28.98 };
 /** City search (AlAdhan timingsByAddress) and nearby mosques (Overpass), mocked. */
 async function modeApis(context) {
@@ -1708,7 +1708,7 @@ test("modes: no horizontal overflow on phone, tablet and desktop, in light and d
   await pg.close();
 });
 
-/* ═══════════ 3.1 NVHS MSA ═══════════ */
+/* ═══════════ 2.11 NVHS MSA ═══════════ */
 test("msa: a poster posts an announcement with a photo; everyone sees it on the MSA page and Home; nobody else can post", async () => {
   const pg = await familyDb();
   // The real list holds the MSA's own accounts (as hashes); the test adds one of its own the same way.
@@ -1948,7 +1948,7 @@ test("msa school accounts: sign in with the school email (not Google) and you're
   await pg.close();
 });
 
-test("msa admins (3.1.8): add a student by email, approve everyone on the list at once, download the list, add and remove admins", async () => {
+test("msa admins (2.11.8): add a student by email, approve everyone on the list at once, download the list, add and remove admins", async () => {
   const pg = await familyDb();
   await pg.query(`insert into public.msa_admins (email_hash) values (sha256(convert_to('approver@example.org', 'UTF8')))`);
   await pg.query(`insert into public.msa_roster (name_key, name, keys) values ('omar khan', 'Omar Khan', public.msa_email_keys('Omar Khan'))`);

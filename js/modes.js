@@ -1,5 +1,5 @@
 /* SalaamStreet — modes.js (classic script)
-   3.0 Modes: one SalaamStreet, five ways to use it.
+   2.10 Modes: one SalaamStreet, five ways to use it.
 
    • The registry below says, per mode, which tools Home puts first, which Home
      blocks step back, and which module draws the mode's dashboard. Modes reuse
@@ -32,7 +32,7 @@
     prayer: ["#/prayer", "clock", "nav.prayerShort"], calendar: ["#/calendar", "calendar", "nav.calendar"],
     travelDuas: ["#/duas/travel", "heart", "modes.travelDuas"],
   };
-  /* The modes. icon: the app's own icon (3.1.5: no emoji); home: quick links on
+  /* The modes. icon: the app's own icon (2.11.5: no emoji); home: quick links on
      Home, in order; hide: Home blocks that step back while the mode is on
      (data-home="…" in index.html). Kids Mode isn't in the picker: it belongs
      to a child's device and is set up from the Family page. */
@@ -236,7 +236,7 @@
     for (var i = 0; i < blocks.length; i++) {
       blocks[i].classList.toggle("mode-hidden", m.hide.indexOf(blocks[i].getAttribute("data-home")) > -1 || (quietOn() && blocks[i].getAttribute("data-quiet") === "hide"));
     }
-    // 3.1.5: the mode's answer lives inside the prayer card, not in a box of its own.
+    // 2.11.5: the mode's answer lives inside the prayer card, not in a box of its own.
     var panel = $("mode-home"), hero = panel && panel.closest(".hero");
     if (!panel) return;
     if (hero) hero.setAttribute("data-m", id);

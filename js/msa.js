@@ -1,5 +1,5 @@
 /* SalaamStreet — msa.js (classic script)
-   3.1 NVHS MSA: the Neuqua Valley High School Muslim Student Association's
+   2.11 NVHS MSA: the Neuqua Valley High School Muslim Student Association's
    announcements, at #/msa, and the newest "show on Home" announcement as a
    slim card on everyone's Home.
 
@@ -7,14 +7,14 @@
      function over plain fetch (guests never download the account client).
      The last feed is kept on the device so the page works offline.
    • Posting is for the MSA's admins only — signed-in accounts whose email is
-     on the admin list (3.1.8: one list, managed on #/msa/manage). The
+     on the admin list (2.11.8: one list, managed on #/msa/manage). The
      database checks this on every write; the app only decides whether to
      show the buttons.
    • Images are shrunk and re-drawn on the poster's device before upload, which
      also strips camera and location metadata. Each image is fetched on its own
      (msa_image) so the feed stays small.
    • Kids Mode never shows any of this.
-   3.1.6 membership: "members only" announcements reach approved members
+   2.11.6 membership: "members only" announcements reach approved members
    (and posters) only — the database leaves them out for everyone else. A
    signed-in person joins with their full name and either the live meeting
    code (6 digits, changes every 10 minutes, shown only to the approver) or a
@@ -192,7 +192,7 @@
   }
   function footer() {
     var el = $("msa-foot");
-    // 3.1.6: signing in now starts from the "Join the NVHS MSA" card.
+    // 2.11.6: signing in now starts from the "Join the NVHS MSA" card.
     el.innerHTML = "";
   }
 
@@ -283,7 +283,7 @@
   }
 
   /* ═══════════ #/msa/manage — the admins' page ═══════════
-     3.1.8: one list of admins (they post AND manage). At a glance: members,
+     2.11.8: one list of admins (they post AND manage). At a glance: members,
      waiting, how much of the list joined, who joined this week. Quick
      actions: new announcement, approve everyone waiting who's on the list,
      download the list. Students: add one (with the email they sign in with,

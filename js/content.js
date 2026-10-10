@@ -224,10 +224,10 @@
   ];
 
   /* ── Version & release notes (newest first) ──────────────────────── */
-  SS.VERSION = "3.1.8";
+  SS.VERSION = "2.11.8";
   SS.CHANGELOG = [
     {
-      v: "3.1.8", date: "2026-10-10",
+      v: "2.11.8", date: "2026-10-10",
       en: "Steadier Qibla camera, MSA admins", ar: "كاميرا قبلة أثبت، ومشرفو الرابطة",
       den: "The Qibla camera no longer jumps or flickers, and the NVHS MSA has one list of admins who post and manage — with new tools to add students and admins.",
       dar: "لم تعد كاميرا القبلة تقفز أو ترتعش، وصار لرابطة NVHS قائمة مشرفين واحدة تنشر وتدير — مع أدوات جديدة لإضافة الطلاب والمشرفين.",
@@ -251,7 +251,7 @@
       ],
     },
     {
-      v: "3.1.7", date: "2026-10-10",
+      v: "2.11.7", date: "2026-10-10",
       en: "NVHS MSA: join with your school email", ar: "رابطة NVHS: انضم ببريد المدرسة",
       den: "NVHS students on the MSA's list sign in with their school email and are accepted automatically — and managing the MSA is simpler.",
       dar: "يسجّل طلاب NVHS المدرجون في قائمة الرابطة الدخول ببريد المدرسة ويُقبلون تلقائيًا — وصارت إدارة الرابطة أسهل.",
@@ -274,7 +274,7 @@
       ],
     },
     {
-      v: "3.1.6", date: "2026-10-09",
+      v: "2.11.6", date: "2026-10-09",
       en: "NVHS MSA members", ar: "أعضاء رابطة NVHS",
       den: "Join the NVHS MSA in the app — with the code shown at a meeting, or by asking — and see members-only announcements.",
       dar: "انضم إلى رابطة NVHS من التطبيق — برمز يُعرض في الاجتماع أو بطلب — وشاهد الإعلانات الخاصة بالأعضاء.",
@@ -295,7 +295,7 @@
       ],
     },
     {
-      v: "3.1.5", date: "2026-10-09",
+      v: "2.11.5", date: "2026-10-09",
       en: "Modes, made useful", ar: "أوضاع أنفع",
       den: "Each mode now answers one question the moment you open the app — and switching takes one tap.",
       dar: "صار كل وضع يجيب عن سؤال واحد بمجرد فتح التطبيق — والتبديل بلمسة واحدة.",
@@ -321,7 +321,7 @@
       ],
     },
     {
-      v: "3.1.0", date: "2026-10-09",
+      v: "2.11.0", date: "2026-10-09",
       en: "NVHS MSA", ar: "رابطة الطلاب المسلمين في NVHS",
       den: "A home for the Neuqua Valley High School Muslim Student Association: its announcements, with pictures, for everyone.",
       dar: "مكان لرابطة الطلاب المسلمين في مدرسة نيوكوا فالي الثانوية: إعلاناتها بالصور للجميع.",
@@ -337,7 +337,7 @@
       ],
     },
     {
-      v: "3.0.0", date: "2026-10-08",
+      v: "2.10.0", date: "2026-10-08",
       en: "Modes", ar: "الأوضاع",
       den: "A new way to experience SalaamStreet: five Modes that put the right tools first for what you're doing — at home, travelling, learning as a child, on Hajj or Umrah, or at the mosque.",
       dar: "طريقة جديدة لاستخدام سلام ستريت: خمسة أوضاع تقدّم الأدوات المناسبة لما تفعله — في البيت، أو في السفر، أو تعلّم الأطفال، أو في الحج والعمرة، أو في المسجد.",
@@ -638,31 +638,34 @@
   });
   /* What's planned — honest plans in order, never dates. Nothing here is released yet. */
   SS.ROADMAP = [
-    { v: "3.2.0", icon: "user", en: "Personalization", ar: "التخصيص",
+    { v: "3.0.0", icon: "sparkle", en: "The AI update", ar: "تحديث الذكاء الاصطناعي",
+      den: "SalaamStreet AI: ask a question and get help finding answers in the Qur'an, authentic hadith and the app's own content — always quoting and citing its sources, never issuing rulings.",
+      dar: "سلام ستريت بالذكاء الاصطناعي: اسأل سؤالًا واحصل على مساعدة في إيجاد الإجابات في القرآن والأحاديث الصحيحة ومحتوى التطبيق — يقتبس مصادره ويذكرها دائمًا، ولا يُصدر فتاوى." },
+    { v: "3.1.0", icon: "user", en: "Personalization", ar: "التخصيص",
       den: "A Home screen you arrange yourself: dashboard cards, favourite tools and shortcuts, more notification choices and better mode suggestions.",
       dar: "شاشة رئيسية ترتّبها بنفسك: بطاقات وأدوات مفضلة واختصارات، وخيارات أكثر للتنبيهات، واقتراحات أفضل للأوضاع." },
-    { v: "3.3.0", icon: "book", en: "Qur'an Experience", ar: "تجربة القرآن",
+    { v: "3.2.0", icon: "book", en: "Qur'an Experience", ar: "تجربة القرآن",
       den: "A more cohesive reader: reading history, more translations side by side, better audio and repeat controls, and memorization progress.",
       dar: "قارئ أكثر تكاملًا: سجل القراءة، وترجمات أكثر جنبًا إلى جنب، وتحكم أفضل بالصوت والتكرار، وتتبع الحفظ." },
-    { v: "3.4.0", icon: "mosque", en: "Community: mosque pages", ar: "المجتمع: صفحات المساجد",
+    { v: "3.3.0", icon: "mosque", en: "Community: mosque pages", ar: "المجتمع: صفحات المساجد",
       den: "Mosque pages with verified Jumu'ah and iqamah times, events and announcements, built on the NVHS MSA page — and shown in Mosque Mode.",
       dar: "صفحات للمساجد بأوقات جمعة وإقامة وفعاليات وإعلانات موثقة، مبنية على صفحة رابطة NVHS — وتظهر في وضع المسجد." },
-    { v: "3.5.0", icon: "open-book", en: "Islamic Learning", ar: "التعلّم الإسلامي",
+    { v: "3.4.0", icon: "open-book", en: "Islamic Learning", ar: "التعلّم الإسلامي",
       den: "Organized learning paths with lessons, quizzes and flashcards — Seerah, history and hadith — shared with Kids Mode.",
       dar: "مسارات تعلّم منظّمة بدروس واختبارات وبطاقات — السيرة والتاريخ والحديث — مشتركة مع وضع الأطفال." },
-    { v: "3.6.0", icon: "moon", en: "Ramadan Experience", ar: "تجربة رمضان",
+    { v: "3.5.0", icon: "moon", en: "Ramadan Experience", ar: "تجربة رمضان",
       den: "A fuller Ramadan dashboard: suhoor and iftar, fasting tracker, Qur'an goals, Laylat al-Qadr and an Eid countdown — a seasonal feature, not another mode.",
       dar: "لوحة رمضان أشمل: السحور والإفطار، ومتابعة الصيام، وأهداف القرآن، وليلة القدر، والعد التنازلي للعيد — ميزة موسمية لا وضعًا آخر." },
-    { v: "3.7.0", icon: "compass", en: "Advanced Islamic Tools", ar: "أدوات إسلامية متقدمة",
+    { v: "3.6.0", icon: "compass", en: "Advanced Islamic Tools", ar: "أدوات إسلامية متقدمة",
       den: "A Hijri date converter, a zakat calculator, better tool search and more that works offline — with every assumption explained.",
       dar: "محوّل التاريخ الهجري، وحاسبة الزكاة، وبحث أفضل في الأدوات، والمزيد مما يعمل دون اتصال — مع شرح كل افتراض." },
-    { v: "3.8.0", icon: "users", en: "Family Ecosystem", ar: "منظومة العائلة",
+    { v: "3.7.0", icon: "users", en: "Family Ecosystem", ar: "منظومة العائلة",
       den: "Building on Kids Mode: shared family learning goals, better progress summaries and family-friendly Ramadan tools.",
       dar: "امتداد لوضع الأطفال: أهداف تعلّم عائلية مشتركة، وملخصات تقدّم أفضل، وأدوات رمضان مناسبة للعائلة." },
-    { v: "3.9.0", icon: "bell", en: "Notifications", ar: "التنبيهات",
+    { v: "3.8.0", icon: "bell", en: "Notifications", ar: "التنبيهات",
       den: "Useful, configurable reminders — Jumu'ah, Qur'an, learning, MSA and mosque announcements — with custom schedules and no spam.",
       dar: "تذكيرات مفيدة قابلة للضبط — الجمعة والقرآن والتعلّم وإعلانات الرابطة والمساجد — بجداول مخصصة ودون إزعاج." },
-    { v: "3.10.0", icon: "sparkle", en: "Performance, Security & Polish", ar: "الأداء والأمان والتحسين",
+    { v: "3.9.0", icon: "settings", en: "Performance, Security & Polish", ar: "الأداء والأمان والتحسين",
       den: "Faster loading, better offline support, an accessibility and security review, and bug fixes.",
       dar: "تحميل أسرع، ودعم أفضل دون اتصال، ومراجعة لإمكانية الوصول والأمان، وإصلاح الأخطاء." },
   ];

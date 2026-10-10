@@ -136,7 +136,7 @@
   }
 
   function notify(title, body, tag, url, extra) {
-    // Quiet Mode (3.0, Mosque Mode): only prayer reminders, and never the chime.
+    // Quiet Mode (2.10, Mosque Mode): only prayer reminders, and never the chime.
     var quiet = !!(SS.modes && SS.modes.quiet());
     if (quiet && !(extra && extra.essential)) return false;
     var opts = { body: body, tag: tag, icon: "icons/icon-192.png", badge: "icons/icon-192.png", data: { url: url || "./#/prayer" } };
@@ -1139,7 +1139,7 @@
     // Roadmap: planned versions, in order. Never shows dates.
     var html = "";
     SS.ROADMAP.forEach(function (r, i) {
-      var milestone = /^3\./.test(r.v);
+      var milestone = /^\d+\.0\.0$/.test(r.v);
       html += '<li class="road-item' + (i === 0 ? " next" : "") + (milestone ? " milestone" : "") + '">' +
         '<span class="road-node" aria-hidden="true">' + icon(r.icon) + "</span>" +
         '<div class="card road-card"><div class="road-top">' +

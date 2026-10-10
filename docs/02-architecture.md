@@ -38,7 +38,7 @@ qibla.js    Qibla view: WMM2025 declination, orientation maths, compass + camera
 config.js   Supabase URL/key (empty → guest-only site)
 sync.js     cross-device sync engine
 account.js  sign-in flows, account linking, sync wiring, Account dashboard
-modes.js    3.0 Modes: registry, active mode, picker, Home panel, suggestions, Quiet Mode, kid lock
+modes.js    2.10 Modes: registry, active mode, picker, Home panel, suggestions, Quiet Mode, kid lock
             (js/modes/travel|hajj|mosque|kids.js are injected on demand; see docs/06-modes.md)
 app.js      router, theme, locale, dialogs, audio player, offline banner, boot
 ```

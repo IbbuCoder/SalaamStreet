@@ -1,5 +1,5 @@
 /* SalaamStreet — modes/hajj.js (classic script, loaded on demand)
-   3.0 Hajj & Umrah Mode: step-by-step guides, the pilgrim's duas, a
+   2.10 Hajj & Umrah Mode: step-by-step guides, the pilgrim's duas, a
    checklist and your progress.
 
    Content: the rites follow the Prophet's ﷺ Hajj as narrated by Jabir
@@ -300,7 +300,7 @@
       '<a class="hm-btn" href="#/mode/hajj">' + esc(t("hajj.openGuide")) + "</a></div>";
   }
 
-  /* ═══════════ Round counter (3.1.5): 7 rounds of tawaf or sa'i ═══════════ */
+  /* ═══════════ Round counter (2.11.5): 7 rounds of tawaf or sa'i ═══════════ */
   // On this device only: you count on the phone in your hand.
   function counter() {
     var c = SS.store.get("hajj:counter");

@@ -280,7 +280,7 @@
     rememberReturn();
     return client().then(function (c) {
       var opts = { provider: provider, options: { redirectTo: returnUrl() } };
-      // Google: always ask which account, instead of silently reusing the last one (3.1.7).
+      // Google: always ask which account, instead of silently reusing the last one (2.11.7).
       if (provider === "google") opts.options.queryParams = { prompt: "select_account" };
       return (link ? c.auth.linkIdentity(opts) : c.auth.signInWithOAuth(opts)).then(function (r) {
         if (r.error) throw r.error;
@@ -1027,7 +1027,7 @@
     return "";
   }
 
-  /* 3.0: Modes and the family area start from here. */
+  /* 2.10: Modes and the family area start from here. */
   function modesCard() {
     if (!SS.modes) return "";
     var id = SS.modes.active(), m = SS.modes.get(id);
@@ -1144,11 +1144,11 @@
     signedIn: function () { return !!state.user; },
     user: function () { return state.user; },
     configured: configured,
-    /** Open sign-in. method "email" goes straight to "email me a code" (3.1.7: school accounts). */
+    /** Open sign-in. method "email" goes straight to "email me a code" (2.11.7: school accounts). */
     openSignIn: function (method) { if (method === "email") { dlgCtx = {}; openDialog("email"); } else openDialog("methods"); },
     signOut: signOut,
     syncNow: function () { return state.user ? engine.sync() : Promise.resolve([]); },
-    /** The Supabase client (3.0 Family uses its RPCs). Rejects when accounts aren't configured or offline. */
+    /** The Supabase client (2.10 Family uses its RPCs). Rejects when accounts aren't configured or offline. */
     client: function () { return client(); },
     /** Make sure a stored sign-in is restored (e.g. on #/family before visiting Account). */
     restore: function () { if (configured() && !state.user && hasStoredSession()) boot(); },

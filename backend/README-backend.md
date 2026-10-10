@@ -53,7 +53,7 @@ This creates:
 - Row-Level Security on both tables: each person can only read or write their
   own rows. Realtime is enabled on `sync_records` so devices update instantly.
 
-**3.0 — Family & Kids Mode.** The same file also creates, with Row-Level
+**2.10 — Family & Kids Mode.** The same file also creates, with Row-Level
 Security on each:
 
 - `family_children` — a parent's child profiles (first name or nickname, age
@@ -70,7 +70,7 @@ Security on each:
   whose token is passed, and refuse progress in sections the parent switched
   off. `tests/family.test.js` checks all of this in a real Postgres.
 
-**Upgrading an existing project to 3.0:** run the whole updated file again in the
+**Upgrading an existing project to 2.10:** run the whole updated file again in the
 SQL Editor. Existing tables and data are untouched; the new tables and
 functions are added. Until this is done, the Family page shows an error with
 "Try again"; everything else keeps working.
@@ -174,9 +174,9 @@ email account — they can link Apple from **Account → Sign-in methods** inste
 
 ---
 
-## 3.1 — NVHS MSA announcements
+## 2.11 — NVHS MSA announcements
 
-**Upgrading to 3.1:** run the whole updated `supabase-schema.sql` again in the
+**Upgrading to 2.11:** run the whole updated `supabase-schema.sql` again in the
 SQL Editor (safe to re-run). Until then the MSA page shows an error with
 "Try again" and Home shows no MSA card; everything else keeps working.
 
@@ -211,9 +211,9 @@ values (sha256(convert_to(lower('name@example.org'), 'UTF8')));
 
 `tests/msa.test.js` checks all of this in a real Postgres.
 
-## 3.1.6 — NVHS MSA membership
+## 2.11.6 — NVHS MSA membership
 
-**Upgrading to 3.1.6:** run the whole updated `supabase-schema.sql` again in the
+**Upgrading to 2.11.6:** run the whole updated `supabase-schema.sql` again in the
 SQL Editor (safe to re-run). Until then, joining and the Manage page show
 errors; announcements keep working.
 
@@ -238,9 +238,9 @@ insert into public.msa_approvers (email_hash)
 values (sha256(convert_to(lower('name@example.org'), 'UTF8')));
 ```
 
-## 3.1.7 — School accounts join automatically
+## 2.11.7 — School accounts join automatically
 
-**Upgrading to 3.1.7:** run the whole updated `supabase-schema.sql` again (safe to re-run).
+**Upgrading to 2.11.7:** run the whole updated `supabase-schema.sql` again (safe to re-run).
 
 NVHS school emails are `<first name><first 3 letters of last name><4 digits>@k12.ipsd.org`.
 When someone signs in with a **confirmed** school email (the emailed code
@@ -254,17 +254,19 @@ approver. If another account had claimed the name, it is flagged.
 The roster is loaded the same way as before (MSA → Manage → Edit the list),
 or with a one-time SQL insert that is **not** kept in this repository.
 
-## 3.1.8 — One list of MSA admins
+## 2.11.8 — One list of MSA admins
 
-**Upgrading to 3.1.8:** run the whole updated `supabase-schema.sql` again (safe to re-run).
+**Upgrading to 2.11.8:** run the whole updated `supabase-schema.sql` again (safe to re-run).
 
 - `msa_admins` is now the **only** list: an admin posts announcements and
   runs the Manage page (members, roster, meeting code, admins).
   `msa_approvers` is no longer read.
 - The file makes the MSA's two **owners** admins (stored as hashes; this
   file is public). Owners can't be removed in the app.
-- The first run on a 3.1.7 database removes every other poster **once**
-  (recorded in `msa_meta`); admins added later survive re-running the file.
+- The first run of this version of the file removes every admin except the
+  two owners **once** (recorded in `msa_meta` as `admins-2.11.8`), then
+  re-adds the owners. Add the other admins again on MSA → Manage → Admins;
+  admins added after that survive re-running the file.
 - Admins add and remove admins by email on MSA → **Manage → Admins**
   (`msa_admin_add`, `msa_admin_remove`, `msa_admin_list`); nobody can remove an
   owner or themselves. Those emails live only in the database. An owner's
@@ -298,7 +300,7 @@ values (sha256(convert_to(lower('name@example.org'), 'UTF8')));
 - Pull is incremental via `server_at`; push goes through `sync_push`. Offline
   changes stay queued (in `localStorage`) and sync when the connection returns.
   Realtime + a 5-minute poll + on-focus sync keep devices in step.
-- Location and reminder on/off stay per device by design. So do 3.0 travel
+- Location and reminder on/off stay per device by design. So do 2.10 travel
   places, chosen/saved mosques and Kids Mode device tokens; the active mode,
   travel checklist and Hajj/Umrah progress sync.
 - The auth session is stored under the `ss-auth` key (outside the app's data

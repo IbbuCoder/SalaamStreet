@@ -264,7 +264,7 @@ grant execute on function public.push_unregister(text) to anon, authenticated;
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ════════════════════════════════════════════════════════════════════════
---  3.0 — Family & Kids Mode
+--  2.10 — Family & Kids Mode
 --
 --  A parent (an ordinary SalaamStreet account) manages child profiles.
 --  Children never sign in and never get the parent's credentials: a device
@@ -644,11 +644,11 @@ grant execute on function public.kid_pair(text, text), public.kid_session(text),
     public.kid_save(text, jsonb), public.kid_unpair(text) to anon, authenticated;
 
 -- ════════════════════════════════════════════════════════════════════════
---  3.1 — NVHS MSA announcements
+--  2.11 — NVHS MSA announcements
 --  Anyone (signed in or not) can read the MSA's current announcements.
 --  Only the MSA's posters can write them: a signed-in account whose email is
 --  on the list below. The list stores SHA-256 hashes of the lower-cased
---  emails, never the emails themselves (this file is public). Since 3.1.8
+--  emails, never the emails themselves (this file is public). Since 2.11.8
 --  admins add and remove admins on the MSA Manage page; the SQL editor
 --  still works too:
 --    insert into public.msa_admins (email_hash)
@@ -664,7 +664,7 @@ create table if not exists public.msa_admins (
     email_hash bytea primary key check (octet_length(email_hash) = 32),
     added_at   timestamptz not null default now()
 );
--- The admins themselves are set in the 3.1.8 section below (and managed in the app).
+-- The admins themselves are set in the 2.11.8 section below (and managed in the app).
 
 create table if not exists public.msa_posts (
     id         uuid primary key default gen_random_uuid(),
@@ -788,7 +788,7 @@ grant execute on function public.msa_feed(), public.msa_image(uuid) to anon, aut
 grant execute on function public.msa_is_poster(), public.msa_post_save(jsonb), public.msa_post_delete(uuid) to authenticated;
 
 -- ════════════════════════════════════════════════════════════════════════
---  3.1.6 — NVHS MSA membership
+--  2.11.6 — NVHS MSA membership
 --  Members see "members only" announcements. To become a member, a signed-in
 --  person types their full name and either:
 --    • enters the live meeting code (6 digits, changes every 10 minutes, shown
@@ -1115,7 +1115,7 @@ grant execute on function public.msa_feed(), public.msa_image(uuid) to anon, aut
 grant execute on function public.msa_post_save(jsonb) to authenticated;
 
 -- ════════════════════════════════════════════════════════════════════════
---  3.1.7 — School accounts join automatically
+--  2.11.7 — School accounts join automatically
 --  NVHS school emails look like  <first name><first 3 letters of last
 --  name><4 digits>@k12.ipsd.org. Signing in with the emailed code proves the
 --  person owns that address, so when a signed-in, CONFIRMED school email
@@ -1222,20 +1222,21 @@ revoke all on function public.msa_status(), public.msa_roster_status() from publ
 grant execute on function public.msa_status(), public.msa_roster_status() to authenticated;
 
 -- ════════════════════════════════════════════════════════════════════════
---  3.1.8 — One list of MSA admins, managed in the app
+--  2.11.8 — One list of MSA admins, managed in the app
 --  Admins post announcements AND run the Manage page (members, the roster,
 --  the meeting code, and the admin list itself). There is no separate
 --  poster or approver list any more: msa_admins is the only one.
 --  • The two OWNERS below always stay admins (they can't be removed in the
 --    app). They are stored as hashes, like before — this file is public.
---  • Upgrading from 3.1.7 removes every other poster once (recorded in
---    msa_meta, so admins added later in the app survive re-running this file).
+--  • The first run of this file removes every admin except the owners once,
+--    then re-adds the owners (recorded in msa_meta as 'admins-2.11.8', so
+--    admins added later in the app survive re-running this file).
 --  • Admins add and remove other admins by email on the Manage page. Those
 --    emails are kept in the database (never in this file).
 --  • Admins add students one at a time — a name, and optionally the email
 --    they sign in with. A student added with an email becomes a member as
 --    soon as that (confirmed) account signs in, whatever the email's domain.
---  msa_approvers (3.1.6) is no longer read.
+--  msa_approvers (2.11.6) is no longer read.
 -- ════════════════════════════════════════════════════════════════════════
 create table if not exists public.msa_meta (
     key text primary key,
@@ -1250,11 +1251,11 @@ alter table public.msa_admins add column if not exists added_by text;
 
 do $$
 begin
-    if not exists (select 1 from public.msa_meta where key = 'admins-3.1.8') then
+    if not exists (select 1 from public.msa_meta where key = 'admins-2.11.8') then
         delete from public.msa_admins where email_hash not in (
             '\x0d1d4d8e54dba5abd774586630868a3c078c4d7171be9292f4451b54bfd2c0a5'::bytea,
             '\x0359ef19e11b6941875be3039743b7d627855fa162b587982a5142cf558e6276'::bytea);
-        insert into public.msa_meta (key) values ('admins-3.1.8');
+        insert into public.msa_meta (key) values ('admins-2.11.8');
     end if;
 end;
 $$;

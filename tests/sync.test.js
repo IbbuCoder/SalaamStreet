@@ -258,7 +258,7 @@ test("merge functions are commutative", () => {
   assert.deepEqual(MERGE.union(["b", "a"], ["c", "a"]), ["a", "b", "c"]);
 });
 
-test("3.0 Modes: the mode, checklists and pilgrimage progress sync; places, mosques and Kids Mode stay on the device", async () => {
+test("2.10 Modes: the mode, checklists and pilgrimage progress sync; places, mosques and Kids Mode stay on the device", async () => {
   const server = makeServer();
   const phone = makeDevice(server), laptop = makeDevice(server);
   phone.signIn("u1"); laptop.signIn("u1");

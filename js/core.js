@@ -132,7 +132,7 @@
       try {
         for (var i = 0; i < localStorage.length; i++) {
           var k = localStorage.key(i);
-          // Sync bookkeeping isn't "your data"; a child's device token and PIN hash (3.0 Kids Mode) are secrets.
+          // Sync bookkeeping isn't "your data"; a child's device token and PIN hash (2.10 Kids Mode) are secrets.
           if (k && k.indexOf(PREFIX) === 0 && k !== PREFIX + "sync:meta" && k !== PREFIX + "kids:device" && k !== PREFIX + "kids:lock") {
             try { out[k.slice(PREFIX.length)] = JSON.parse(localStorage.getItem(k)); } catch (e) { /* skip */ }
           }
@@ -396,7 +396,7 @@
             name: t["name:en"] || t.name || "", nameAr: t["name:ar"] || "",
             street: [t["addr:housenumber"], t["addr:street"]].filter(Boolean).join(" "),
             city: t["addr:city"] || "", denomination: t.denomination || "",
-            // 3.0 Mosque Mode: contact details only as OpenStreetMap has them.
+            // 2.10 Mosque Mode: contact details only as OpenStreetMap has them.
             website: t.website || t["contact:website"] || "", phone: t.phone || t["contact:phone"] || "",
           };
         }).filter(function (m) { return typeof m.lat === "number" && typeof m.lng === "number"; });

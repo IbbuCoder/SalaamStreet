@@ -679,7 +679,7 @@
       "msa.adminRemoved": "{e} is no longer an admin",
       "msa.owner": "Owner",
       "msa.you": "You",
-      "msa.notSignedInYet": "Hasn't signed in since 3.1.8",
+      "msa.notSignedInYet": "Hasn't signed in since 2.11.8",
       "msa.badEmail": "Type an email address.",
       "msa.addedBy": "added by {e}",
       "msa.memberUntil": "You're a member · until {d}",
@@ -944,7 +944,7 @@
       "stories.group_hadith": "Stories the Prophet ﷺ told",
       "stories.play": "Play",
       "stories.pause": "Pause",
-      // 3.0 — Modes, Family & Kids Mode
+      // 2.10 — Modes, Family & Kids Mode
       "common.close": "Close",
       "modes.nav": "Modes",
       "modes.title": "Modes",
@@ -2070,7 +2070,7 @@
       "msa.adminRemoved": "لم يعد {e} مشرفًا",
       "msa.owner": "المالك",
       "msa.you": "أنت",
-      "msa.notSignedInYet": "لم يسجّل الدخول منذ 3.1.8",
+      "msa.notSignedInYet": "لم يسجّل الدخول منذ 2.11.8",
       "msa.badEmail": "اكتب بريدًا إلكترونيًا.",
       "msa.addedBy": "أضافه {e}",
       "msa.memberUntil": "أنت عضو · حتى {d}",
@@ -2335,7 +2335,7 @@
       "stories.group_hadith": "قصص حدّث بها النبي ﷺ",
       "stories.play": "تشغيل",
       "stories.pause": "إيقاف مؤقت",
-      // 3.0 — Modes, Family & Kids Mode
+      // 2.10 — Modes, Family & Kids Mode
       "common.close": "إغلاق",
       "modes.nav": "الأوضاع",
       "modes.title": "الأوضاع",

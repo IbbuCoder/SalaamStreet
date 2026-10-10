@@ -10,12 +10,12 @@ SalaamStreet began as an Islamic-themed Shopify shop that Ibrahim built when he 
 
 **Our promise:** everything you need — prayer times, Qibla, Qur'an, duas, dhikr, the prayer tracker, Arabic learning and (when it arrives) sync — stays free forever. Any future paid extras (subscription or one-time) will only be for things that genuinely cost money to provide.
 
-Current version: **3.1.8 — Steadier Qibla camera, MSA admins** (see `SS.VERSION` / `SS.CHANGELOG` in `js/content.js`).
+Current version: **2.11.8 — Steadier Qibla camera, MSA admins** (see `SS.VERSION` / `SS.CHANGELOG` in `js/content.js`).
 
 ## Features
 
-- **NVHS MSA (3.1)** — the Neuqua Valley High School Muslim Student Association's announcements, with pictures, for everyone (no account needed to read); important ones also show as one slim, hideable card on Home. Only the MSA's own accounts can post, edit, pin and delete, checked by the database on every write. **Members (3.1.6):** students join with their name and the 6-digit meeting code (changes every 10 minutes, shown only to the MSA's approver), or by asking; the approver checks requests against a roster kept only in the database; a name that already belongs to a member is flagged for an in-person check; posters can mark announcements members-only. **3.1.7:** students on the roster who sign in with their school email (emailed code, not Google) are accepted automatically. **3.1.8:** one list of MSA admins — only they post, and they manage members; admins add students (with the email they sign in with) and other admins on the Manage page, which also has “approve all on the list”, who joined this week and a CSV download. Setup: [`backend/README-backend.md`](backend/README-backend.md#31--nvhs-msa-announcements)
-- **Modes (3.0, redesigned in 3.1.5)** — each mode answers one question right inside Home's prayer card; switch with one tap from the mode badge in the top bar, or from Modes in the sidebar or More menu. Your mode syncs when you're signed in. Details: [`docs/06-modes.md`](docs/06-modes.md)
+- **NVHS MSA (2.11)** — the Neuqua Valley High School Muslim Student Association's announcements, with pictures, for everyone (no account needed to read); important ones also show as one slim, hideable card on Home. Only the MSA's own accounts can post, edit, pin and delete, checked by the database on every write. **Members (2.11.6):** students join with their name and the 6-digit meeting code (changes every 10 minutes, shown only to the MSA's approver), or by asking; the approver checks requests against a roster kept only in the database; a name that already belongs to a member is flagged for an in-person check; posters can mark announcements members-only. **2.11.7:** students on the roster who sign in with their school email (emailed code, not Google) are accepted automatically. **2.11.8:** one list of MSA admins — only they post, and they manage members; admins add students (with the email they sign in with) and other admins on the Manage page, which also has “approve all on the list”, who joined this week and a CSV download. Setup: [`backend/README-backend.md`](backend/README-backend.md#31--nvhs-msa-announcements)
+- **Modes (2.10, redesigned in 2.11.5)** — each mode answers one question right inside Home's prayer card; switch with one tap from the mode badge in the top bar, or from Modes in the sidebar or More menu. Your mode syncs when you're signed in. Details: [`docs/06-modes.md`](docs/06-modes.md)
   - **Normal** — the full SalaamStreet, unchanged
   - **Travel** — *how do I pray here?* Dhuhr, Asr and Isha as 2 rak'ahs and when you may combine, with sources; local prayer times and Qibla (with or without location permission), a destination and saved places, a trip end date that brings you home in one tap, travel duas, a checklist, and guidance that sets out where the schools differ
   - **Hajj & Umrah** — *what do I do next?* Your next step on Home, a tap counter for the 7 rounds of tawaf and sa'i, 7-step Umrah and 11-step Hajj guides with sources, duas and scholarly differences, and a preparation checklist
@@ -99,7 +99,7 @@ Safe-area insets (iPhone notch / home indicator), 16px form inputs (no iOS zoom)
 │   ├── account.js        Sign-in, account linking, sync wiring, Account dashboard
 │   ├── vendor/supabase.js  supabase-js (MIT), loaded only when someone uses accounts
 │   ├── vendor/pdfjs/     Mozilla pdf.js (Apache-2.0), loaded only for the Qur'an PDF
-│   ├── modes.js          3.0 Modes: registry, active mode, #/modes picker, Home mode panel, suggestions, Quiet Mode
+│   ├── modes.js          2.10 Modes: registry, active mode, #/modes picker, Home mode panel, suggestions, Quiet Mode
 │   ├── modes/            Mode modules, loaded only when opened: travel.js, hajj.js, mosque.js, kids.js (Family + Kids)
 │   └── app.js            Router, theme, dialogs, audio player, boot
 ├── files/                The Qur'an PDF (see SS.QURAN_PDF in js/config.js)
@@ -146,11 +146,11 @@ npm run lint         # ESLint
 - `tests/sync.test.js` — sync engine across simulated devices (conflicts, offline, guest migration)
 - `tests/schema.test.js` — `backend/supabase-schema.sql` in a real Postgres (RLS, newest-wins, delete account)
 - `tests/qibla.test.js` — Qibla bearings vs published values, WMM2025 declination, orientation maths
-- `tests/family.test.js` — 3.0 Family & Kids Mode in a real Postgres: parents only reach their own children, a child's device only its own child, single-use expiring pairing codes, server-enforced restrictions, achievements, deletion
+- `tests/family.test.js` — 2.10 Family & Kids Mode in a real Postgres: parents only reach their own children, a child's device only its own child, single-use expiring pairing codes, server-enforced restrictions, achievements, deletion
 - `tests/praytimes.test.js` — on-device prayer times vs the adhan library (8 cities, 4 seasons, every method)
 - `tests/push.test.js` — the reminder server: what's due when, sent once, in the device's language
 - `tests/offline.test.js` — Offline Qur'an in Chromium with real IndexedDB/Cache API: storage, read-path fallback, resume after a dropped connection or closed tab, quota errors, PDF card hidden while the file is missing
-- `tests/e2e.test.js` — the app in Chromium: startup theme, Tafsir, Qibla compass/camera, guest mode, every sign-in method driven through the real supabase-js client against a mock Supabase API, and the Offline Qur'an (text, audio across surahs, the PDF viewer offline), and every 3.0 mode: switching and persistence, Travel without location and offline, Hajj & Umrah progress, Mosque and Quiet Mode, suggestions, the full parent/child flow against the real database functions, and layout in light and dark
+- `tests/e2e.test.js` — the app in Chromium: startup theme, Tafsir, Qibla compass/camera, guest mode, every sign-in method driven through the real supabase-js client against a mock Supabase API, and the Offline Qur'an (text, audio across surahs, the PDF viewer offline), and every 2.10 mode: switching and persistence, Travel without location and offline, Hajj & Umrah progress, Mosque and Quiet Mode, suggestions, the full parent/child flow against the real database functions, and layout in light and dark
 
 ## Run locally
 
@@ -185,4 +185,4 @@ Responses are cached in localStorage, so surahs you've read and today's prayer t
 
 ## Roadmap
 
-What's planned after 3.0 (Personalization, Qur'an, Learning, Community, Ramadan, Tools, Family, Notifications, Polish): [`ROADMAP.md`](ROADMAP.md). Release history: [`docs/05-roadmap.md`](docs/05-roadmap.md) and [`docs/release-notes/`](docs/release-notes/).
+What's planned after 2.11.8 — next up, **3.0: the AI update** — then Personalization, Qur'an, Learning, Community, Ramadan, Tools, Family, Notifications and Polish: [`ROADMAP.md`](ROADMAP.md). Release history: [`docs/05-roadmap.md`](docs/05-roadmap.md) and [`docs/release-notes/`](docs/release-notes/).

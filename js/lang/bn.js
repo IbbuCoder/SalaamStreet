@@ -724,7 +724,7 @@ SS.i18n.register("bn", {
 "msa.adminRemoved": "{e} আর অ্যাডমিন নন",
 "msa.owner": "মালিক",
 "msa.you": "আপনি",
-"msa.notSignedInYet": "3.1.8-এর পর সাইন ইন করেননি",
+"msa.notSignedInYet": "2.11.8-এর পর সাইন ইন করেননি",
 "msa.badEmail": "একটি ইমেইল ঠিকানা লিখুন।",
 "msa.addedBy": "{e} যোগ করেছেন",
 "msa.memberUntil": "আপনি সদস্য · {d} পর্যন্ত",

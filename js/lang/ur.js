@@ -724,7 +724,7 @@ SS.i18n.register("ur", {
 "msa.adminRemoved": "{e} اب ایڈمن نہیں رہے",
 "msa.owner": "مالک",
 "msa.you": "آپ",
-"msa.notSignedInYet": "3.1.8 کے بعد سے سائن اِن نہیں کیا",
+"msa.notSignedInYet": "2.11.8 کے بعد سے سائن اِن نہیں کیا",
 "msa.badEmail": "ای میل ایڈریس لکھیں۔",
 "msa.addedBy": "{e} نے شامل کیا",
 "msa.memberUntil": "آپ رکن ہیں · {d} تک",

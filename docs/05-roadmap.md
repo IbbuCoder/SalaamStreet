@@ -65,44 +65,44 @@ laptops and large monitors. Core worship features are, and will stay, free.
   Elephant; seerah: Khadijah, the Hijrah, Bilal; hadith: the three in the cave, the thirsty dog, the man who repented)
   in four groups; whole-story Play/Pause; Stories off Home; MSA preview tab removed; update bar only when outdated
 
-- **3.0.0 — Modes:** Choose Your Mode (from Account, the sidebar or More) with five modes — Normal, Travel, Kids,
+- **2.10.0 — Modes:** Choose Your Mode (from Account, the sidebar or More) with five modes — Normal, Travel, Kids,
   Hajj & Umrah and Mosque — each with its own Home dashboard; mode persistence and sync. Travel: local times, Qibla,
   destination and saved places, travel duas, checklist and sourced qasr/jam' guidance. Kids: parent-managed child
   profiles, device pairing by one-time code, lessons, quizzes and achievements per child, server-enforced
   restrictions, Family page. Hajj & Umrah: 7- and 11-step guides with sources, progress and checklist. Mosque:
   OpenStreetMap mosque selection, calculated times, Jumu'ah note, Quiet Mode. Full notes:
-  [`release-notes/3.0.0.md`](release-notes/3.0.0.md)
+  [`release-notes/2.10.0.md`](release-notes/2.10.0.md)
 
-- **3.1.0 — NVHS MSA:** an MSA page with the Neuqua Valley High School MSA's announcements (pictures, pinning,
+- **2.11.0 — NVHS MSA:** an MSA page with the Neuqua Valley High School MSA's announcements (pictures, pinning,
   end dates), the important ones as a slim card on everyone's Home; only the MSA's own accounts can post, checked by
-  the database. Full notes: [`release-notes/3.1.0.md`](release-notes/3.1.0.md)
-- **3.1.5 — Modes, made useful:** each mode answers one question inside Home's prayer card (Travel: how many
+  the database. Full notes: [`release-notes/2.11.0.md`](release-notes/2.11.0.md)
+- **2.11.5 — Modes, made useful:** each mode answers one question inside Home's prayer card (Travel: how many
   rak'ahs and when to combine, plus a trip end date; Mosque: one-tap "I'm at the mosque" quiet hour; Hajj & Umrah:
   next step and a tawaf/sa'i round counter); a quick switcher from the top-bar badge; a simpler picker; icons instead
-  of emoji. Full notes: [`release-notes/3.1.5.md`](release-notes/3.1.5.md)
+  of emoji. Full notes: [`release-notes/2.11.5.md`](release-notes/2.11.5.md)
 
-- **3.1.6 — NVHS MSA members:** join with your name and the live meeting code (changes every 10 minutes, shown only
+- **2.11.6 — NVHS MSA members:** join with your name and the live meeting code (changes every 10 minutes, shown only
   to the approver) or by asking; the approver checks requests against a private roster; one account per name, with
   a second claim flagged for an in-person check; members-only announcements. Full notes:
-  [`release-notes/3.1.6.md`](release-notes/3.1.6.md)
+  [`release-notes/2.11.6.md`](release-notes/2.11.6.md)
 
-- **3.1.7 — NVHS MSA: join with your school email:** students on the roster who sign in with their school email
+- **2.11.7 — NVHS MSA: join with your school email:** students on the roster who sign in with their school email
   (emailed code, not Google) are accepted automatically; simpler Manage page; Google always asks which account. Full
-  notes: [`release-notes/3.1.7.md`](release-notes/3.1.7.md)
+  notes: [`release-notes/2.11.7.md`](release-notes/2.11.7.md)
 
-- **3.1.8 — Steadier Qibla camera, MSA admins:** the Qibla camera no longer spins (iPhone held upright) or
+- **2.11.8 — Steadier Qibla camera, MSA admins:** the Qibla camera no longer spins (iPhone held upright) or
   flickers; one list of MSA admins who post and manage, adding students and admins in the app; a better Manage
-  page. Full notes: [`release-notes/3.1.8.md`](release-notes/3.1.8.md)
+  page. Full notes: [`release-notes/2.11.8.md`](release-notes/2.11.8.md)
 
 ## Planned (no release dates; plans may change)
 
-The plan after 3.0 lives in [`ROADMAP.md`](../ROADMAP.md) (with status, dependencies, risks and completion
+The plan after 2.11.8 lives in [`ROADMAP.md`](../ROADMAP.md) (with status, dependencies, risks and completion
 criteria for each release). The same list appears in the app under About → Updates (`SS.ROADMAP` in
 `js/content.js`).
 
-- **3.2 Personalization · 3.3 Qur'an Experience · 3.4 Community: mosque pages · 3.5 Islamic Learning ·
-  3.6 Ramadan Experience · 3.7 Advanced Islamic Tools · 3.8 Family Ecosystem · 3.9 Notifications ·
-  3.10 Performance, Security & Polish** — then a 4.0 proposal
+- **3.0 The AI update (up next) · 3.1 Personalization · 3.2 Qur'an Experience · 3.3 Community: mosque pages · 3.4 Islamic Learning ·
+  3.5 Ramadan Experience · 3.6 Advanced Islamic Tools · 3.7 Family Ecosystem · 3.8 Notifications ·
+  3.9 Performance, Security & Polish** — then a 4.0 proposal
 
 Also open: native-speaker
 review of the draft Urdu, Bengali, Indonesian, Turkish and French translations.

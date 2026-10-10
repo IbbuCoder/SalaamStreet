@@ -1,10 +1,10 @@
-# SalaamStreet 3.0 — Modes: design and implementation notes
+# SalaamStreet 2.10 — Modes: design and implementation notes
 
-This is the working plan and architecture record for the 3.0 Modes release.
+This is the working plan and architecture record for the 2.10 Modes release.
 It describes what is built and how; `README.md`, `docs/05-roadmap.md` and
 `ROADMAP.md` say what shipped and what is planned.
 
-## 1. What existed before 3.0 (reused, not rebuilt)
+## 1. What existed before 2.10 (reused, not rebuilt)
 
 | Need | Existing piece |
 |---|---|
@@ -58,10 +58,10 @@ pre-caches them in the background so they work offline after installation.
 | `hajj:checklist` | synced (per item) | |
 | `travel:places` | this device | destination and saved places — location stays on the device, as it always has |
 | `mosque:selected`, `mosque:saved`, `mosque:notes` | this device | a chosen mosque reveals where you are |
-| `modes:quiet` | this device | `true` (until switched off) or `{until}` — "I'm at the mosque" sets an hour (3.1.5) |
+| `modes:quiet` | this device | `true` (until switched off) or `{until}` — "I'm at the mosque" sets an hour (2.11.5) |
 | `mode:dismissed` | this device | |
-| `travel:trip` | this device | `{end: "YYYY-MM-DD"}` — the day you're coming home (3.1.5) |
-| `hajj:counter` | this device | `{kind: "tawaf"\|"sai", n}` — the round counter (3.1.5) |
+| `travel:trip` | this device | `{end: "YYYY-MM-DD"}` — the day you're coming home (2.11.5) |
+| `hajj:counter` | this device | `{kind: "tawaf"\|"sai", n}` — the round counter (2.11.5) |
 | `kids:device` | this device | `{active, profiles: {childId: {token, child}}}` — a device token per child using this device (siblings can share one) |
 | `kids:lock` | this device | PBKDF2 hash of the grown-up PIN that leaves Kids Mode |
 
@@ -111,9 +111,9 @@ Qur'an source, never typed in. Mosque information comes only from
 OpenStreetMap and is labelled as such; prayer times shown for a mosque are
 calculated start times, not the mosque's iqamah times.
 
-## 5. 3.1.5 — Modes, made useful
+## 5. 2.11.5 — Modes, made useful
 
-Feedback on 3.0: the modes looked busy and didn't change much. Turning on
+Feedback on 2.10: the modes looked busy and didn't change much. Turning on
 Travel Mode added a box of six grey tiles above Home (most reading "No location
 yet" or "—"), directly above the location banner and the prayer card that
 already showed the same things. The redesign gives every mode one job:

@@ -1,4 +1,4 @@
-/* 3.1 NVHS MSA announcements: backend/supabase-schema.sql in a real Postgres
+/* 2.11 NVHS MSA announcements: backend/supabase-schema.sql in a real Postgres
    (PGlite), with Supabase's auth bits stubbed as in schema.test.js.
    Anyone can read current announcements; only accounts on the poster list
    can write them, and nothing is reachable through the table API.
@@ -49,11 +49,11 @@ async function rpc(pg, uid, fn, args) {
 const save = (pg, uid, post) => rpc(pg, uid, "msa_post_save", { p: JSON.stringify(post) });
 
 test("the poster list ships as hashes, never email addresses", async () => {
-  const block = SQL.slice(SQL.indexOf("3.1 — NVHS MSA"));
+  const block = SQL.slice(SQL.indexOf("2.11 — NVHS MSA"));
   assert.doesNotMatch(block.replace(/name@example\.org/g, ""), /[a-z0-9._-]+@[a-z0-9.-]+\.[a-z]+/i);
   const pg = await db();
   const r = await pg.query(`select count(*)::int as n from public.msa_admins`);
-  assert.equal(r.rows[0].n, 3, "3.1.8: the two owners, plus the test's own poster");
+  assert.equal(r.rows[0].n, 3, "2.11.8: the two owners, plus the test's own poster");
 });
 
 test("a poster posts, edits and deletes; everyone (even signed out) reads", async () => {
@@ -128,13 +128,13 @@ test("input is checked: title, length, image format and size; expired posts disa
   assert.equal(await rpc(pg, null, "msa_image", { p_id: gone.id }), null, "an expired post's image is gone too");
 });
 
-/* ═══════════ 3.1.6 Membership ═══════════ */
+/* ═══════════ 2.11.6 Membership ═══════════ */
 const APPROVER = "44444444-4444-4444-4444-444444444444";
 const AMINA = "55555555-5555-5555-5555-555555555555";
 const FAKE = "66666666-6666-6666-6666-666666666666";
 async function club() {
   const pg = await db();
-  // 3.1.8: one admin list — admins post and manage.
+  // 2.11.8: one admin list — admins post and manage.
   await pg.query(`insert into public.msa_admins (email_hash) values (sha256(convert_to('approver@example.org', 'UTF8')))`);
   await pg.query(`insert into auth.users (id, email) values ($1, 'Approver@example.org'), ($2, 'amina@example.com'), ($3, 'fake@example.com')`, [APPROVER, AMINA, FAKE]);
   await rpc(pg, APPROVER, "msa_roster_set", { p_names: ["Amina Yusuf", "  Omar   Khan ", "Teachers"] });
@@ -255,12 +255,12 @@ test("names are checked: first and last name; a member stays a member; leaving w
 });
 
 test("the roster and the code secret never appear in the code", () => {
-  const block = SQL.slice(SQL.indexOf("3.1.6 — NVHS MSA membership"));
+  const block = SQL.slice(SQL.indexOf("2.11.6 — NVHS MSA membership"));
   assert.doesNotMatch(block.replace(/name@example\.org/g, ""), /[a-z0-9._-]+@[a-z0-9.-]+\.[a-z]+/i);
   assert.doesNotMatch(block, /insert into public\.msa_roster \(name_key, name\)\s*values/i, "no names written into the schema");
 });
 
-/* ═══════════ 3.1.7 School accounts join automatically ═══════════ */
+/* ═══════════ 2.11.7 School accounts join automatically ═══════════ */
 const S1 = "77777777-7777-7777-7777-777777777777";
 const S2 = "88888888-8888-8888-8888-888888888888";
 async function school() {
@@ -329,7 +329,7 @@ test("the school account owns its name: someone who claimed it first is flagged"
   await assert.rejects(rpc(pg, S1, "msa_roster_status"), /not an MSA admin/);
 });
 
-/* ═══════════ 3.1.8 One admin list, managed in the app ═══════════ */
+/* ═══════════ 2.11.8 One admin list, managed in the app ═══════════ */
 const OWNER_A = "99999999-9999-9999-9999-999999999991";
 const OWNER_B = "99999999-9999-9999-9999-999999999992";
 const NEWBIE = "99999999-9999-9999-9999-999999999993";
@@ -337,7 +337,7 @@ const NEWBIE = "99999999-9999-9999-9999-999999999993";
 // (The schema stores only their hashes; the test knows the addresses.)
 const OWNERS = ["ibrahimahm6675@k12.ipsd.org", "ibrahim.asim.contact@gmail.com"];
 
-test("only the two owners are admins after upgrading; posters from 3.1.7 lose access once, and re-running keeps admins added later", async () => {
+test("only the two owners are admins after upgrading; posters from 2.11.7 lose access once, and re-running keeps admins added later", async () => {
   const { PGlite } = await import("@electric-sql/pglite");
   const pg = new PGlite();
   await pg.exec(`
@@ -350,8 +350,8 @@ test("only the two owners are admins after upgrading; posters from 3.1.7 lose ac
     grant usage on schema public, auth to authenticated, anon;
     grant execute on function auth.uid() to authenticated, anon;
   `);
-  // A 3.1.7 database: the old poster list (here, one old exec account).
-  const v317 = SQL.slice(0, SQL.indexOf("--  3.1.8 — One list of MSA admins"));
+  // A 2.11.7 database: the old poster list (here, one old exec account).
+  const v317 = SQL.slice(0, SQL.indexOf("--  2.11.8 — One list of MSA admins"));
   await pg.exec(v317);
   await pg.query(`insert into public.msa_admins (email_hash) values (sha256(convert_to('old.exec@example.org', 'UTF8')))`);
   await pg.exec(SQL);

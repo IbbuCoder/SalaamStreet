@@ -1,5 +1,5 @@
 /* SalaamStreet — modes/mosque.js (classic script, loaded on demand)
-   3.0 Mosque Mode: the mosque you're at or going to, its prayer times,
+   2.10 Mosque Mode: the mosque you're at or going to, its prayer times,
    Jumu'ah, Qibla, useful duas, and an optional Quiet Mode.
 
    Honesty about data: mosques come from OpenStreetMap (the app's existing
@@ -7,7 +7,7 @@
    Jumu'ah times and no announcements, so the prayer times shown are the
    calculated start times for the mosque's location, a Jumu'ah time can only be
    one you note yourself (shown as "your note"), and announcements/events show
-   an honest empty state until mosques can publish them (roadmap 3.4).
+   an honest empty state until mosques can publish them (roadmap 3.3).
    The chosen and saved mosques stay on this device (they reveal where you are). */
 (function () {
   "use strict";
@@ -107,7 +107,7 @@
     };
   }
 
-  /* ═══════════ "I'm at the mosque" (3.1.5) ═══════════ */
+  /* ═══════════ "I'm at the mosque" (2.11.5) ═══════════ */
   // One tap: Quiet Mode for an hour, then it ends by itself.
   var VISIT_MS = 60 * 60000;
   function atMosque() { return M.active() === "mosque" && M.quietUntil() > Date.now(); }

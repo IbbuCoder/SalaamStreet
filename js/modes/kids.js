@@ -1,5 +1,5 @@
 /* SalaamStreet — modes/kids.js (classic script, loaded on demand)
-   3.0 Kids Mode and the parent's Family area.
+   2.10 Kids Mode and the parent's Family area.
 
    #/family  (parent, signed in with their normal account)
      add/edit/remove children, choose what each child can use, see each
@@ -10,7 +10,7 @@
      Practice (quizzes, flashcards) · Explore (Names of Allah, manners,
      history, pillars) · Duas · Today · Progress and achievements.
 
-   Security (see backend/supabase-schema.sql, "3.0 — Family & Kids Mode"):
+   Security (see backend/supabase-schema.sql, "2.10 — Family & Kids Mode"):
    a child's device only holds a device token for that child; every read and
    write goes through kid_* functions that are limited to that one child and
    enforce the parent's restrictions. Starting Kids Mode on the parent's own
