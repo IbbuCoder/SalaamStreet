@@ -224,8 +224,32 @@
   ];
 
   /* ── Version & release notes (newest first) ──────────────────────── */
-  SS.VERSION = "3.1.7";
+  SS.VERSION = "3.1.8";
   SS.CHANGELOG = [
+    {
+      v: "3.1.8", date: "2026-10-10",
+      en: "Steadier Qibla camera, MSA admins", ar: "كاميرا قبلة أثبت، ومشرفو الرابطة",
+      den: "The Qibla camera no longer jumps or flickers, and the NVHS MSA has one list of admins who post and manage — with new tools to add students and admins.",
+      dar: "لم تعد كاميرا القبلة تقفز أو ترتعش، وصار لرابطة NVHS قائمة مشرفين واحدة تنشر وتدير — مع أدوات جديدة لإضافة الطلاب والمشرفين.",
+      groups: [
+        { en: "Qibla camera fixes", ar: "إصلاحات كاميرا القبلة", items: [
+          { en: "On iPhone, holding the phone upright no longer makes the direction swing round or spin", ar: "على iPhone لم يعد حمل الهاتف عموديًا يجعل الاتجاه يدور أو ينقلب" },
+          { en: "No more flicker: the turn instruction, the Kaaba marker, the arrow and “Raise your phone” only change when the change is real", ar: "لا ارتعاش بعد الآن: تعليمات الدوران وعلامة الكعبة والسهم و«ارفع هاتفك» لا تتغير إلا عند تغيّر حقيقي" },
+          { en: "Opening camera mode from a link or after a reload now shows the Qibla on the heading strip and its degrees", ar: "فتح وضع الكاميرا من رابط أو بعد إعادة التحميل يُظهر الآن القبلة على شريط الاتجاه ودرجاتها" },
+          { en: "The camera tells you when the compass needs calibrating", ar: "تخبرك الكاميرا عندما تحتاج البوصلة إلى معايرة" },
+        ] },
+        { en: "NVHS MSA admins", ar: "مشرفو رابطة NVHS", items: [
+          { en: "Only MSA admins can post announcements — and admins manage members too", ar: "لا ينشر الإعلانات إلا مشرفو الرابطة — والمشرفون يديرون الأعضاء أيضًا" },
+          { en: "Admins add and remove other admins by email on the Manage page", ar: "يضيف المشرفون مشرفين آخرين ويزيلونهم بالبريد من صفحة الإدارة" },
+          { en: "Add a student by name, with the email they sign in with — they're a member as soon as they sign in", ar: "أضف طالبًا باسمه وبالبريد الذي يسجّل به — يصبح عضوًا فور تسجيل الدخول" },
+        ] },
+        { en: "A better Manage page", ar: "صفحة إدارة أفضل", items: [
+          { en: "“Approve all on the list”: everyone waiting whose name is on the MSA's list, in one tap", ar: "«وافق على من في القائمة»: كل من ينتظر واسمه في قائمة الرابطة، بلمسة واحدة" },
+          { en: "New announcement right from Manage, who joined this week, and the list as a spreadsheet (CSV)", ar: "إعلان جديد من صفحة الإدارة مباشرة، ومن انضم هذا الأسبوع، والقائمة كجدول (CSV)" },
+          { en: "Filter the list by Joined / Not yet, search by name or email, and take a name off the list", ar: "صفِّ القائمة حسب «انضموا» و«لم ينضموا بعد»، وابحث بالاسم أو البريد، وأزل اسمًا من القائمة" },
+        ] },
+      ],
+    },
     {
       v: "3.1.7", date: "2026-10-10",
       en: "NVHS MSA: join with your school email", ar: "رابطة NVHS: انضم ببريد المدرسة",

@@ -254,6 +254,36 @@ approver. If another account had claimed the name, it is flagged.
 The roster is loaded the same way as before (MSA → Manage → Edit the list),
 or with a one-time SQL insert that is **not** kept in this repository.
 
+## 3.1.8 — One list of MSA admins
+
+**Upgrading to 3.1.8:** run the whole updated `supabase-schema.sql` again (safe to re-run).
+
+- `msa_admins` is now the **only** list: an admin posts announcements and
+  runs the Manage page (members, roster, meeting code, admins).
+  `msa_approvers` is no longer read.
+- The file makes the MSA's two **owners** admins (stored as hashes; this
+  file is public). Owners can't be removed in the app.
+- The first run on a 3.1.7 database removes every other poster **once**
+  (recorded in `msa_meta`); admins added later survive re-running the file.
+- Admins add and remove admins by email on MSA → **Manage → Admins**
+  (`msa_admin_add`, `msa_admin_remove`, `msa_admin_list`); nobody can remove an
+  owner or themselves. Those emails live only in the database. An owner's
+  email shows in the list once they've signed in.
+- **Add a student** (`msa_student_add`): a name, and optionally the email
+  they sign in with. With an email, that account is a member at once if it
+  exists, otherwise as soon as it signs in with that (confirmed) address.
+  "Edit the list" keeps these emails for names that stay on it.
+  `msa_student_remove` takes a name off the list and ends that membership.
+- `msa_approve_listed` approves every waiting request whose name is on the
+  roster and not taken.
+
+The SQL editor still works for admins:
+
+```sql
+insert into public.msa_admins (email_hash)
+values (sha256(convert_to(lower('name@example.org'), 'UTF8')));
+```
+
 ## How sync works (for maintainers)
 
 - `js/sync.js` is a storage- and backend-agnostic engine. Every write the app

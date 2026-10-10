@@ -1955,7 +1955,8 @@ html[data-theme="dark"] .msa-flag-note{color:#fcd34d}
 .msa-not-google{display:flex;align-items:center;gap:6px;margin:0;font-weight:800;color:var(--danger)}
 .msa-not-google .ic{inline-size:18px;block-size:18px;flex:none}
 .msa-join.notfound .msa-join-ic{background:var(--surface-2);color:var(--text-2)}
-.msa-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-block-end:6px}
+.msa-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-block-end:12px}
+@media (max-width:420px){.msa-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .msa-stat{display:flex;flex-direction:column;align-items:center;gap:2px;padding:12px 6px;border-radius:var(--radius-sm);background:var(--surface);border:1px solid var(--border);text-align:center}
 .msa-stat b{font-size:1.4rem;line-height:1.2;font-variant-numeric:tabular-nums}
 .msa-stat span{font-size:.78rem;color:var(--text-3);font-weight:700}
@@ -1977,5 +1978,27 @@ html[data-theme="dark"] .msa-flag-note{color:#fcd34d}
 .msa-row-s .ic{inline-size:14px;block-size:14px}
 .msa-row-s.no{color:var(--text-3);font-weight:600}
 .msa-row .icon-btn{color:var(--danger)}
+.msa-stat.good{border-color:color-mix(in srgb,var(--primary) 45%,var(--border));background:color-mix(in srgb,var(--primary) 7%,var(--surface))}
+/* 3.1.8 Manage: quick actions, add a student, filters, admins. */
+.msa-quick{display:flex;flex-wrap:wrap;gap:8px;margin-block-end:6px}
+.msa-add{display:grid;gap:8px;margin-block-end:12px}
+.msa-add-h{margin:0}
+.msa-add-h b{display:inline-flex;align-items:center;gap:6px}
+.msa-add-h .ic{inline-size:18px;block-size:18px;color:var(--primary-strong)}
+.msa-add-row{display:flex;flex-wrap:wrap;gap:8px}
+.msa-add-row .input{flex:1 1 180px;min-inline-size:0}
+.msa-add-row .btn{flex:none}
+.msa-add .field-error:empty,.msa-admins .field-error:empty{display:none}
+.msa-tools{display:grid;gap:8px;margin-block-end:10px}
+.msa-chips{display:flex;flex-wrap:wrap;gap:6px}
+.msa-chips .chip[aria-pressed="true"]{background:var(--primary-soft);border-color:var(--primary);color:var(--primary-strong)}
+.msa-chip-n{margin-inline-start:6px;font-variant-numeric:tabular-nums;color:var(--text-3);font-weight:700}
+.msa-chip-n:empty{display:none}
+.msa-row-e{display:block;font-weight:500;color:var(--text-3)}
+.msa-admins{margin-block-start:22px}
+.msa-admins > .tiny{margin:0 0 8px}
+.msa-adm-row .msa-row-n{display:flex;align-items:center;gap:8px}
+.msa-adm-row .msa-row-n > .ic{inline-size:18px;block-size:18px;flex:none;color:var(--primary-strong)}
+.msa-adm-add{margin-block-start:10px}
 .msa-future{display:flex;align-items:flex-start;gap:8px;margin-block-start:20px}
 .msa-future .ic{inline-size:18px;block-size:18px;flex:none;margin-block-start:2px}

@@ -648,8 +648,9 @@ grant execute on function public.kid_pair(text, text), public.kid_session(text),
 --  Anyone (signed in or not) can read the MSA's current announcements.
 --  Only the MSA's posters can write them: a signed-in account whose email is
 --  on the list below. The list stores SHA-256 hashes of the lower-cased
---  emails, never the emails themselves (this file is public). To add a
---  poster, run in the SQL editor:
+--  emails, never the emails themselves (this file is public). Since 3.1.8
+--  admins add and remove admins on the MSA Manage page; the SQL editor
+--  still works too:
 --    insert into public.msa_admins (email_hash)
 --    values (sha256(convert_to(lower('name@example.org'), 'UTF8')));
 --  and to remove one, delete that row.
@@ -663,12 +664,7 @@ create table if not exists public.msa_admins (
     email_hash bytea primary key check (octet_length(email_hash) = 32),
     added_at   timestamptz not null default now()
 );
-insert into public.msa_admins (email_hash) values
-    ('\x4965025fa5005a32f580f131c0c930d7ef8a0a3052b04e1b74b01b9543b32e1b'),
-    ('\x39c76647a7029b8701f186f01077b36112eb0422fc7cc94737cd9ae22cbc0b52'),
-    ('\xcbc1fadb78b0b103643d757f8865d225bb163dfa348f0e8410ab64899ffe29a8'),
-    ('\x0359ef19e11b6941875be3039743b7d627855fa162b587982a5142cf558e6276')
-on conflict do nothing;
+-- The admins themselves are set in the 3.1.8 section below (and managed in the app).
 
 create table if not exists public.msa_posts (
     id         uuid primary key default gen_random_uuid(),
@@ -1224,3 +1220,296 @@ $$;
 revoke all on function public.msa_email_keys(text), public.msa_school_match() from public, anon, authenticated;
 revoke all on function public.msa_status(), public.msa_roster_status() from public, anon;
 grant execute on function public.msa_status(), public.msa_roster_status() to authenticated;
+
+-- ════════════════════════════════════════════════════════════════════════
+--  3.1.8 — One list of MSA admins, managed in the app
+--  Admins post announcements AND run the Manage page (members, the roster,
+--  the meeting code, and the admin list itself). There is no separate
+--  poster or approver list any more: msa_admins is the only one.
+--  • The two OWNERS below always stay admins (they can't be removed in the
+--    app). They are stored as hashes, like before — this file is public.
+--  • Upgrading from 3.1.7 removes every other poster once (recorded in
+--    msa_meta, so admins added later in the app survive re-running this file).
+--  • Admins add and remove other admins by email on the Manage page. Those
+--    emails are kept in the database (never in this file).
+--  • Admins add students one at a time — a name, and optionally the email
+--    they sign in with. A student added with an email becomes a member as
+--    soon as that (confirmed) account signs in, whatever the email's domain.
+--  msa_approvers (3.1.6) is no longer read.
+-- ════════════════════════════════════════════════════════════════════════
+create table if not exists public.msa_meta (
+    key text primary key,
+    at  timestamptz not null default now()
+);
+alter table public.msa_meta enable row level security;
+revoke all on public.msa_meta from anon, authenticated;
+
+alter table public.msa_admins add column if not exists email    text;
+alter table public.msa_admins add column if not exists owner    boolean not null default false;
+alter table public.msa_admins add column if not exists added_by text;
+
+do $$
+begin
+    if not exists (select 1 from public.msa_meta where key = 'admins-3.1.8') then
+        delete from public.msa_admins where email_hash not in (
+            '\x0d1d4d8e54dba5abd774586630868a3c078c4d7171be9292f4451b54bfd2c0a5'::bytea,
+            '\x0359ef19e11b6941875be3039743b7d627855fa162b587982a5142cf558e6276'::bytea);
+        insert into public.msa_meta (key) values ('admins-3.1.8');
+    end if;
+end;
+$$;
+insert into public.msa_admins (email_hash, owner) values
+    ('\x0d1d4d8e54dba5abd774586630868a3c078c4d7171be9292f4451b54bfd2c0a5', true),
+    ('\x0359ef19e11b6941875be3039743b7d627855fa162b587982a5142cf558e6276', true)
+on conflict (email_hash) do update set owner = true;
+
+alter table public.msa_roster add column if not exists email text check (email is null or email ~ '^[^@\s]+@[^@\s]+\.[^@\s]+$');
+create unique index if not exists msa_roster_email on public.msa_roster (email) where email is not null;
+
+/** "An admin" is now one list: the signed-in account's email is on msa_admins. */
+create or replace function public.msa_is_approver_now()
+returns boolean language sql stable security definer set search_path = public as $$
+    select coalesce(public.msa_my_email() <> '' and exists (
+        select 1 from public.msa_admins where email_hash = sha256(convert_to(public.msa_my_email(), 'UTF8'))), false);
+$$;
+create or replace function public.msa_approver()
+returns uuid language plpgsql stable security definer set search_path = public as $$
+declare uid uuid := auth.uid();
+begin
+    if uid is null then raise exception 'not signed in' using errcode = '28000'; end if;
+    if not public.msa_is_approver_now() then raise exception 'not an MSA admin' using errcode = '42501'; end if;
+    return uid;
+end;
+$$;
+
+/** A normalised email address, or an error. */
+create or replace function public.msa_clean_email(p text)
+returns text language plpgsql immutable set search_path = public as $$
+declare e text := lower(btrim(coalesce(p, '')));
+begin
+    if e !~ '^[a-z0-9._%+''-]+@[a-z0-9-]+(\.[a-z0-9-]+)+$' or char_length(e) > 254 then
+        raise exception 'that isn''t an email address' using errcode = '22023';
+    end if;
+    return e;
+end;
+$$;
+
+/** The roster row a confirmed account was added with, by its email. */
+create or replace function public.msa_invite_match()
+returns public.msa_roster language plpgsql stable security definer set search_path = public as $$
+declare u jsonb; mail text; r public.msa_roster;
+begin
+    select to_jsonb(x) into u from auth.users x where x.id = auth.uid();
+    mail := lower(btrim(coalesce(u->>'email', '')));
+    if mail = '' or coalesce(u->>'email_confirmed_at', '') = '' then return null; end if;
+    select * into r from public.msa_roster where email = mail;
+    return r;
+end;
+$$;
+
+/**
+ * Where the signed-in person stands. A student an admin added by email, or
+ * a matching school account, joins here. An admin's own email is remembered
+ * so the admin list can show it.
+ */
+create or replace function public.msa_status()
+returns jsonb language plpgsql volatile security definer set search_path = public as $$
+declare uid uuid := auth.uid(); m public.msa_members; r public.msa_roster; how text := 'approver';
+    mail text := coalesce(public.msa_my_email(), ''); admin boolean;
+begin
+    if uid is null then raise exception 'not signed in' using errcode = '28000'; end if;
+    admin := mail <> '' and exists (select 1 from public.msa_admins where email_hash = sha256(convert_to(mail, 'UTF8')));
+    if admin then
+        update public.msa_admins set email = mail where email_hash = sha256(convert_to(mail, 'UTF8')) and email is distinct from mail;
+    end if;
+    select * into m from public.msa_members where user_id = uid;
+    if not coalesce(m.status = 'approved' and m.expires_at > now(), false) then
+        r := public.msa_invite_match();
+        if r.name_key is null then r := public.msa_school_match(); how := 'school'; end if;
+        if r.name_key is not null then
+            -- The account the roster names is the real owner of the name.
+            update public.msa_members set status = 'flagged', decided_at = now(), expires_at = null
+            where name_key = r.name_key and user_id <> uid and status = 'approved';
+            insert into public.msa_members as x (user_id, name, name_key, status, via, on_roster, created_at, decided_at, expires_at)
+            values (uid, r.name, r.name_key, 'approved', how, true, now(), now(), public.msa_year_end())
+            on conflict (user_id) do update set name = excluded.name, name_key = excluded.name_key, status = 'approved',
+                via = excluded.via, on_roster = true, decided_at = now(), expires_at = excluded.expires_at
+            returning * into m;
+        end if;
+    end if;
+    return public.msa_member_json(m) || jsonb_build_object(
+        'approver', admin,
+        'poster', admin,
+        'admin', admin,
+        'email', mail,
+        'school', mail ~ '@k12\.ipsd\.org$');
+end;
+$$;
+
+/** Everyone who asked or joined (now with when they were let in). */
+create or replace function public.msa_people()
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+begin
+    perform public.msa_approver();
+    return coalesce((select jsonb_agg(jsonb_build_object('user_id', m.user_id, 'name', m.name, 'status', m.status, 'via', m.via,
+            'on_roster', exists (select 1 from public.msa_roster r where r.name_key = m.name_key),
+            'email', u.email, 'created_at', m.created_at, 'decided_at', m.decided_at, 'expires_at', m.expires_at)
+        order by case m.status when 'flagged' then 0 when 'pending' then 1 when 'approved' then 2 else 3 end, m.created_at desc)
+        from public.msa_members m join auth.users u on u.id = m.user_id
+        where not (m.status = 'approved' and m.expires_at <= now())), '[]'::jsonb);
+end;
+$$;
+
+/** Replace the roster, keeping the emails of names that stay on it. */
+create or replace function public.msa_roster_set(p_names text[])
+returns int language plpgsql security definer set search_path = public as $$
+begin
+    perform public.msa_approver();
+    if coalesce(array_length(p_names, 1), 0) > 2000 then raise exception 'too many names' using errcode = '54000'; end if;
+    with n as (
+        select distinct on (public.msa_name_key(x)) public.msa_name_key(x) as name_key,
+            left(btrim(regexp_replace(x, '\s+', ' ', 'g')), 80) as name, public.msa_email_keys(x) as keys
+        from unnest(coalesce(p_names, '{}')) x
+        where char_length(public.msa_name_key(x)) between 2 and 80
+    ), gone as (
+        delete from public.msa_roster r where not exists (select 1 from n where n.name_key = r.name_key)
+    )
+    insert into public.msa_roster (name_key, name, keys)
+    select name_key, name, keys from n
+    on conflict (name_key) do update set name = excluded.name, keys = excluded.keys;
+    return (select count(*) from public.msa_roster);
+end;
+$$;
+
+/** The roster with who has joined, and the email each student was added with. */
+create or replace function public.msa_roster_status()
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+begin
+    perform public.msa_approver();
+    return coalesce((select jsonb_agg(jsonb_build_object('name', r.name, 'user_id', m.user_id, 'via', m.via, 'email', u.email,
+            'invite', r.email, 'joined_at', m.decided_at) order by r.name)
+        from public.msa_roster r
+        left join public.msa_members m on m.name_key = r.name_key and m.status = 'approved' and m.expires_at > now()
+        left join auth.users u on u.id = m.user_id), '[]'::jsonb);
+end;
+$$;
+
+/**
+ * Add one student to the roster (or change their email). With an email, the
+ * account that signs in with it becomes a member — at once, if it exists.
+ */
+create or replace function public.msa_student_add(p_name text, p_email text default null)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare k text := public.msa_name_key(p_name); nm text := left(btrim(regexp_replace(coalesce(p_name, ''), '\s+', ' ', 'g')), 80);
+    mail text; target uuid; joined boolean := false;
+begin
+    perform public.msa_approver();
+    if char_length(k) < 2 or char_length(nm) > 80 or position(' ' in k) = 0 then
+        raise exception 'type your first and last name' using errcode = '22023';
+    end if;
+    if (select count(*) from public.msa_roster) >= 2000 then raise exception 'too many names' using errcode = '54000'; end if;
+    if nullif(btrim(coalesce(p_email, '')), '') is not null then
+        mail := public.msa_clean_email(p_email);
+        update public.msa_roster set email = null where email = mail and name_key <> k;
+    end if;
+    insert into public.msa_roster (name_key, name, keys, email)
+    values (k, nm, public.msa_email_keys(nm), mail)
+    on conflict (name_key) do update set name = excluded.name, keys = excluded.keys, email = coalesce(excluded.email, public.msa_roster.email);
+    if mail is not null then
+        select id into target from auth.users where lower(btrim(email)) = mail limit 1;
+        if target is not null then
+            update public.msa_members set status = 'flagged', decided_at = now(), expires_at = null
+            where name_key = k and user_id <> target and status = 'approved';
+            insert into public.msa_members as x (user_id, name, name_key, status, via, on_roster, created_at, decided_at, expires_at)
+            values (target, nm, k, 'approved', 'approver', true, now(), now(), public.msa_year_end())
+            on conflict (user_id) do update set name = excluded.name, name_key = excluded.name_key, status = 'approved',
+                via = 'approver', on_roster = true, decided_at = now(), expires_at = excluded.expires_at;
+            joined := true;
+        end if;
+    end if;
+    update public.msa_members set on_roster = true where name_key = k;
+    return jsonb_build_object('name', nm, 'email', mail, 'joined', joined);
+end;
+$$;
+
+/** Take a student off the roster; their membership (if any) ends too. */
+create or replace function public.msa_student_remove(p_name text)
+returns void language plpgsql security definer set search_path = public as $$
+declare k text := public.msa_name_key(p_name);
+begin
+    perform public.msa_approver();
+    delete from public.msa_roster where name_key = k;
+    delete from public.msa_members where name_key = k and status = 'approved';
+    update public.msa_members set on_roster = false where name_key = k;
+end;
+$$;
+
+/** Approve every waiting request whose name is on the roster (and free). Returns how many. */
+create or replace function public.msa_approve_listed()
+returns int language plpgsql security definer set search_path = public as $$
+declare m public.msa_members; n int := 0;
+begin
+    perform public.msa_approver();
+    for m in select * from public.msa_members x where x.status = 'pending'
+            and exists (select 1 from public.msa_roster r where r.name_key = x.name_key) order by x.created_at loop
+        continue when exists (select 1 from public.msa_members o where o.name_key = m.name_key and o.status = 'approved'
+            and o.expires_at > now() and o.user_id <> m.user_id);
+        delete from public.msa_members where name_key = m.name_key and status = 'approved' and expires_at <= now() and user_id <> m.user_id;
+        update public.msa_members set status = 'approved', via = 'approver', decided_at = now(), expires_at = public.msa_year_end()
+        where user_id = m.user_id;
+        n := n + 1;
+    end loop;
+    return n;
+end;
+$$;
+
+/** The admins: email (once known), owner, who added them, and which one is you. */
+create or replace function public.msa_admin_list()
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare mine bytea;
+begin
+    perform public.msa_approver();
+    mine := sha256(convert_to(public.msa_my_email(), 'UTF8'));
+    return coalesce((select jsonb_agg(jsonb_build_object('id', encode(a.email_hash, 'hex'), 'email', a.email, 'owner', a.owner,
+            'added_by', a.added_by, 'added_at', a.added_at, 'me', a.email_hash = mine)
+        order by a.owner desc, a.added_at) from public.msa_admins a), '[]'::jsonb);
+end;
+$$;
+
+/** Make an email an admin (posts, members, roster, code, admins). */
+create or replace function public.msa_admin_add(p_email text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare mail text;
+begin
+    perform public.msa_approver();
+    mail := public.msa_clean_email(p_email);
+    if (select count(*) from public.msa_admins) >= 25 then raise exception 'too many admins' using errcode = '54000'; end if;
+    insert into public.msa_admins (email_hash, email, added_by)
+    values (sha256(convert_to(mail, 'UTF8')), mail, public.msa_my_email())
+    on conflict (email_hash) do update set email = excluded.email;
+    return public.msa_admin_list();
+end;
+$$;
+
+/** Remove an admin by id (the hash in hex). Owners and yourself can't be removed. */
+create or replace function public.msa_admin_remove(p_id text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare a public.msa_admins;
+begin
+    perform public.msa_approver();
+    select * into a from public.msa_admins where encode(email_hash, 'hex') = lower(coalesce(p_id, ''));
+    if a.email_hash is null then raise exception 'no such admin' using errcode = 'P0002'; end if;
+    if a.owner then raise exception 'owners can''t be removed' using errcode = '42501'; end if;
+    if a.email_hash = sha256(convert_to(public.msa_my_email(), 'UTF8')) then
+        raise exception 'you can''t remove yourself' using errcode = '42501';
+    end if;
+    delete from public.msa_admins where email_hash = a.email_hash;
+    return public.msa_admin_list();
+end;
+$$;
+
+revoke all on function public.msa_clean_email(text), public.msa_invite_match() from public, anon, authenticated;
+revoke all on function public.msa_student_add(text, text), public.msa_student_remove(text), public.msa_approve_listed(),
+    public.msa_admin_list(), public.msa_admin_add(text), public.msa_admin_remove(text) from public, anon;
+grant execute on function public.msa_student_add(text, text), public.msa_student_remove(text), public.msa_approve_listed(),
+    public.msa_admin_list(), public.msa_admin_add(text), public.msa_admin_remove(text) to authenticated;

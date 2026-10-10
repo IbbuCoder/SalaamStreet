@@ -335,6 +335,71 @@ test("qibla camera mode: live camera, real direction overlay, clear exit", async
   await context.close();
 });
 
+test("qibla camera mode (3.1.8): an iPhone held upright stays steady — no 180° spin when its angles flip", async () => {
+  const { page, context } = await device();
+  await context.grantPermissions(["camera"], { origin: base.slice(0, -1) });
+  await open(page, "#/qibla");
+  await page.waitForFunction(() => document.getElementById("qb-deg").textContent !== "—");
+  await page.click("#qb-mode-camera");
+  await page.waitForSelector("#qb-cam:not([hidden])");
+  const deg = parseFloat(await page.textContent("#qb-deg")), decl = await page.evaluate(() => SS.compass.declination());
+  // iOS: alpha is relative to wherever the page started; webkitCompassHeading is the real (magnetic) heading.
+  const ios = (o, n) => page.evaluate(({ o, n }) => {
+    for (let i = 0; i < n; i++) {
+      const e = new Event("deviceorientationabsolute");
+      Object.assign(e, { alpha: o.alpha, beta: o.beta, gamma: o.gamma, absolute: false, webkitCompassHeading: o.wch, webkitCompassAccuracy: 5 });
+      window.dispatchEvent(e);
+    }
+  }, { o, n });
+  const wch = (deg - decl + 360) % 360; // the camera faces the Qibla
+  await ios({ alpha: 100, beta: 85, gamma: 0, wch }, 25);
+  await page.waitForTimeout(150);
+  assert.match(await page.textContent("#qb-cam-msg"), /facing the Qibla/);
+  // Tilting just past upright: the same pose, but alpha and gamma jump by 180°.
+  for (let i = 0; i < 6; i++) {
+    await ios({ alpha: 280, beta: 95, gamma: 180, wch }, 10);
+    await ios({ alpha: 100, beta: 85, gamma: 0, wch }, 10);
+  }
+  await ios({ alpha: 280, beta: 95, gamma: 180, wch }, 10);
+  await page.waitForTimeout(150);
+  assert.match(await page.textContent("#qb-cam-msg"), /facing the Qibla/, "still facing it — the view didn't swing round");
+  // A noisy compass reading now and then doesn't move it either.
+  await ios({ alpha: 100, beta: 85, gamma: 0, wch: (wch + 90) % 360 }, 5);
+  await ios({ alpha: 100, beta: 85, gamma: 0, wch }, 5);
+  await page.waitForTimeout(150);
+  assert.match(await page.textContent("#qb-cam-msg"), /facing the Qibla/);
+  // But really turning away is followed.
+  await ios({ alpha: 140, beta: 85, gamma: 0, wch: (wch - 40 + 360) % 360 }, 25);
+  await page.waitForTimeout(150);
+  assert.match(await page.textContent("#qb-cam-msg"), /Turn right 40°/);
+  assert.deepEqual(page.errors, []);
+  await context.close();
+});
+
+test("qibla camera mode (3.1.8): opened from a link or a reload, the overlay gets the Qibla once the location arrives", async () => {
+  const { page, context } = await device();
+  await context.grantPermissions(["camera"], { origin: base.slice(0, -1) });
+  await open(page, "#/qibla/camera");
+  await page.waitForSelector("#qb-cam:not([hidden])");
+  await page.waitForFunction(() => /^\d+° /.test(document.getElementById("qb-cam-deg").textContent));
+  await page.waitForSelector("#qb-tape-strip .qb-tape-k");
+  const deg = parseFloat(await page.textContent("#qb-deg")), decl = await page.evaluate(() => SS.compass.declination());
+  await orient(page, { alpha: (360 - (deg + 40 - decl) + 360) % 360, beta: 90 });
+  assert.match(await page.textContent("#qb-cam-msg"), /Turn left 40°/);
+  // Small sensor wobble doesn't rewrite the instruction every reading.
+  await orient(page, { alpha: (360 - (deg + 41 - decl) + 360) % 360, beta: 90 });
+  assert.match(await page.textContent("#qb-cam-msg"), /Turn left 40°/);
+  // Lying flat: asked to raise the phone; a little lift doesn't flicker back and forth.
+  await orient(page, { alpha: 0, beta: 5 });
+  assert.match(await page.textContent("#qb-cam-msg"), /[Rr]aise/);
+  await orient(page, { alpha: 0, beta: 33 });
+  assert.match(await page.textContent("#qb-cam-msg"), /[Rr]aise/, "still asking: inside the margin");
+  await orient(page, { alpha: (360 - (deg - decl) + 360) % 360, beta: 90 });
+  assert.match(await page.textContent("#qb-cam-msg"), /facing the Qibla/);
+  assert.deepEqual(page.errors, []);
+  await context.close();
+});
+
 test("qibla camera mode: the camera comes back after switching apps, and never stays on in the background", async () => {
   const { page, context } = await device();
   await context.grantPermissions(["camera"], { origin: base.slice(0, -1) });
@@ -1732,7 +1797,6 @@ test("msa: a poster posts an announcement with a photo; everyone sees it on the 
 test("msa membership: the live meeting code lets you in, a taken name is flagged for an in-person check, the approver decides; members-only posts reach members only", async () => {
   const pg = await familyDb();
   await pg.query(`insert into public.msa_admins (email_hash) values (sha256(convert_to('approver@example.org', 'UTF8')))`);
-  await pg.query(`insert into public.msa_approvers (email_hash) values (sha256(convert_to('approver@example.org', 'UTF8')))`);
   const mock = createMock({ pg });
   // ── The approver: roster, a members-only post, and the live code.
   const A = await device({ mock });
@@ -1741,10 +1805,9 @@ test("msa membership: the live meeting code lets you in, a taken name is flagged
   await A.page.waitForFunction(() => SS.account.signedIn());
   await open(A.page, "#/msa");
   await A.page.waitForSelector("#msa-admin-btn:not([hidden])");
-  assert.match(await A.page.textContent("#msa-member"), /You approve MSA members/);
+  assert.match(await A.page.textContent("#msa-member"), /You're an MSA admin/);
   await A.page.click("#msa-admin-btn");
   await A.page.waitForSelector("#msa-edit summary");
-  assert.match(await A.page.textContent("#msa-manage"), /Teachers and MSA exec will be able to help manage this in a future update/);
   await A.page.click("#msa-edit summary");
   await A.page.fill("#msa-roster-in", "Teachers\n* Sample Teacher\n\nClassmates\n124 students\nAmina Yusuf\nOmar Khan\n");
   await A.page.click("#msa-roster [type=submit]");
@@ -1836,7 +1899,7 @@ test("msa membership: the live meeting code lets you in, a taken name is flagged
   assert.match(await S3.page.textContent("#msa-member"), /You're a member/);
   // Members can't open the approver's page.
   await open(S3.page, "#/msa/manage");
-  await S3.page.waitForFunction(() => /Only the MSA's approver/.test(document.getElementById("msa-manage").textContent));
+  await S3.page.waitForFunction(() => /Only MSA admins can open this page/.test(document.getElementById("msa-manage").textContent));
   for (const P of [A, G, S1, S2, S3]) { assert.deepEqual(P.page.errors, []); await P.context.close(); }
   await pg.close();
 });
@@ -1882,6 +1945,87 @@ test("msa school accounts: sign in with the school email (not Google) and you're
   await S.page.waitForFunction(() => /room 1234/.test(document.getElementById("msa-list").textContent));
   assert.deepEqual(S.page.errors, []);
   await P.context.close(); await S.context.close();
+  await pg.close();
+});
+
+test("msa admins (3.1.8): add a student by email, approve everyone on the list at once, download the list, add and remove admins", async () => {
+  const pg = await familyDb();
+  await pg.query(`insert into public.msa_admins (email_hash) values (sha256(convert_to('approver@example.org', 'UTF8')))`);
+  await pg.query(`insert into public.msa_roster (name_key, name, keys) values ('omar khan', 'Omar Khan', public.msa_email_keys('Omar Khan'))`);
+  const mock = createMock({ pg });
+  const A = await device({ mock });
+  A.page.on("dialog", (d) => d.accept());
+  await emailSignIn(A.page, "approver@example.org");
+  await A.page.waitForFunction(() => SS.account.signedIn());
+  await open(A.page, "#/msa/manage");
+  await A.page.waitForSelector("#msa-add");
+  // The admin list: the two owners (not signed in yet here) and you.
+  await A.page.waitForSelector("#msa-adm .msa-row");
+  const adm = await A.page.textContent("#msa-adm");
+  assert.match(adm, /approver@example\.org.*You/);
+  assert.equal((adm.match(/Owner/g) || []).length, 2);
+  // Add a student with the email they'll sign in with.
+  await A.page.click("#msa-add-go");
+  assert.match(await A.page.textContent("#msa-add-err"), /first and last name/);
+  await A.page.fill("#msa-add-name", "Yusuf  Ahmed");
+  await A.page.fill("#msa-add-email", "yusuf@example.com");
+  await A.page.click("#msa-add-go");
+  await A.page.waitForFunction(() => /Yusuf Ahmed.*Joins with yusuf@example\.com/.test(document.getElementById("msa-mem").textContent));
+  await A.page.click('[data-filter="joined"]');
+  assert.doesNotMatch(await A.page.textContent("#msa-mem"), /Yusuf/);
+  await A.page.click('[data-filter="notyet"]');
+  assert.match(await A.page.textContent("#msa-mem"), /Yusuf Ahmed/);
+  assert.match(await A.page.textContent("#msa-filter"), /All\s*2.*Joined\s*0.*Not yet\s*2/s);
+  // Yusuf signs in with that email: he's a member, no code.
+  const Y = await device({ mock });
+  await emailSignIn(Y.page, "yusuf@example.com");
+  await Y.page.waitForFunction(() => SS.account.signedIn());
+  await open(Y.page, "#/msa");
+  await Y.page.waitForFunction(() => /You're a member · until/.test(document.getElementById("msa-member").textContent));
+  // Omar asks without a code; he's on the list, so "Approve 1 on the list" does it in one tap.
+  const O = await device({ mock });
+  await emailSignIn(O.page, "omar@example.com");
+  await O.page.waitForFunction(() => SS.account.signedIn());
+  await open(O.page, "#/msa");
+  await O.page.waitForSelector("#msa-join");
+  await O.page.fill("#msa-j-name", "Omar Khan");
+  await O.page.click("#msa-j-go");
+  await O.page.waitForFunction(() => /Request sent/.test(document.getElementById("msa-member").textContent));
+  await reopen(A.page, "#/msa/manage");
+  await A.page.waitForSelector("#msa-q-approve:not([hidden])");
+  assert.match(await A.page.textContent("#msa-q-approve"), /Approve 1 on the list/);
+  await A.page.click("#msa-q-approve");
+  await A.page.waitForSelector("#msa-q-approve", { state: "hidden" });
+  await A.page.waitForFunction(() => /2\/2\s*of the list joined.*2\s*joined this week/s.test(document.getElementById("msa-stats").textContent));
+  await shot(A.page, "msa-manage-admins-390");
+  // Download the list as a spreadsheet.
+  const [dl] = await Promise.all([A.page.waitForEvent("download"), A.page.click("#msa-q-csv")]);
+  const csv = fs.readFileSync(await dl.path(), "utf8");
+  assert.match(csv, /^﻿Name,Status,How,Email,Joined/);
+  assert.match(csv, /Yusuf Ahmed,member,approver,yusuf@example\.com/);
+  assert.match(csv, /Omar Khan,member,approver,omar@example\.com/);
+  // Add an admin: they can post and manage; then remove them.
+  await A.page.fill("#msa-adm-email", "Exec@Example.org");
+  await A.page.click("#msa-adm-go");
+  await A.page.waitForFunction(() => /exec@example\.org.*added by approver@example\.org/.test(document.getElementById("msa-adm").textContent));
+  const E = await device({ mock });
+  await emailSignIn(E.page, "exec@example.org");
+  await E.page.waitForFunction(() => SS.account.signedIn());
+  await open(E.page, "#/msa");
+  await E.page.waitForSelector("#msa-new:not([hidden])");
+  await E.page.waitForSelector("#msa-admin-btn:not([hidden])");
+  await A.page.click('#msa-adm [data-email="exec@example.org"]');
+  await A.page.waitForFunction(() => !/exec@example\.org/.test(document.getElementById("msa-adm").textContent));
+  await reopen(E.page, "#/msa");
+  await E.page.waitForSelector(".msa-join-form, .msa-school");
+  assert.equal(await E.page.isHidden("#msa-new"), true, "no longer an admin: no posting");
+  // Take Yusuf off the list: his membership ends.
+  await A.page.click('[data-filter="all"]');
+  await A.page.click('#msa-mem [data-act="remove"][data-name="Yusuf Ahmed"]');
+  await A.page.waitForFunction(() => [...document.querySelectorAll("#msa-mem .msa-row")].some((r) => /Yusuf Ahmed/.test(r.textContent) && !r.classList.contains("in")));
+  await A.page.click('#msa-mem [data-act="unlist"][data-name="Yusuf Ahmed"]');
+  await A.page.waitForFunction(() => !/Yusuf/.test(document.getElementById("msa-mem").textContent));
+  for (const P of [A, Y, O, E]) { assert.deepEqual(P.page.errors, []); await P.context.close(); }
   await pg.close();
 });
 

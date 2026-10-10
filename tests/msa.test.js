@@ -53,7 +53,7 @@ test("the poster list ships as hashes, never email addresses", async () => {
   assert.doesNotMatch(block.replace(/name@example\.org/g, ""), /[a-z0-9._-]+@[a-z0-9.-]+\.[a-z]+/i);
   const pg = await db();
   const r = await pg.query(`select count(*)::int as n from public.msa_admins`);
-  assert.equal(r.rows[0].n, 5, "the MSA's four accounts, plus the test's own poster");
+  assert.equal(r.rows[0].n, 3, "3.1.8: the two owners, plus the test's own poster");
 });
 
 test("a poster posts, edits and deletes; everyone (even signed out) reads", async () => {
@@ -134,7 +134,8 @@ const AMINA = "55555555-5555-5555-5555-555555555555";
 const FAKE = "66666666-6666-6666-6666-666666666666";
 async function club() {
   const pg = await db();
-  await pg.query(`insert into public.msa_approvers (email_hash) values (sha256(convert_to('approver@example.org', 'UTF8')))`);
+  // 3.1.8: one admin list — admins post and manage.
+  await pg.query(`insert into public.msa_admins (email_hash) values (sha256(convert_to('approver@example.org', 'UTF8')))`);
   await pg.query(`insert into auth.users (id, email) values ($1, 'Approver@example.org'), ($2, 'amina@example.com'), ($3, 'fake@example.com')`, [APPROVER, AMINA, FAKE]);
   await rpc(pg, APPROVER, "msa_roster_set", { p_names: ["Amina Yusuf", "  Omar   Khan ", "Teachers"] });
   return pg;
@@ -166,6 +167,7 @@ test("members-only posts reach members, posters and the approver — nobody else
 
 test("the approver sees requests with the roster check; approves, denies and removes; nobody else can", async () => {
   const pg = await club();
+  await pg.query(`delete from public.msa_admins where email_hash = sha256(convert_to('poster@example.org', 'UTF8'))`);
   await join(pg, AMINA, "Amina Yusuf");
   await join(pg, FAKE, "Somebody Else");
   const people = await rpc(pg, APPROVER, "msa_people");
@@ -184,9 +186,9 @@ test("the approver sees requests with the roster check; approves, denies and rem
   assert.equal((await rpc(pg, AMINA, "msa_status")).status, "none");
   // Students never see the roster, the list of people, or the code — and can't decide anything.
   for (const uid of [AMINA, POSTER, FAKE]) {
-    for (const fn of ["msa_people", "msa_roster_get", "msa_live_code"]) await assert.rejects(rpc(pg, uid, fn), /not the MSA approver/);
-    await assert.rejects(rpc(pg, uid, "msa_decide", { p_user: AMINA, p_action: "approve" }), /not the MSA approver/);
-    await assert.rejects(rpc(pg, uid, "msa_roster_set", { p_names: ["Me"] }), /not the MSA approver/);
+    for (const fn of ["msa_people", "msa_roster_get", "msa_live_code"]) await assert.rejects(rpc(pg, uid, fn), /not an MSA admin/);
+    await assert.rejects(rpc(pg, uid, "msa_decide", { p_user: AMINA, p_action: "approve" }), /not an MSA admin/);
+    await assert.rejects(rpc(pg, uid, "msa_roster_set", { p_names: ["Me"] }), /not an MSA admin/);
   }
   for (const fn of ["msa_status", "msa_people", "msa_live_code"]) await assert.rejects(rpc(pg, null, fn), /permission denied/);
   await assert.rejects(join(pg, null, "Amina Yusuf"), /permission denied/);
@@ -324,5 +326,126 @@ test("the school account owns its name: someone who claimed it first is flagged"
   // Expired members re-join by themselves next year.
   await pg.query(`update public.msa_members set expires_at = now() - interval '1 second' where user_id = $1`, [S1]);
   assert.equal((await rpc(pg, S1, "msa_status")).status, "approved");
-  await assert.rejects(rpc(pg, S1, "msa_roster_status"), /not the MSA approver/);
+  await assert.rejects(rpc(pg, S1, "msa_roster_status"), /not an MSA admin/);
+});
+
+/* ═══════════ 3.1.8 One admin list, managed in the app ═══════════ */
+const OWNER_A = "99999999-9999-9999-9999-999999999991";
+const OWNER_B = "99999999-9999-9999-9999-999999999992";
+const NEWBIE = "99999999-9999-9999-9999-999999999993";
+// The owners' addresses are the only ones the app's admin list starts with.
+// (The schema stores only their hashes; the test knows the addresses.)
+const OWNERS = ["ibrahimahm6675@k12.ipsd.org", "ibrahim.asim.contact@gmail.com"];
+
+test("only the two owners are admins after upgrading; posters from 3.1.7 lose access once, and re-running keeps admins added later", async () => {
+  const { PGlite } = await import("@electric-sql/pglite");
+  const pg = new PGlite();
+  await pg.exec(`
+    create role anon nologin; create role authenticated nologin;
+    create schema auth;
+    create table auth.users (id uuid primary key, email text, phone text, raw_user_meta_data jsonb default '{}'::jsonb);
+    create function auth.uid() returns uuid language sql stable as
+      $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
+    create publication supabase_realtime;
+    grant usage on schema public, auth to authenticated, anon;
+    grant execute on function auth.uid() to authenticated, anon;
+  `);
+  // A 3.1.7 database: the old poster list (here, one old exec account).
+  const v317 = SQL.slice(0, SQL.indexOf("--  3.1.8 — One list of MSA admins"));
+  await pg.exec(v317);
+  await pg.query(`insert into public.msa_admins (email_hash) values (sha256(convert_to('old.exec@example.org', 'UTF8')))`);
+  await pg.exec(SQL);
+  const hashes = (await pg.query(`select encode(email_hash, 'hex') h, owner from public.msa_admins order by 1`)).rows;
+  assert.equal(hashes.length, 2);
+  assert.ok(hashes.every((r) => r.owner));
+  const want = OWNERS.map((e) => require("crypto").createHash("sha256").update(e).digest("hex")).sort();
+  assert.deepEqual(hashes.map((r) => r.h), want);
+  // An admin added afterwards survives running the file again.
+  await pg.query(`insert into public.msa_admins (email_hash) values (sha256(convert_to('new.exec@example.org', 'UTF8')))`);
+  await pg.exec(SQL);
+  assert.equal((await pg.query(`select count(*)::int n from public.msa_admins`)).rows[0].n, 3);
+});
+
+test("admins post and manage; they add and remove admins in the app, but never an owner or themselves", async () => {
+  const pg = await db();
+  await pg.query(`insert into auth.users (id, email) values ($1, $2), ($3, $4), ($5, 'newbie@example.org')`, [OWNER_A, OWNERS[0].toUpperCase(), OWNER_B, OWNERS[1], NEWBIE]);
+  const st = await rpc(pg, OWNER_A, "msa_status");
+  assert.equal(st.admin, true);
+  assert.equal(st.poster, true);
+  assert.equal(st.approver, true);
+  assert.equal((await save(pg, OWNER_A, { title: "From an owner" })).title, "From an owner");
+  // The admin list shows what's known: an owner's email once they've signed in.
+  let list = await rpc(pg, OWNER_A, "msa_admin_list");
+  assert.equal(list.find((a) => a.me).email, OWNERS[0]);
+  assert.equal(list.filter((a) => a.owner).length, 2);
+  assert.equal(list.find((a) => a.owner && !a.me).email, null, "the other owner hasn't signed in yet");
+  // Not an admin yet: can't post or manage.
+  await assert.rejects(save(pg, NEWBIE, { title: "Hi" }), /not an MSA poster/);
+  await assert.rejects(rpc(pg, NEWBIE, "msa_admin_add", { p_email: "x@example.org" }), /not an MSA admin/);
+  // Added by an owner (any case, spaces trimmed): can do everything.
+  list = await rpc(pg, OWNER_A, "msa_admin_add", { p_email: "  NewBie@Example.org " });
+  const added = list.find((a) => a.email === "newbie@example.org");
+  assert.equal(added.added_by, OWNERS[0]);
+  assert.equal((await save(pg, NEWBIE, { title: "Hello from the new admin" })).title, "Hello from the new admin");
+  assert.equal((await rpc(pg, NEWBIE, "msa_status")).approver, true);
+  await rpc(pg, NEWBIE, "msa_people");
+  // Owners and yourself can't be removed; bad addresses are refused.
+  const ownerB = list.find((a) => a.owner && !a.me);
+  await assert.rejects(rpc(pg, NEWBIE, "msa_admin_remove", { p_id: ownerB.id }), /owners can't be removed/);
+  await assert.rejects(rpc(pg, NEWBIE, "msa_admin_remove", { p_id: added.id }), /can't remove yourself/);
+  await assert.rejects(rpc(pg, OWNER_A, "msa_admin_add", { p_email: "not an email" }), /isn't an email address/);
+  // An owner removes the new admin: access ends at once.
+  list = await rpc(pg, OWNER_A, "msa_admin_remove", { p_id: added.id });
+  assert.equal(list.some((a) => a.email === "newbie@example.org"), false);
+  await assert.rejects(save(pg, NEWBIE, { title: "Still here?" }), /not an MSA poster/);
+  // Signed out or a student: no way in.
+  await assert.rejects(rpc(pg, null, "msa_admin_list"), /permission denied/);
+  await assert.rejects(as(pg, NEWBIE, `select * from public.msa_meta`), /permission denied/);
+});
+
+test("admins add students one by one; with an email, that account is a member at once — or when it first signs in", async () => {
+  const pg = await club();
+  await pg.exec(`alter table auth.users add column if not exists email_confirmed_at timestamptz`);
+  await save(pg, POSTER, { title: "Members meeting", members_only: true });
+  // Amina already has an account: she's in straight away.
+  const r = await rpc(pg, APPROVER, "msa_student_add", { p_name: "  Amina   Yusuf ", p_email: "Amina@Example.com" });
+  assert.deepEqual(r, { name: "Amina Yusuf", email: "amina@example.com", joined: true });
+  assert.equal((await rpc(pg, AMINA, "msa_status")).status, "approved");
+  assert.deepEqual(await feedTitles(pg, AMINA), ["Members meeting"]);
+  // Yusuf hasn't signed up yet: he joins when his (confirmed) account first opens the MSA page.
+  assert.equal((await rpc(pg, APPROVER, "msa_student_add", { p_name: "Yusuf Ahmed", p_email: "yusuf@gmail.com" })).joined, false);
+  await student(pg, S1, "yusuf@gmail.com", false);
+  assert.equal((await rpc(pg, S1, "msa_status")).status, "none", "an unconfirmed address proves nothing");
+  await student(pg, S1, "yusuf@gmail.com");
+  const st = await rpc(pg, S1, "msa_status");
+  assert.equal(st.status, "approved");
+  assert.equal(st.name, "Yusuf Ahmed");
+  // A name alone goes on the list; editing the whole list keeps the emails.
+  await rpc(pg, APPROVER, "msa_student_add", { p_name: "Bilal Khan" });
+  await rpc(pg, APPROVER, "msa_roster_set", { p_names: ["Amina Yusuf", "Yusuf Ahmed", "Bilal Khan", "Omar Khan"] });
+  const roster = await rpc(pg, APPROVER, "msa_roster_status");
+  assert.equal(roster.find((x) => x.name === "Yusuf Ahmed").invite, "yusuf@gmail.com");
+  assert.equal(roster.find((x) => x.name === "Bilal Khan").user_id, null);
+  // Removing a student takes them off the list and ends their membership.
+  await rpc(pg, APPROVER, "msa_student_remove", { p_name: "yusuf ahmed" });
+  assert.equal((await rpc(pg, APPROVER, "msa_roster_status")).some((x) => x.name === "Yusuf Ahmed"), false);
+  assert.equal((await rpc(pg, S1, "msa_status")).status, "none");
+  // Students can't add anyone.
+  await assert.rejects(rpc(pg, AMINA, "msa_student_add", { p_name: "Fake Friend" }), /not an MSA admin/);
+  await assert.rejects(rpc(pg, APPROVER, "msa_student_add", { p_name: "Madonna" }), /first and last name/);
+});
+
+test("approve everyone waiting who is on the list, in one go — never a taken name", async () => {
+  const pg = await club();
+  await join(pg, AMINA, "Amina Yusuf");
+  await join(pg, FAKE, "Somebody Else");
+  await pg.query(`insert into auth.users (id, email) values ($1, 'omar@example.com'), ($2, 'omar2@example.com')`, [S1, S2]);
+  await join(pg, S1, "Omar Khan");
+  const code = (await rpc(pg, APPROVER, "msa_live_code")).code;
+  await join(pg, S2, "Omar Khan", code); // S2 holds the name first
+  assert.equal(await rpc(pg, APPROVER, "msa_approve_listed"), 1, "only Amina: Omar's name is taken, Somebody isn't on the list");
+  assert.equal((await rpc(pg, AMINA, "msa_status")).status, "approved");
+  assert.equal((await rpc(pg, FAKE, "msa_status")).status, "pending");
+  assert.notEqual((await rpc(pg, S1, "msa_status")).status, "approved");
+  await assert.rejects(rpc(pg, AMINA, "msa_approve_listed"), /not an MSA admin/);
 });

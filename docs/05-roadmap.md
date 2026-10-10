@@ -90,6 +90,10 @@ laptops and large monitors. Core worship features are, and will stay, free.
   (emailed code, not Google) are accepted automatically; simpler Manage page; Google always asks which account. Full
   notes: [`release-notes/3.1.7.md`](release-notes/3.1.7.md)
 
+- **3.1.8 — Steadier Qibla camera, MSA admins:** the Qibla camera no longer spins (iPhone held upright) or
+  flickers; one list of MSA admins who post and manage, adding students and admins in the app; a better Manage
+  page. Full notes: [`release-notes/3.1.8.md`](release-notes/3.1.8.md)
+
 ## Planned (no release dates; plans may change)
 
 The plan after 3.0 lives in [`ROADMAP.md`](../ROADMAP.md) (with status, dependencies, risks and completion
