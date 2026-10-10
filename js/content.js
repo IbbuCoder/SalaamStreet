@@ -224,8 +224,31 @@
   ];
 
   /* ── Version & release notes (newest first) ──────────────────────── */
-  SS.VERSION = "3.1.6";
+  SS.VERSION = "3.1.7";
   SS.CHANGELOG = [
+    {
+      v: "3.1.7", date: "2026-10-10",
+      en: "NVHS MSA: join with your school email", ar: "رابطة NVHS: انضم ببريد المدرسة",
+      den: "NVHS students on the MSA's list sign in with their school email and are accepted automatically — and managing the MSA is simpler.",
+      dar: "يسجّل طلاب NVHS المدرجون في قائمة الرابطة الدخول ببريد المدرسة ويُقبلون تلقائيًا — وصارت إدارة الرابطة أسهل.",
+      groups: [
+        { en: "Join with your school email", ar: "انضم ببريد المدرسة", items: [
+          { en: "Sign in with your school email (…@k12.ipsd.org) using the emailed code — not Google — and if you're on the MSA's list you're a member straight away", ar: "سجّل الدخول ببريد المدرسة (…@k12.ipsd.org) بالرمز المرسل — لا عبر Google — وإن كنت في قائمة الرابطة تصبح عضوًا فورًا" },
+          { en: "The MSA page explains it step by step, and one tap switches a personal account to your school email", ar: "تشرح صفحة الرابطة ذلك خطوة بخطوة، ولمسة واحدة تنقلك من حسابك الشخصي إلى بريد المدرسة" },
+          { en: "Your school account owns your name: if someone else claimed it first, they're flagged", ar: "حساب المدرسة هو صاحب اسمك: إن ادّعاه غيرك قبلك فيُعلَّم طلبه" },
+          { en: "The meeting code and requests still work for anyone not on the list", ar: "ما زال رمز الاجتماع والطلبات متاحين لمن ليس في القائمة" },
+        ] },
+        { en: "Simpler to manage", ar: "إدارة أبسط", items: [
+          { en: "The Manage page shows members, who's waiting, and how much of the list has joined at a glance", ar: "تعرض صفحة الإدارة الأعضاء ومن ينتظر ونسبة من انضم من القائمة بنظرة واحدة" },
+          { en: "Only what needs you is at the top; the meeting code opens when you need it", ar: "ما يحتاجك فقط في الأعلى؛ ورمز الاجتماع يُفتح عند الحاجة" },
+          { en: "The whole list with \u201cJoined\u201d or \u201cNot joined yet\u201d next to each name, a search box, and one-tap remove", ar: "القائمة كاملة مع «انضم» أو «لم ينضم بعد» بجانب كل اسم، ومربع بحث، وإزالة بلمسة" },
+          { en: "Teachers and MSA exec will be able to help manage this in a future update", ar: "سيتمكن المعلمون وقادة الرابطة من المساعدة في الإدارة في تحديث قادم" },
+        ] },
+        { en: "Fixes", ar: "إصلاحات", items: [
+          { en: "Continue with Google now always asks which account to use, instead of signing in with the last one", ar: "صار «المتابعة مع Google» يسأل دائمًا عن الحساب بدل الدخول بآخر حساب" },
+        ] },
+      ],
+    },
     {
       v: "3.1.6", date: "2026-10-09",
       en: "NVHS MSA members", ar: "أعضاء رابطة NVHS",

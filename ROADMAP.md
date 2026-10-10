@@ -1,6 +1,6 @@
 # SalaamStreet Roadmap
 
-What we plan to build after **3.1.6 — NVHS MSA members**, in order. This is a plan, not a
+What we plan to build after **3.1.7 — NVHS MSA: join with your school email**, in order. This is a plan, not a
 promise: nothing planned below exists in the app yet, and there are no dates —
 releases ship when they're ready and tested. The same list appears in the app
 under About → Updates (`SS.ROADMAP` in `js/content.js`); keep the two in step.
@@ -25,6 +25,7 @@ under About → Updates (`SS.ROADMAP` in `js/content.js`); keep the two in step.
 | 3.1.0 | NVHS MSA | ✅ Completed |
 | 3.1.5 | Modes, made useful | ✅ Completed |
 | 3.1.6 | NVHS MSA members | ✅ Completed |
+| 3.1.7 | NVHS MSA: join with your school email | ✅ Completed |
 | 3.2 | Personalization | 📋 Planned |
 | 3.3 | Qur'an Experience | 📋 Planned |
 | 3.4 | Community: mosque pages | 📋 Planned |
@@ -104,6 +105,20 @@ membership until 1 July. Release notes:
 
 Limit: SalaamStreet can't check school accounts (students sign in with
 personal ones), so the meeting code and the approver are the proof.
+
+## 3.1.7 — NVHS MSA: join with your school email · ✅ Completed
+
+**Goal:** let real NVHS students on the MSA's list in without any work.
+
+Shipped: a confirmed school email that fits a roster name is a member at
+once; the MSA page tells students to sign in with their school email using
+the emailed code, not Google; a simpler Manage page (at-a-glance numbers, only
+what needs you on top, the list with joined / not joined yet and search);
+Google sign-in always asks which account to use. Release notes:
+[`docs/release-notes/3.1.7.md`](docs/release-notes/3.1.7.md).
+
+Next (when they want it): teachers and MSA exec helping to manage members
+and posts — planned with **3.4**.
 
 ## 3.2 — Personalization · 📋 Planned
 
