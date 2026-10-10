@@ -724,7 +724,7 @@ SS.i18n.register("fr", {
 "msa.adminRemoved": "{e} n’est plus admin",
 "msa.owner": "Propriétaire",
 "msa.you": "Vous",
-"msa.notSignedInYet": "Pas connecté(e) depuis la 3.1.8",
+"msa.notSignedInYet": "Pas connecté(e) depuis la 2.11.8",
 "msa.badEmail": "Saisissez une adresse e-mail.",
 "msa.addedBy": "ajouté par {e}",
 "msa.memberUntil": "Vous êtes membre · jusqu’au {d}",

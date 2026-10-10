@@ -371,7 +371,7 @@
     var parts = h.split("/");
     var view = parts.shift() || "home";
     if (VIEWS.indexOf(view) === -1) view = "home";
-    // Kids Mode (3.0) keeps a child's device inside the Kids area.
+    // Kids Mode (2.10) keeps a child's device inside the Kids area.
     if (SS.modes && SS.modes.kidLocked() && view !== "kids") {
       try { history.replaceState(null, "", "#/kids"); } catch (e) { /* file:// */ }
       view = "kids"; parts = [];

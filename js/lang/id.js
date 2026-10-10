@@ -724,7 +724,7 @@ SS.i18n.register("id", {
 "msa.adminRemoved": "{e} bukan admin lagi",
 "msa.owner": "Pemilik",
 "msa.you": "Anda",
-"msa.notSignedInYet": "Belum masuk sejak 3.1.8",
+"msa.notSignedInYet": "Belum masuk sejak 2.11.8",
 "msa.badEmail": "Ketik alamat email.",
 "msa.addedBy": "ditambahkan oleh {e}",
 "msa.memberUntil": "Anda anggota · sampai {d}",

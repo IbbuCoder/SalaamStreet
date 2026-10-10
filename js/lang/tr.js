@@ -724,7 +724,7 @@ SS.i18n.register("tr", {
 "msa.adminRemoved": "{e} artık yönetici değil",
 "msa.owner": "Sahip",
 "msa.you": "Siz",
-"msa.notSignedInYet": "3.1.8'den beri giriş yapmadı",
+"msa.notSignedInYet": "2.11.8'den beri giriş yapmadı",
 "msa.badEmail": "Bir e-posta adresi yazın.",
 "msa.addedBy": "{e} ekledi",
 "msa.memberUntil": "Üyesiniz · {d} tarihine kadar",

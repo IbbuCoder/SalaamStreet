@@ -98,7 +98,7 @@
     { key: "dhikr:preset" },
     { key: "learn:best", merge: MERGE.max },
     { prefix: "dhikr:day:", merge: MERGE.maxMap },
-    // 3.0 Modes. Places, mosques and Kids Mode stay on each device on purpose
+    // 2.10 Modes. Places, mosques and Kids Mode stay on each device on purpose
     // (where you are, and which child uses a device, belong to that device).
     { key: "mode:active" },
     { key: "travel:checklist", map: true },

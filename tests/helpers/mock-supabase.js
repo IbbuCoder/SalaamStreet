@@ -16,7 +16,7 @@ const URL_BASE = "https://test.supabase.co";
 const b64u = (o) => Buffer.from(JSON.stringify(o)).toString("base64url");
 
 /** A real Postgres (PGlite) running backend/supabase-schema.sql, for the
-    3.0 Family & Kids and 3.1 MSA functions: the mock forwards family_*, kid_*
+    2.10 Family & Kids and 2.11 MSA functions: the mock forwards family_*, kid_*
     and msa_* RPCs to it as the signed-in user (or anonymously), like
     PostgREST would. */
 async function familyDb() {

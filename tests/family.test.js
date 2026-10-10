@@ -1,4 +1,4 @@
-/* 3.0 Family & Kids Mode: backend/supabase-schema.sql in a real Postgres
+/* 2.10 Family & Kids Mode: backend/supabase-schema.sql in a real Postgres
    (PGlite), with Supabase's auth bits stubbed as in schema.test.js.
    Covers who can reach what: parents only their own children; a child's
    device only that one child; restrictions enforced by the database.

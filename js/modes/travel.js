@@ -1,5 +1,5 @@
 /* SalaamStreet — modes/travel.js (classic script, loaded on demand)
-   3.0 Travel Mode: local prayer times and Qibla wherever you are, a
+   2.10 Travel Mode: local prayer times and Qibla wherever you are, a
    destination, saved places, travel duas, a checklist, and general guidance
    on prayer while travelling.
 
@@ -170,7 +170,7 @@
     return r.onDevice ? t("travel.calcOnDevice") : r.stale ? t("travel.savedTimes") : "";
   }
 
-  /* ═══════════ How to pray while travelling (3.1.5) ═══════════ */
+  /* ═══════════ How to pray while travelling (2.11.5) ═══════════ */
   // The one question Travel Mode answers. Rak'ahs: normal → while travelling.
   var RAKAH = [["Fajr", 2, 2], ["Dhuhr", 4, 2], ["Asr", 4, 2], ["Maghrib", 3, 3], ["Isha", 4, 2]];
   function rakahStrip(cls) {
