@@ -27,7 +27,7 @@ under About → Updates (`SS.ROADMAP` in `js/content.js`); keep the two in step.
 | 2.11.6 | NVHS MSA members | ✅ Completed |
 | 2.11.7 | NVHS MSA: join with your school email | ✅ Completed |
 | 2.11.8 | Steadier Qibla camera, MSA admins | ✅ Completed |
-| 3.0 | The AI update | 🚧 Up next |
+| 3.0 | SalaamStreet Plans: Plus, Pro and Max | 🚧 Up next |
 | 3.1 | Personalization | 📋 Planned |
 | 3.2 | Qur'an Experience | 📋 Planned |
 | 3.3 | Community: mosque pages | 📋 Planned |
@@ -136,23 +136,37 @@ the Manage page gains "approve all on the list", a new-announcement button,
 joined-this-week, filters and a CSV download. Release notes:
 [`docs/release-notes/2.11.8.md`](docs/release-notes/2.11.8.md).
 
-## 3.0 — The AI update · 🚧 Up next
+## 3.0 — SalaamStreet Plans: Plus, Pro and Max · 🚧 Up next
 
-**Goal:** SalaamStreet AI — help people find answers in the Qur'an, authentic
-hadith and the app's own content.
+**Goal:** keep SalaamStreet free for everyone, and pay for the parts that
+really cost money to run or take a lot of work, with three optional plans.
 
-**Planned:** ask a question in plain words and get an answer built only from
-sources the app already trusts (the Qur'an with its translations and tafsir,
-graded hadith, the app's duas, lessons and guides), with every quote linked to
-where it comes from; questions about rulings are pointed to qualified scholars
-and set out where the schools differ, never answered with a ruling of its own;
-works in the app's interface languages; nothing in Kids Mode.
+**Free, always.** Everything that is free today stays free, with no ads and no
+limits added: prayer times and prayer reminders, the Qibla (camera too), the
+Qur'an with audio, translations and tafsir, Offline Qur'an, hadith, duas,
+dhikr, the Islamic calendar, Stories, every Mode, Kids Mode and the Family
+page (up to 10 children), an account with sync, and the NVHS MSA page.
+Anything new that costs little to run is free too.
 
-**Risks:** an answer that sounds sure but isn't sourced; cost; privacy of the
-questions people ask.
-**Completion criteria:** every answer quotes and cites a verified source or
-says it doesn't know; no rulings are generated; questions aren't stored
-unless the person chooses to save them.
+**Paid, only where it costs.** Each plan includes the one below it.
+
+| Plan | For | What it adds (each one has a real running cost) |
+|---|---|---|
+| **Plus** | One person | Long-term cloud backup of your history (Qur'an reading, dhikr, prayer check-ins) that you can restore on any device; more reminders on your own schedule (Qur'an, adhkar, Jumu'ah, fasting), each one sent by our server |
+| **Pro** | Serious learners and families | More reciters in high quality to download for offline listening; memorization tools that keep your own recordings in the cloud; larger photo and file storage |
+| **Max** | Mosques, MSAs and schools | Your organization's own verified page: announcements with pictures, events, members and admins, push notifications to followers, and help setting it up. Reading and following these pages is always free (see 3.3) |
+
+**Not decided yet:** prices, monthly or yearly billing, and discounts for
+students or anyone who can't pay. Nobody who can't pay should lose anything
+they need for worship or learning.
+
+**Not in this release:** no code for payments yet. This is the plan only.
+
+**Risks:** charging for something people already use for free; payment and
+tax rules; keeping the free app as good as the paid one.
+**Completion criteria:** a public list of exactly what's free and what's paid;
+nothing that was free gets a new limit; payments handled by a trusted provider
+(we never see card details); cancelling is one tap and keeps your data.
 
 ## 3.1 — Personalization · 📋 Planned
 
@@ -322,7 +336,7 @@ security findings.
 **Goal:** evaluate a larger evolution after the 3.x series.
 
 **Possible directions:** more intelligent personalization; advanced Islamic
-search; a smarter SalaamStreet AI (building on 3.0); deeper Qur'an and learning
+search; a carefully sourced Islamic assistant; deeper Qur'an and learning
 experiences; more capable community tools; smarter Modes; wider offline
 support; a better mobile experience; possibly native mobile apps.
 
@@ -336,8 +350,9 @@ scheduled.
 
 ## Changes to the plan
 
-- **3.0 became the AI update:** SalaamStreet AI (earlier only a 4.0 proposal)
-  comes first. Personalization and everything after it moved to 3.1–3.9.
+- **3.0 became SalaamStreet Plans** (Plus, Pro and Max): optional paid plans
+  for the features that cost money to run, so everything else stays free.
+  Personalization and everything after it moved to 3.1–3.9.
 - **2.10:** the earlier plan called this release "SalaamStreet Kids". It became
   "Modes", with Kids Mode as one of five modes.
 - **MSA + Community** was planned as 2.11.0; it is now **3.3 Community**,
