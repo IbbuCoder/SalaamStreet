@@ -232,6 +232,33 @@
       if (prev === null) return 1;
       return Math.min(0.85, 0.12 + Math.abs(angleDiff(prev, next)) / 25);
     }
+    /* 3.1.8: the offset is compared through the 3-D heading, not raw alpha.
+       Held upright, the phone's Euler angles flip (alpha and gamma jump 180°
+       together) while the compass heading doesn't: comparing raw alpha read
+       that as a 180° error and spun the view round. The offset should hardly
+       ever change (the gyro is steady; the compass is noisy), so it is
+       averaged slowly, skipped in the half-tilted zone where iOS switches
+       between the top edge and the camera, and a jump is only believed once
+       it has lasted half a second. */
+    var iosN = 0, iosJump = 0;
+    function iosAlign(e) {
+      var h = orientationHeadings(e.alpha, e.beta, e.gamma, 0);
+      var flatNow = h.flat >= 0.5;
+      var measured = flatNow ? h.top : h.camera; // heading with offset 0
+      var target = norm360(measured - e.webkitCompassHeading);
+      if (iosOffset === null) { iosOffset = target; iosN = 1; iosJump = 0; return iosOffset; }
+      if (h.flat > 0.35 && h.flat < 0.75) return iosOffset; // in between: hold
+      var err = angleDiff(iosOffset, target);
+      if (Math.abs(err) > 30) {
+        if (++iosJump < 30) return iosOffset;
+        iosOffset = target; iosN = 1; iosJump = 0; // it really moved (recalibrated)
+        return iosOffset;
+      }
+      iosJump = 0;
+      iosN++;
+      iosOffset = lowpass(iosOffset, target, Math.max(0.04, 1 / iosN));
+      return iosOffset;
+    }
     function onEvent(e) {
       if (typeof e.alpha !== "number" || typeof e.beta !== "number" || typeof e.gamma !== "number" || isNaN(e.alpha)) return;
       var alphaAbs = null, accuracy = null;
@@ -240,9 +267,7 @@
         // is the magnetic heading of the device top (≈ the camera when upright).
         // Track the offset between them so the full 3-D maths can use alpha.
         accuracy = typeof e.webkitCompassAccuracy === "number" ? e.webkitCompassAccuracy : null;
-        var target = norm360(360 - e.webkitCompassHeading - e.alpha);
-        iosOffset = iosOffset === null ? target : lowpass(iosOffset, target, 0.15);
-        alphaAbs = e.alpha + iosOffset;
+        alphaAbs = e.alpha + iosAlign(e);
       } else if (e.absolute === true || e.type === "deviceorientationabsolute") {
         alphaAbs = e.alpha; // Android / Chrome / Firefox: alpha is from magnetic north
       } else {
@@ -285,7 +310,7 @@
       },
       stop: function () {
         if (listening) window.removeEventListener(evName, onEvent, true);
-        listening = false; gotAbsolute = false; iosOffset = null;
+        listening = false; gotAbsolute = false; iosOffset = null; iosN = 0; iosJump = 0;
         smooth.top = smooth.camera = null; last = null;
       },
       isListening: function () { return listening; },
@@ -328,8 +353,14 @@
     if (bearing !== null) step(f("qibla.stepDesktop", { deg: Math.round(bearing), dir: pointName(bearing) }));
   }
 
-  /** Compass-mode heading: top of the screen when flat-ish, else where the camera faces. */
-  function facing(r) { return r.flat >= 0.5 ? r.top : r.camera; }
+  /** Compass-mode heading: top of the screen when flat-ish, else where the camera faces.
+      With a margin either side of half-tilted, so a tilted, rolled phone can't
+      flip between the two (they differ when it leans sideways). */
+  var useTop = true;
+  function facing(r) {
+    useTop = r.flat >= (useTop ? 0.4 : 0.6);
+    return useTop ? r.top : r.camera;
+  }
 
   function updateLock(diff, quiet) {
     var was = aligned;
@@ -520,7 +551,17 @@
       $("qb-coords").textContent = l.lat.toFixed(2) + ", " + l.lng.toFixed(2);
       $("qb-decl").textContent = Math.abs(d).toFixed(1) + "° " + t(d >= 0 ? "qibla.east" : "qibla.west");
       $("qb-mode-camera").disabled = false;
-      if (compass.hasReading() && anim.shown !== null) drawCompass(anim.shown);
+      if (camOpen) {
+        // Opened straight at #/qibla/camera (a link or a reload): the location
+        // arrives after the overlay, so give it the Qibla now — the degrees
+        // chip and the Kaaba on the heading strip were missing until then.
+        camDeg();
+        buildTape();
+        resetCamState();
+        var lr = compass.last();
+        if (lr) renderCamera(lr); else setText($("qb-cam-msg"), t("qibla.cameraHold"));
+      }
+      if (compass.hasReading() && anim.shown !== null && !camOpen) drawCompass(anim.shown);
       else {
         drawStatic();
         $("qb-hint").textContent = "";
@@ -536,6 +577,10 @@
 
   /* ── Camera mode ─────────────────────────────────────────────── */
   var HFOV = 62; // typical phone main camera, landscape; portrait uses less
+  // 3.1.8: steadier camera view. Each on-screen state changes only past a
+  // margin (hysteresis), and the "Turn left 23°" text only when the number
+  // moves 2° or more (or after a moment) — no flicker from sensor noise.
+  var ui = { raise: false, marker: false, side: "", msg: "", msgAt: 0, deg: null };
   var PX = 7;    // heading strip: pixels per degree
   var tapeHalf = 25; // degrees visible either side of the strip's centre
   function camSupported() {
@@ -652,13 +697,14 @@
     camOpen = true;
     wantCam = true;
     aligned = false;
+    resetCamState();
     resetAnim();
     el.hidden = false;
     el.classList.remove("aligned");
     document.body.classList.add("qb-cam-open");
     $("qb-cam-msg").textContent = bearing === null ? t("qibla.needLocation") : t("qibla.cameraHold");
     $("qb-cam-sub").textContent = "";
-    $("qb-cam-deg").textContent = bearing === null ? "" : Math.round(bearing) + "° " + pointName(bearing);
+    camDeg();
     $("qb-cam-marker").hidden = true;
     $("qb-cam-arrow").hidden = true;
     $("qb-cam-meter").hidden = true;
@@ -674,6 +720,8 @@
     if (last) renderCamera(last);
     setTimeout(function () { try { $("qb-cam-exit").focus(); } catch (e) { /* noop */ } }, 30);
   }
+  /** The Qibla's degrees in the corner chip (empty until the location is known). */
+  function camDeg() { $("qb-cam-deg").textContent = bearing === null ? "" : Math.round(bearing) + "° " + pointName(bearing); }
   function closeCamera() {
     if (!camOpen) return;
     camOpen = false;
@@ -695,22 +743,41 @@
     var portrait = window.innerHeight >= window.innerWidth;
     return { h: portrait ? HFOV * 0.62 : HFOV, v: portrait ? HFOV : HFOV * 0.62 };
   }
+  function resetCamState() { ui.raise = false; ui.marker = false; ui.side = ""; ui.msg = ""; ui.msgAt = 0; ui.deg = null; }
   function renderCamera(r) {
     if (!camOpen || bearing === null) return;
     var diff = angleDiff(r.camera, bearing);
-    var raise = r.flat > 0.85; // lying flat: the camera sees the floor
+    // Lying flat, the camera sees the floor (or ceiling): ask to raise the phone.
+    ui.raise = r.flat > (ui.raise ? 0.75 : 0.88);
+    var raise = ui.raise;
+    var was = aligned;
     var on = raise ? (aligned = false) : updateLock(diff);
-    $("qb-cam").classList.toggle("aligned", on);
-    setText($("qb-cam-msg"), raise ? t("qibla.cameraRaise") : turnText(diff));
-    setText($("qb-cam-sub"), on ? f("qibla.camSub", { deg: Math.round(bearing) + "° " + pointName(bearing), dist: SS.formatDistance(distanceKm(loc.lat, loc.lng), true) }) : "");
-    var arrow = $("qb-cam-arrow");
-    arrow.hidden = on || raise;
-    arrow.className = "qb-cam-arrow " + (diff > 0 ? "right" : "left");
-    $("qb-cam-meter").hidden = raise;
+    var root = $("qb-cam");
+    if (root.classList.contains("aligned") !== on) root.classList.toggle("aligned", on);
+    // Which way to turn: the side only swaps when it's clearly the shorter way
+    // (not while the Qibla is about behind you), and the text says the same.
+    var side = ui.side;
+    if (!ui.side || Math.abs(diff) < 170) ui.side = diff > 0 ? "right" : "left";
+    // The instruction: rewritten only when it really changes.
+    var n = Math.round(Math.abs(diff)), now = Date.now();
+    var msg = raise ? t("qibla.cameraRaise") : turnText(ui.side === "right" ? Math.abs(diff) : -Math.abs(diff));
+    var msgEl = $("qb-cam-msg");
+    var steady = !raise && !on && ui.deg !== null && was === on && side === ui.side && Math.abs(n - ui.deg) < 2 && now - ui.msgAt < 500 &&
+      msgEl.textContent === ui.msg; // (other messages, e.g. "camera paused", are replaced)
+    if (!steady && msgEl.textContent !== msg) { ui.msg = msg; ui.msgAt = now; ui.deg = raise || on ? null : n; msgEl.textContent = msg; }
+    var low = r.accuracy !== null && (r.accuracy < 0 || r.accuracy > 25);
+    setText($("qb-cam-sub"), on ? f("qibla.camSub", { deg: Math.round(bearing) + "° " + pointName(bearing), dist: SS.formatDistance(distanceKm(loc.lat, loc.lng), true) })
+      : low ? t("qibla.lowAccuracy") : "");
+    var arrow = $("qb-cam-arrow"), cls = "qb-cam-arrow " + ui.side;
+    if (arrow.className !== cls) arrow.className = cls;
+    setHidden(arrow, on || raise);
+    setHidden($("qb-cam-meter"), raise);
     setText($("qb-cam-meter-l"), on ? t("qibla.locked") : Math.abs(diff) <= 30 ? t("qibla.closer") : "");
-    $("qb-cam-done").hidden = !on;
-    // AR marker: shown when the Kaaba is inside the camera's view.
-    $("qb-cam-marker").hidden = !(Math.abs(diff) < fov().h / 2 + 4);
+    setHidden($("qb-cam-done"), !on);
+    // AR marker: shown when the Kaaba is inside the camera's view (with a margin, so it doesn't blink at the edge).
+    var half = fov().h / 2;
+    ui.marker = !raise && Math.abs(diff) < half + (ui.marker ? 8 : 3);
+    setHidden($("qb-cam-marker"), !ui.marker);
     anim.pitchT = r.pitch;
     setTarget(r.camera);
   }

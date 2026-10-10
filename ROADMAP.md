@@ -1,6 +1,6 @@
 # SalaamStreet Roadmap
 
-What we plan to build after **3.1.7 — NVHS MSA: join with your school email**, in order. This is a plan, not a
+What we plan to build after **3.1.8 — Steadier Qibla camera, MSA admins**, in order. This is a plan, not a
 promise: nothing planned below exists in the app yet, and there are no dates —
 releases ship when they're ready and tested. The same list appears in the app
 under About → Updates (`SS.ROADMAP` in `js/content.js`); keep the two in step.
@@ -26,6 +26,7 @@ under About → Updates (`SS.ROADMAP` in `js/content.js`); keep the two in step.
 | 3.1.5 | Modes, made useful | ✅ Completed |
 | 3.1.6 | NVHS MSA members | ✅ Completed |
 | 3.1.7 | NVHS MSA: join with your school email | ✅ Completed |
+| 3.1.8 | Steadier Qibla camera, MSA admins | ✅ Completed |
 | 3.2 | Personalization | 📋 Planned |
 | 3.3 | Qur'an Experience | 📋 Planned |
 | 3.4 | Community: mosque pages | 📋 Planned |
@@ -118,7 +119,21 @@ Google sign-in always asks which account to use. Release notes:
 [`docs/release-notes/3.1.7.md`](docs/release-notes/3.1.7.md).
 
 Next (when they want it): teachers and MSA exec helping to manage members
-and posts — planned with **3.4**.
+and posts — shipped early, in **3.1.8**.
+
+## 3.1.8 — Steadier Qibla camera, MSA admins · ✅ Completed
+
+**Goal:** a Qibla camera that doesn't jump, and MSA admins who run the MSA
+themselves.
+
+Shipped: the iPhone heading no longer swings round when the phone is held
+upright; the camera view's text, Kaaba marker, arrow and "raise your phone"
+change only past a margin; camera mode opened from a link or a reload gets
+the Qibla once the location arrives. One list of MSA admins (only they post);
+admins add students by name and email and add or remove admins in the app;
+the Manage page gains "approve all on the list", a new-announcement button,
+joined-this-week, filters and a CSV download. Release notes:
+[`docs/release-notes/3.1.8.md`](docs/release-notes/3.1.8.md).
 
 ## 3.2 — Personalization · 📋 Planned
 

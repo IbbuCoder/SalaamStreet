@@ -6,9 +6,10 @@
    • Reading needs no account: the feed comes from the msa_feed() database
      function over plain fetch (guests never download the account client).
      The last feed is kept on the device so the page works offline.
-   • Posting is for the MSA's posters only — signed-in accounts whose email is
-     on the list in backend/supabase-schema.sql. The database checks this on
-     every write; the app only decides whether to show the buttons.
+   • Posting is for the MSA's admins only — signed-in accounts whose email is
+     on the admin list (3.1.8: one list, managed on #/msa/manage). The
+     database checks this on every write; the app only decides whether to
+     show the buttons.
    • Images are shrunk and re-drawn on the poster's device before upload, which
      also strips camera and location metadata. Each image is fetched on its own
      (msa_image) so the feed stays small.
@@ -202,7 +203,7 @@
     var st = me.status;
     if (st === "approved" || me.approver || me.poster) {
       el.innerHTML = '<p class="msa-chip">' + icon("check") + "<span>" +
-        esc(st === "approved" ? f("msa.memberUntil", { d: dateLabel(me.expires_at) }) : t(me.approver ? "msa.youApprove" : "msa.youPost")) + "</span></p>";
+        esc(st === "approved" ? f("msa.memberUntil", { d: dateLabel(me.expires_at) }) : t(me.approver ? "msa.youAdmin" : "msa.youPost")) + "</span></p>";
       return;
     }
     if (!signedIn()) { el.innerHTML = schoolHtml(false); wireSchool(el); return; }
@@ -281,7 +282,13 @@
     };
   }
 
-  /* ═══════════ #/msa/manage — the approver's page ═══════════ */
+  /* ═══════════ #/msa/manage — the admins' page ═══════════
+     3.1.8: one list of admins (they post AND manage). At a glance: members,
+     waiting, how much of the list joined, who joined this week. Quick
+     actions: new announcement, approve everyone waiting who's on the list,
+     download the list. Students: add one (with the email they sign in with,
+     so they're in as soon as they do), filter joined / not yet, remove.
+     Admins: add by email, remove (never an owner or yourself). */
   var codeTimer = null;
   function stopCode() { clearInterval(codeTimer); codeTimer = null; }
   function manageInit(my) {
@@ -292,34 +299,117 @@
     if (SS.account && SS.account.restore) SS.account.restore();
     status().then(function (st) {
       if (my !== pageGen) return;
-      me = st;
-      if (!st.approver) { SS.ui.renderState(root, { kind: "empty", icon: "lock", text: t("msa.approverOnly") }); return; }
+      me = st; poster = !!st.poster;
+      if (!st.approver) { SS.ui.renderState(root, { kind: "empty", icon: "lock", text: t("msa.adminOnly") }); return; }
+      filter = "all";
       root.innerHTML =
         '<a class="back-link" href="#/msa">' + icon("chev-l", "flip") + "<span>" + esc(t("msa.club")) + "</span></a>" +
         '<h2 class="h-sm msa-manage-h">' + esc(t("msa.manage")) + "</h2>" +
         '<div class="msa-stats" id="msa-stats" aria-live="polite"></div>' +
+        '<div class="msa-quick" id="msa-quick">' +
+        '<button class="btn btn-sm" type="button" id="msa-q-new">' + icon("edit") + "<span>" + esc(t("msa.quickNew")) + "</span></button>" +
+        '<button class="btn btn-outline btn-sm" type="button" id="msa-q-approve" hidden></button>' +
+        '<button class="btn btn-ghost btn-sm" type="button" id="msa-q-csv">' + icon("download") + "<span>" + esc(t("msa.export")) + "</span></button></div>" +
         '<section aria-labelledby="msa-req-h"><h3 class="group-label" id="msa-req-h">' + esc(t("msa.needsYou")) + '</h3><div class="stack" id="msa-req"></div></section>' +
         '<details class="card msa-code-wrap" id="msa-code-wrap"><summary>' + icon("lock") + "<span>" + esc(t("msa.showCode")) + "</span></summary>" +
         '<div class="msa-code-card"><p class="msa-code" id="msa-code" aria-live="polite">······</p>' +
         '<div class="msa-code-bar" aria-hidden="true"><span id="msa-code-bar"></span></div>' +
         '<p class="tiny" id="msa-code-left"></p><p class="tiny">' + esc(t("msa.liveCodeHelp")) + "</p></div></details>" +
-        '<section aria-labelledby="msa-list-h"><h3 class="group-label" id="msa-list-h">' + esc(t("msa.theList")) + "</h3>" +
-        '<div class="search mb-1">' + icon("search") + '<label class="visually-hidden" for="msa-find">' + esc(t("msa.findName")) + "</label>" +
+        '<section aria-labelledby="msa-list-h"><h3 class="group-label" id="msa-list-h">' + esc(t("msa.students")) + "</h3>" +
+        '<form class="card msa-add" id="msa-add" novalidate><p class="msa-add-h"><b>' + icon("plus") + "<span>" + esc(t("msa.addStudent")) + "</span></b></p>" +
+        '<div class="msa-add-row"><label class="visually-hidden" for="msa-add-name">' + esc(t("msa.studentName")) + "</label>" +
+        '<input class="input" id="msa-add-name" autocomplete="off" maxlength="80" placeholder="' + esc(t("msa.studentName")) + '" aria-describedby="msa-add-err" />' +
+        '<label class="visually-hidden" for="msa-add-email">' + esc(t("msa.studentEmail")) + "</label>" +
+        '<input class="input" id="msa-add-email" type="email" autocomplete="off" inputmode="email" maxlength="254" placeholder="' + esc(t("msa.studentEmail")) + '" aria-describedby="msa-add-help msa-add-err" />' +
+        '<button class="btn btn-sm" type="submit" id="msa-add-go">' + esc(t("msa.add")) + "</button></div>" +
+        '<p class="tiny" id="msa-add-help">' + esc(t("msa.studentEmailHelp")) + '</p><p class="field-error" id="msa-add-err" role="alert"></p></form>' +
+        '<div class="msa-tools"><div class="search">' + icon("search") + '<label class="visually-hidden" for="msa-find">' + esc(t("msa.findName")) + "</label>" +
         '<input class="input" id="msa-find" type="search" autocomplete="off" placeholder="' + esc(t("msa.findName")) + '" /></div>' +
+        '<div class="msa-chips" role="group" aria-label="' + esc(t("msa.students")) + '" id="msa-filter">' +
+        ["all", "joined", "notyet"].map(function (k) {
+          return '<button class="chip" type="button" data-filter="' + k + '" aria-pressed="' + (k === "all") + '">' + esc(t("msa.filter_" + k)) + '<span class="msa-chip-n" id="msa-n-' + k + '"></span></button>';
+        }).join("") + "</div></div>" +
         '<div class="msa-roster-list" id="msa-mem"></div></section>' +
         '<details class="card msa-edit" id="msa-edit"><summary>' + icon("edit") + "<span>" + esc(t("msa.editList")) + "</span></summary>" +
         '<form id="msa-roster" novalidate><p class="tiny" id="msa-roster-help">' + esc(t("msa.rosterHelp")) + "</p>" +
         '<label class="visually-hidden" for="msa-roster-in">' + esc(t("msa.roster")) + "</label>" +
         '<textarea class="input msa-roster-in" id="msa-roster-in" rows="8" aria-describedby="msa-roster-help msa-roster-n"></textarea>' +
         '<p class="tiny" id="msa-roster-n"></p><button class="btn btn-sm" type="submit">' + esc(t("msa.saveRoster")) + "</button></form></details>" +
-        '<p class="note msa-future">' + icon("info") + "<span>" + esc(t("msa.futureNote")) + "</span></p>";
+        '<section aria-labelledby="msa-adm-h" class="msa-admins"><h3 class="group-label" id="msa-adm-h">' + esc(t("msa.admins")) + "</h3>" +
+        '<p class="tiny">' + esc(t("msa.adminsHelp")) + '</p><div class="msa-roster-list" id="msa-adm"></div>' +
+        '<form class="msa-add-row msa-adm-add" id="msa-adm-form" novalidate><label class="visually-hidden" for="msa-adm-email">' + esc(t("msa.adminEmail")) + "</label>" +
+        '<input class="input" id="msa-adm-email" type="email" autocomplete="off" inputmode="email" maxlength="254" placeholder="' + esc(t("msa.adminEmail")) + '" aria-describedby="msa-adm-err" />' +
+        '<button class="btn btn-sm" type="submit" id="msa-adm-go">' + icon("plus") + "<span>" + esc(t("msa.addAdmin")) + "</span></button></form>" +
+        '<p class="field-error" id="msa-adm-err" role="alert"></p></section>';
       $("msa-code-wrap").addEventListener("toggle", function () { if (this.open) liveCode(my); else stopCode(); });
       $("msa-find").oninput = function () { drawList(); };
+      $("msa-filter").onclick = function (e) {
+        var b = e.target.closest("[data-filter]");
+        if (!b) return;
+        filter = b.getAttribute("data-filter");
+        this.querySelectorAll("[data-filter]").forEach(function (x) { x.setAttribute("aria-pressed", String(x === b)); });
+        drawList();
+      };
+      $("msa-q-new").onclick = function () { compose(null, function () { location.hash = "#/msa"; }); };
+      $("msa-q-csv").onclick = downloadCsv;
+      $("msa-q-approve").onclick = function () {
+        var b = this;
+        b.disabled = true;
+        rpc("msa_approve_listed").then(function (n) {
+          SS.toast(f("msa.approvedListed", { n: n || 0 }));
+          people(my);
+        }).catch(function (er) { b.disabled = false; SS.toast(errText(er)); });
+      };
+      $("msa-add").onsubmit = function (e) {
+        e.preventDefault();
+        var nm = $("msa-add-name").value.replace(/\s+/g, " ").trim(), em = $("msa-add-email").value.trim(), err = $("msa-add-err");
+        err.textContent = "";
+        if (nm.split(" ").length < 2) { err.textContent = t("msa.needFullName"); $("msa-add-name").focus(); return; }
+        if (em && !EMAIL.test(em)) { err.textContent = t("msa.badEmail"); $("msa-add-email").focus(); return; }
+        $("msa-add-go").disabled = true;
+        rpc("msa_student_add", em ? { p_name: nm, p_email: em } : { p_name: nm }).then(function (r) {
+          $("msa-add-go").disabled = false;
+          $("msa-add-name").value = ""; $("msa-add-email").value = "";
+          SS.toast(f(r && r.joined ? "msa.studentJoined" : "msa.studentAdded", { n: (r && r.name) || nm }));
+          $("msa-add-name").focus();
+          people(my);
+          loadRoster(my);
+        }).catch(function (er) {
+          $("msa-add-go").disabled = false;
+          err.textContent = /first and last/.test((er && er.message) || "") ? t("msa.needFullName") : /email address/.test((er && er.message) || "") ? t("msa.badEmail") : errText(er);
+        });
+      };
+      $("msa-adm-form").onsubmit = function (e) {
+        e.preventDefault();
+        var em = $("msa-adm-email").value.trim(), err = $("msa-adm-err");
+        err.textContent = "";
+        if (!EMAIL.test(em)) { err.textContent = t("msa.badEmail"); $("msa-adm-email").focus(); return; }
+        $("msa-adm-go").disabled = true;
+        rpc("msa_admin_add", { p_email: em }).then(function (list) {
+          $("msa-adm-go").disabled = false;
+          $("msa-adm-email").value = "";
+          SS.toast(f("msa.adminAdded", { e: em.toLowerCase() }));
+          drawAdmins(list);
+        }).catch(function (er) {
+          $("msa-adm-go").disabled = false;
+          err.textContent = /email address/.test((er && er.message) || "") ? t("msa.badEmail") : errText(er);
+        });
+      };
+      $("msa-adm").onclick = function (e) {
+        var b = e.target.closest("[data-admin]");
+        if (!b) return;
+        var em = b.getAttribute("data-email");
+        if (!window.confirm(f("msa.adminRemoveConfirm", { e: em }))) return;
+        b.disabled = true;
+        rpc("msa_admin_remove", { p_id: b.getAttribute("data-admin") }).then(function (list) {
+          SS.toast(f("msa.adminRemoved", { e: em }));
+          drawAdmins(list);
+        }).catch(function (er) { b.disabled = false; SS.toast(errText(er)); });
+      };
       people(my);
-      rpc("msa_roster_get").then(function (names) {
-        if (my !== pageGen || !$("msa-roster-in")) return;
-        $("msa-roster-in").value = (names || []).join("\n");
-        $("msa-roster-n").textContent = f("msa.rosterCount", { n: (names || []).length });
+      loadRoster(my);
+      rpc("msa_admin_list").then(function (list) { if (my === pageGen) drawAdmins(list); }, function () {
+        if ($("msa-adm")) SS.ui.renderState($("msa-adm"), { kind: "error" });
       });
       $("msa-roster").onsubmit = function (e) {
         e.preventDefault();
@@ -331,6 +421,14 @@
           people(my);
         }).catch(function (er) { SS.toast(errText(er)); });
       };
+    });
+  }
+  var EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+  function loadRoster(my) {
+    rpc("msa_roster_get").then(function (names) {
+      if (my !== pageGen || !$("msa-roster-in")) return;
+      $("msa-roster-in").value = (names || []).join("\n");
+      $("msa-roster-n").textContent = f("msa.rosterCount", { n: (names || []).length });
     });
   }
   /** One name per line; list bullets, headings ("Teachers", "124 students") and blanks dropped. */
@@ -366,26 +464,43 @@
     load();
     codeTimer = setInterval(tick, 1000);
   }
-  var roster = [], others = [];
+  var roster = [], others = [], everyone = [], filter = "all";
+  var WEEK = 7 * 864e5;
   function people(my) {
     Promise.all([rpc("msa_people"), rpc("msa_roster_status")]).then(function (r) {
       if (my !== pageGen || !$("msa-req")) return;
       var list = r[0] || [];
+      everyone = list;
       roster = r[1] || [];
       var onList = {};
       roster.forEach(function (x) { if (x.user_id) onList[x.user_id] = 1; });
       var reqs = list.filter(function (p) { return p.status === "flagged" || p.status === "pending"; });
       others = list.filter(function (p) { return p.status === "approved" && !onList[p.user_id]; });
       var joined = roster.filter(function (x) { return x.user_id; }).length;
-      var members = list.filter(function (p) { return p.status === "approved"; }).length;
-      $("msa-stats").innerHTML = stat(members, t("msa.statMembers")) + stat(reqs.length, t("msa.statWaiting"), reqs.length ? "warn" : "") +
-        stat(joined + "/" + roster.length, t("msa.statJoined"));
+      var approved = list.filter(function (p) { return p.status === "approved"; });
+      var week = approved.filter(function (p) { return Date.now() - Date.parse(p.decided_at || p.created_at) < WEEK; }).length;
+      $("msa-stats").innerHTML = stat(approved.length, t("msa.statMembers")) + stat(reqs.length, t("msa.statWaiting"), reqs.length ? "warn" : "") +
+        stat(joined + "/" + roster.length, t("msa.statJoined")) + stat(week, t("msa.statWeek"), week ? "good" : "");
+      // "Approve 3 on the list": waiting requests whose name is on the roster.
+      var listed = reqs.filter(function (p) { return p.status === "pending" && p.on_roster; }).length;
+      var qa = $("msa-q-approve");
+      qa.hidden = !listed; qa.disabled = false;
+      qa.innerHTML = icon("check") + "<span>" + esc(f("msa.approveListed", { n: listed })) + "</span>";
       $("msa-req").innerHTML = reqs.length ? reqs.map(personRow).join("") : '<p class="msa-caught">' + icon("check") + "<span>" + esc(t("msa.caughtUp")) + "</span></p>";
       drawList();
-      $("msa-manage").onclick = function (e) {
+      $("msa-req").onclick = $("msa-mem").onclick = function (e) {
         var b = e.target.closest("[data-act]");
         if (!b) return;
         var act = b.getAttribute("data-act"), uid = b.getAttribute("data-user"), nm = b.getAttribute("data-name");
+        if (act === "unlist") {
+          if (!window.confirm(f("msa.removeFromList", { n: nm }))) return;
+          b.disabled = true;
+          rpc("msa_student_remove", { p_name: nm }).then(function () {
+            SS.toast(f("msa.removedFromList", { n: nm }));
+            people(my); loadRoster(my);
+          }).catch(function (er) { b.disabled = false; SS.toast(errText(er)); });
+          return;
+        }
         if (act === "remove" && !window.confirm(f("msa.removeConfirm", { n: nm }))) return;
         b.disabled = true;
         rpc("msa_decide", { p_user: uid, p_action: act }).then(function () {
@@ -408,33 +523,75 @@
     var el = $("msa-mem");
     if (!el) return;
     var q = (($("msa-find") && $("msa-find").value) || "").trim().toLowerCase();
-    var match = function (n) { return !q || String(n || "").toLowerCase().indexOf(q) > -1; };
-    var rows = roster.filter(function (x) { return match(x.name); }).map(function (x) {
-      return '<div class="msa-row' + (x.user_id ? " in" : "") + '"><span class="msa-row-n">' + esc(x.name) + "</span>" +
+    var match = function (x) {
+      return !q || String(x.name || "").toLowerCase().indexOf(q) > -1 || String(x.email || x.invite || "").toLowerCase().indexOf(q) > -1;
+    };
+    var counts = { all: roster.length, joined: 0, notyet: 0 };
+    roster.forEach(function (x) { counts[x.user_id ? "joined" : "notyet"]++; });
+    Object.keys(counts).forEach(function (k) { var n = $("msa-n-" + k); if (n) n.textContent = String(counts[k]); });
+    var shown = roster.filter(function (x) { return match(x) && (filter === "all" || (filter === "joined") === !!x.user_id); });
+    var rows = shown.map(function (x) {
+      var sub = x.user_id ? (x.email || "") : x.invite ? f("msa.invited", { e: x.invite }) : "";
+      return '<div class="msa-row' + (x.user_id ? " in" : "") + '"><span class="msa-row-n">' + esc(x.name) +
+        (sub ? '<span class="tiny msa-row-e">' + esc(sub) + "</span>" : "") + "</span>" +
         (x.user_id ? '<span class="msa-row-s">' + icon("check") + "<span>" + esc(t("msa.via_" + x.via)) + "</span></span>" +
           '<button class="icon-btn msa-del" type="button" data-act="remove" data-user="' + esc(x.user_id) + '" data-name="' + esc(x.name) + '" aria-label="' + esc(f("msa.removeConfirm", { n: x.name })) + '">' + icon("x") + "</button>"
-          : '<span class="msa-row-s no">' + esc(t("msa.notYet")) + "</span>") + "</div>";
+          : '<span class="msa-row-s no">' + esc(t("msa.notYet")) + "</span>" +
+          '<button class="icon-btn msa-del" type="button" data-act="unlist" data-name="' + esc(x.name) + '" aria-label="' + esc(f("msa.removeFromList", { n: x.name })) + '">' + icon("trash") + "</button>") + "</div>";
     });
-    var extra = others.filter(function (p) { return match(p.name); });
+    var extra = filter === "notyet" ? [] : others.filter(match);
     el.innerHTML = (rows.length ? rows.join("") : '<p class="muted">' + esc(t(roster.length ? "msa.noMatch" : "msa.noRosterYet")) + "</p>") +
       (extra.length ? '<p class="group-label mt-2">' + esc(t("msa.othersJoined")) + "</p>" + extra.map(personRow).join("") : "");
+  }
+  function drawAdmins(list) {
+    var el = $("msa-adm");
+    if (!el) return;
+    el.innerHTML = (list || []).map(function (a) {
+      var tags = (a.owner ? '<span class="badge badge-gold">' + esc(t("msa.owner")) + "</span>" : "") +
+        (a.me ? '<span class="badge">' + esc(t("msa.you")) + "</span>" : "");
+      var sub = a.email ? (a.added_by && !a.owner ? f("msa.addedBy", { e: a.added_by }) : "") : t("msa.notSignedInYet");
+      var canRemove = !a.owner && !a.me;
+      return '<div class="msa-row in msa-adm-row"><span class="msa-row-n">' + icon("users") + "<span>" + esc(a.email || "••••••") +
+        (sub ? '<span class="tiny msa-row-e">' + esc(sub) + "</span>" : "") + "</span></span>" + tags +
+        (canRemove ? '<button class="icon-btn msa-del" type="button" data-admin="' + esc(a.id) + '" data-email="' + esc(a.email || "") + '" aria-label="' +
+          esc(f("msa.adminRemoveConfirm", { e: a.email || "" })) + '">' + icon("x") + "</button>" : "") + "</div>";
+    }).join("");
+  }
+  /** The roster and members as a spreadsheet (CSV), made on this device. */
+  function downloadCsv() {
+    var cell = function (v) { v = String(v == null ? "" : v); return /[",\n]/.test(v) || /^[=+\-@]/.test(v) ? '"' + v.replace(/"/g, '""').replace(/^([=+\-@])/, "'$1") + '"' : v; };
+    var lines = [["Name", "Status", "How", "Email", "Joined"].join(",")];
+    roster.forEach(function (x) {
+      lines.push([x.name, x.user_id ? "member" : "not joined", x.user_id ? x.via : "", x.email || x.invite || "", x.joined_at ? SS.localDate(new Date(x.joined_at)) : ""].map(cell).join(","));
+    });
+    everyone.forEach(function (p) {
+      if (p.status === "approved" && others.indexOf(p) === -1) return;
+      lines.push([p.name, p.status === "approved" ? "member (not on list)" : p.status, p.via, p.email || "", p.decided_at ? SS.localDate(new Date(p.decided_at)) : ""].map(cell).join(","));
+    });
+    var blob = new Blob(["﻿" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "nvhs-msa-" + SS.localDate(new Date()) + ".csv";
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
   }
   function personRow(p) {
     var badge = p.status === "flagged" ? '<span class="badge badge-warn">' + icon("users") + "<span>" + esc(t("msa.flaggedBadge")) + "</span></span>"
       : p.status === "denied" ? '<span class="badge badge-muted">' + esc(t("msa.deniedBadge")) + "</span>"
       : p.status === "pending" ? '<span class="badge">' + esc(t("msa.pendingBadge")) + "</span>" : "";
-    var roster = '<span class="msa-roster-tag ' + (p.on_roster ? "yes" : "no") + '">' + icon(p.on_roster ? "check" : "x") + "<span>" + esc(t(p.on_roster ? "msa.onRoster" : "msa.notOnRoster")) + "</span></span>";
+    var onRoster = '<span class="msa-roster-tag ' + (p.on_roster ? "yes" : "no") + '">' + icon(p.on_roster ? "check" : "x") + "<span>" + esc(t(p.on_roster ? "msa.onRoster" : "msa.notOnRoster")) + "</span></span>";
     var acts = p.status === "approved"
       ? '<button class="btn btn-ghost btn-sm msa-del" type="button" data-act="remove" data-user="' + esc(p.user_id) + '" data-name="' + esc(p.name) + '">' + esc(t("msa.remove")) + "</button>"
       : '<button class="btn btn-sm" type="button" data-act="approve" data-user="' + esc(p.user_id) + '" data-name="' + esc(p.name) + '">' + esc(t(p.status === "flagged" ? "msa.approveMet" : "msa.approve")) + "</button>" +
         (p.status !== "denied" ? '<button class="btn btn-ghost btn-sm" type="button" data-act="deny" data-user="' + esc(p.user_id) + '" data-name="' + esc(p.name) + '">' + esc(t("msa.deny")) + "</button>" : "") +
         '<button class="btn btn-ghost btn-sm msa-del" type="button" data-act="remove" data-user="' + esc(p.user_id) + '" data-name="' + esc(p.name) + '">' + esc(t("msa.delete")) + "</button>";
     return '<article class="card msa-person' + (p.status === "flagged" ? " flagged" : "") + '"><div class="msa-person-t"><b>' + esc(p.name) + "</b> " + badge +
-      '<span class="tiny">' + esc(p.email || "") + " · " + esc(t("msa.via_" + p.via)) + " · " + esc(dateLabel(p.created_at)) + "</span>" + roster +
+      '<span class="tiny">' + esc(p.email || "") + " · " + esc(t("msa.via_" + p.via)) + " · " + esc(dateLabel(p.created_at)) + "</span>" + onRoster +
       (p.status === "flagged" ? '<span class="tiny msa-flag-note">' + esc(t("msa.flaggedNote")) + "</span>" : "") + "</div>" +
       '<div class="msa-person-acts">' + acts + "</div></article>";
   }
-    function draw(all, focusId) {
+  function draw(all, focusId) {
     var list = $("msa-list");
     posts = live(all);
     list.removeAttribute("aria-busy");
@@ -548,7 +705,8 @@
     });
   }
   var EXPIRY = [["never", 0], ["day", 1], ["week", 7], ["month", 30]];
-  function compose(p) {
+  /** after: what to do once saved (default: redraw the MSA page). */
+  function compose(p, after) {
     var dlg = $("msa-dialog"), body = $("msa-dialog-body");
     var img = p && p.has_image ? "keep" : null; // "keep" | null (none) | data URL (new)
     var keepSrc = null;
@@ -625,7 +783,7 @@
       rpc("msa_post_save", { p: post }).then(function () {
         dlg.close();
         SS.toast(t(p ? "msa.saved" : "msa.posted"));
-        refresh();
+        if (after) { images = {}; SS.store.remove(FEED_KEY); after(); } else refresh();
       }).catch(function (er) {
         go.disabled = false;
         err.textContent = errText(er);
