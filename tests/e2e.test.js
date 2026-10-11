@@ -2083,7 +2083,7 @@ test("ai lab: the admin's Google account chats through the server's checks; anyo
   await A.page.waitForSelector(".lab-msg.ai .lab-bubble:not(.lab-typing)");
   assert.equal(await A.page.textContent(".lab-msg.me .lab-bubble"), "What are the pillars of Islam?");
   assert.equal(await A.page.textContent(".lab-msg.ai .lab-bubble"), "Test reply to: What are the pillars of Islam?");
-  assert.match(await A.page.textContent(".lab-msg.ai .lab-meta"), /gemini-3\.5-flash-lite · 1,300 tokens · ~\$0\.001\d/);
+  assert.match(await A.page.textContent(".lab-msg.ai .lab-meta"), /gemini-3\.5-flash-lite · 1,300 tokens · ~\$0\.001\d if paid/);
   await A.page.waitForFunction(() => /1 \/ 50/.test(document.getElementById("lab-stats").textContent));
   // The second turn carries the history.
   await A.page.fill("#lab-input", "And the first one?");
