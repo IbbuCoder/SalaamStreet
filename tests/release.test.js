@@ -173,3 +173,18 @@ test("Stories: every slide is in English and Arabic, and every Qur'an reference 
     }
   }
 });
+
+test("the sign-in emails are built, show the code, and are small enough to paste", () => {
+  const { EMAILS, render } = require("../tools/build-email-templates.js");
+  const api = JSON.parse(read("backend/email-templates/templates.json"));
+  for (const name of Object.keys(EMAILS)) {
+    const html = read("backend/email-templates/" + name + ".html");
+    assert.equal(html, render(EMAILS[name]), name + ".html is out of date: run node tools/build-email-templates.js");
+    assert.equal(api["mailer_templates_" + name + "_content"], html);
+    assert.ok(api["mailer_subjects_" + name]);
+    assert.match(html, /\{\{ \.Token \}\}/, name + " shows the code");
+    assert.match(html, /\{\{ \.ConfirmationURL \}\}/);
+    assert.ok(html.length < 4000, name + " is short enough to paste from a phone");
+  }
+  assert.deepEqual(Object.keys(EMAILS).sort(), ["confirmation", "email_change", "magic_link", "recovery"]);
+});

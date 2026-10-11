@@ -97,6 +97,10 @@
           '<dl class="lab-stats" id="lab-stats"></dl>' +
           '<p class="lab-line" id="lab-test-out" role="status"></p>' +
         '</section>' +
+        '<section class="card lab-appstats" aria-labelledby="lab-as-h">' +
+          '<div class="card-title"><h2 id="lab-as-h">App stats</h2><span class="muted lab-small">Counts only — no names or emails</span></div>' +
+          '<dl class="lab-stats" id="lab-app-stats"><div><dt>Loading…</dt><dd>&nbsp;</dd></div></dl>' +
+        '</section>' +
         '<section class="card lab-chat" aria-labelledby="lab-chat-h">' +
           '<div class="card-title"><h2 id="lab-chat-h">Conversation</h2><div class="lab-acts">' +
             '<button class="btn btn-outline btn-sm" id="lab-new" type="button">' + icon("plus") + '<span>New conversation</span></button>' +
@@ -213,7 +217,7 @@
   /* ── Status ───────────────────────────────────────────────────── */
   function loadStatus() {
     return api("status").then(function (r) {
-      if (r.ok) { st.status = r; gate("ok"); drawStatus(); count(); return r; }
+      if (r.ok) { st.status = r; gate("ok"); drawStatus(); count(); loadStats(); return r; }
       if (r.error === "signed_out" || r.error === "invalid_session") { gate("signin", "Sign in with the admin Google account to use the AI Testing Lab."); waitForSignIn(); }
       else if (r.error === "forbidden") gate("denied", r.message || "This account can't use the AI Testing Lab.");
       // Already open: a passing network problem shouldn't hide the page.
@@ -250,6 +254,29 @@
     if (!s.gemini_key_set) showErr("GEMINI_API_KEY isn't set yet. Add it in Supabase → Edge Functions → Secrets (backend/README-ai.md).");
     else if (!on) showErr("AI requests are switched off. Turn them on under Settings.");
     else if ($("lab-err").textContent.indexOf("GEMINI_API_KEY") === 0 || $("lab-err").textContent.indexOf("AI requests are switched off") === 0) showErr("");
+  }
+  /** App-wide counts (admin only, checked by the server). */
+  var statsAt = 0;
+  function loadStats() {
+    if (Date.now() - statsAt < 60000) return;
+    statsAt = Date.now();
+    api("stats").then(function (r) {
+      var el = $("lab-app-stats");
+      if (!r.ok) { el.innerHTML = stat("Couldn't load", r.message || "Try again later."); statsAt = 0; return; }
+      var a = r.stats || {}, prov = a.by_provider || {};
+      var how = Object.keys(prov).sort(function (x, y) { return prov[y] - prov[x]; })
+        .map(function (k) { return k.charAt(0).toUpperCase() + k.slice(1) + " " + int(prov[k]); }).join(" · ");
+      el.innerHTML =
+        stat("Accounts", int(a.accounts)) +
+        stat("New this week", int(a.new_7d)) +
+        stat("Signed in this week", int(a.active_7d)) +
+        stat("Sign-in methods", how || "—") +
+        stat("Synced items", int(a.synced_items)) +
+        stat("Closed-app reminders", int(a.reminder_devices) + " devices") +
+        stat("Kids profiles", int(a.family_children)) +
+        stat("MSA members", int(a.msa_members) + (a.msa_pending ? " (+" + int(a.msa_pending) + " waiting)" : "")) +
+        stat("MSA posts", int(a.msa_posts));
+    });
   }
   function stat(label, value) { return "<div><dt>" + esc(label) + "</dt><dd>" + esc(value) + "</dd></div>"; }
 

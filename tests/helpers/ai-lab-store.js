@@ -21,6 +21,8 @@ async function aiDb() {
     grant usage on schema public, auth to authenticated, anon, service_role;
     grant execute on function auth.uid() to authenticated, anon;
   `);
+  await pg.exec(`alter table auth.users add column created_at timestamptz default now(), add column last_sign_in_at timestamptz,
+    add column raw_app_meta_data jsonb default '{}'::jsonb, add column email_confirmed_at timestamptz;`);
   await pg.exec(SQL);
   // Supabase grants table privileges to these roles by default; the schema must take them away.
   await pg.exec("grant select, insert, update, delete on all tables in schema public to authenticated, anon;");
@@ -53,6 +55,7 @@ function pgStore(pg, getUser) {
       await q(`update public.ai_usage set ${keys.map((k, i) => `${k} = $${i + 1}`).join(", ")} where id = $${keys.length + 1}`, keys.map((k) => patch[k]).concat([id]));
     },
     summary: async () => (await q("select public.ai_usage_summary() as r")).rows[0].r,
+    stats: async () => (await q("select public.admin_stats() as r")).rows[0].r,
     logRefusal: async (uid, event, detail) => { await q("insert into public.ai_security_log (user_id, event, detail) values ($1, $2, $3)", [uid, event, detail]); },
   };
 }

@@ -24,9 +24,9 @@
     // back here once each is set up (backend/README-backend.md).
     signInMethods: ["google", "email"],
     // Reminders when SalaamStreet is closed (2.8): the VAPID *public* key.
-    // Leave empty until the reminder server is set up (backend/README-push.md);
-    // the option stays hidden until then. Never put the private key here.
-    pushPublicKey: "",
+    // The reminder server made this pair itself (public.push_keys); the
+    // private half never leaves Supabase. Empty = the option stays hidden.
+    pushPublicKey: "BFmjKhYmieuXb1eouDVi5JTsbe8FVIZO31MyaFjcjpD0on5GMoAFd83wFmkbrkdOIVJIooT1F4Ad7RVAZdfKFbk",
   };
 
   /* Qur'an PDF (Offline Qur'an, 2.6.0). People can download this file, save it

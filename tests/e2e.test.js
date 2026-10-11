@@ -1064,8 +1064,10 @@ test("prayer times keep working with no connection: calculated on the device", a
 
 test("reminders when closed: hidden until the server is set up, then offered under Prayer reminders", async () => {
   const a = await device();
+  await a.context.route("**/js/config.js", (route) => route.fulfill({ contentType: "text/javascript",
+    body: 'window.SS=window.SS||{};SS.CONFIG={supabaseUrl:"https://test.supabase.co",supabaseAnonKey:"k",signInMethods:["email"],pushPublicKey:""};' }));
   await open(a.page, "#/settings");
-  assert.equal(await a.page.isVisible("#st-push-row"), false);
+  assert.equal(await a.page.isVisible("#st-push-row"), false, "no key, no option");
   await a.context.close();
   const b = await device();
   await b.context.route("**/js/config.js", (route) => route.fulfill({ contentType: "text/javascript",
@@ -2076,6 +2078,7 @@ test("ai lab: the admin's Google account chats through the server's checks; anyo
   assert.match(await A.page.textContent("#lab-badges"), /AI requests on.*Gemini key set.*Model: gemini-3\.5-flash-lite/);
   assert.match(await A.page.textContent("#lab-stats"), /0 \/ 50/);
   assert.equal(await A.page.title(), "AI Testing Lab — SalaamStreet");
+  await A.page.waitForFunction(() => /Accounts/.test(document.getElementById("lab-app-stats").textContent));
 
   // A real conversation turn: Enter sends, the reply shows with tokens and cost.
   await A.page.fill("#lab-input", "What are the pillars of Islam?");

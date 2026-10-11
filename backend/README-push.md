@@ -26,45 +26,47 @@ Until step 5 is done, the option is hidden and nothing changes for anyone.
 Nobody can read the `push_subscriptions` table through the API — only the
 function (service role) does.
 
-## Setup (about 15 minutes)
+## Setup
 
-You need the [Supabase CLI](https://supabase.com/docs/guides/cli) and Node.
+Already done for salaamstreet.com (October 2026). For a new project:
 
 ### 1. Database
-Re-run `backend/supabase-schema.sql` in **SQL Editor** (safe to re-run). It adds
-`push_subscriptions`, `push_register` and `push_unregister`.
+Run `backend/supabase-schema.sql` in **SQL Editor** (safe to re-run). It adds
+`push_subscriptions`, `push_register`, `push_unregister` and `push_keys`.
 
-### 2. Keys (VAPID)
+### 2. The function
+Deploy `backend/functions/send-reminders` with JWT verification **off** (the
+schedule authenticates with its own secret):
 ```bash
-npx web-push generate-vapid-keys
-```
-Keep the **private key secret** — it goes only into Supabase (step 3).
-
-### 3. Secrets and the function
-```bash
-supabase link --project-ref <your-project-ref>
-supabase secrets set VAPID_PUBLIC_KEY=<public key> VAPID_PRIVATE_KEY=<private key> \
-  VAPID_SUBJECT=mailto:<your email> CRON_SECRET=<any long random string>
 supabase functions deploy send-reminders --no-verify-jwt
 ```
-(Run from `backend/`, or copy `backend/functions/send-reminders` into your
-Supabase project's `supabase/functions/`.)
+No secrets to set: on its first run the function makes its own VAPID key
+pair and stores it in `public.push_keys`, which only the server can read.
+The schedule's secret is made randomly by the database. (If you prefer, the
+`VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` and `CRON_SECRET` secrets still take
+precedence.)
 
-### 4. Run it every 5 minutes
-**Database → Extensions**: turn on `pg_cron` and `pg_net`. Then in **SQL Editor**:
+### 3. Run it every 5 minutes
+Turn on `pg_cron` and `pg_net` (**Database → Extensions**), then in **SQL Editor**
+(put your project's URL in):
 ```sql
-select cron.schedule('salaamstreet-reminders', '*/5 * * * *', $$
+select cron.schedule('salaamstreet-reminders', '*/5 * * * *', $job$
   select net.http_post(
     url := 'https://<your-project-ref>.supabase.co/functions/v1/send-reminders',
-    headers := jsonb_build_object('Authorization', 'Bearer <CRON_SECRET>')
+    headers := jsonb_build_object('Authorization', 'Bearer ' || (select cron_secret from public.push_keys where id)),
+    timeout_milliseconds := 30000
   );
-$$);
+$job$);
 ```
+The secret is read from the table each time, so it never appears in the job.
 
-### 5. Switch it on in the app
-Put the **public** key in `js/config.js`:
+### 4. Switch it on in the app
+After the first run, copy the **public** key into `js/config.js`:
+```sql
+select vapid_public from public.push_keys;
+```
 ```js
-pushPublicKey: "<public key>",
+pushPublicKey: "<that public key>",
 ```
 Commit and publish. The option appears in Settings → Prayer reminders.
 

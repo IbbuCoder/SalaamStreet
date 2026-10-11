@@ -33,6 +33,7 @@ const store = {
   async reserve(userId: string, kind: string) { return must(await db.rpc("ai_reserve", { p_user: userId, p_kind: kind })); },
   async finish(id: number, patch: Record<string, unknown>) { must(await db.from("ai_usage").update(patch).eq("id", id)); },
   async summary() { return must(await db.rpc("ai_usage_summary")); },
+  async stats() { return must(await db.rpc("admin_stats")); },
   async logRefusal(userId: string | null, event: string, detail: string | null) {
     must(await db.from("ai_security_log").insert({ user_id: userId, event, detail }));
   },
