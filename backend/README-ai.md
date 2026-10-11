@@ -76,6 +76,20 @@ be reached with the public key.
 (Heads-up from earlier: this run also resets the MSA admin list to the two
 owners once — re-add other MSA admins on MSA → Manage → Admins.)
 
+### 3–4 the easy way: the GitHub button (no copying, works from a phone)
+
+1. Supabase → your avatar → **Account → Access Tokens** → **Generate new
+   token** (name it `github-deploy`). Copy it.
+2. GitHub → this repository → **Settings → Secrets and variables → Actions →
+   New repository secret**. Name: `SUPABASE_ACCESS_TOKEN`. Value: the token.
+3. Supabase → **Edge Functions → Secrets**: `GEMINI_API_KEY` = your Gemini key
+   (if you haven't already).
+4. GitHub → **Actions → Deploy Supabase → Run workflow**. It runs the whole
+   database file and deploys `ai-lab` with JWT verification off
+   (`.github/workflows/deploy-supabase.yml`). Green tick = done.
+
+Or do steps 3 and 4 by hand:
+
 ### 4. Secret and deploy (you, with the Supabase CLI)
 
 Install the CLI (<https://supabase.com/docs/guides/cli>), then from the

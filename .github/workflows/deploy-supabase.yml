@@ -1,0 +1,72 @@
+# Deploy SalaamStreet's Supabase backend from GitHub — no copying and pasting.
+# Actions → "Deploy Supabase" → Run workflow.
+#
+# Needs one repository secret: SUPABASE_ACCESS_TOKEN (Supabase → Account →
+# Access Tokens). The Gemini key is NOT needed here; it stays in Supabase's
+# Edge Function secrets. See backend/README-ai.md.
+name: Deploy Supabase
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_sql:
+        description: "Run backend/supabase-schema.sql (safe to re-run)"
+        type: boolean
+        default: true
+      deploy_ai_lab:
+        description: "Deploy the ai-lab Edge Function"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-supabase
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      PROJECT_REF: aqyanyrmxjjofhyxodzm # public: it's in js/config.js
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the access token is set
+        run: |
+          if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
+            echo "::error::Add the SUPABASE_ACCESS_TOKEN secret: GitHub repo → Settings → Secrets and variables → Actions → New repository secret."
+            exit 1
+          fi
+
+      - name: Run the database file
+        if: ${{ inputs.run_sql }}
+        run: |
+          jq -Rs '{query: .}' backend/supabase-schema.sql > body.json
+          code=$(curl -sS -o out.json -w '%{http_code}' -X POST \
+            "https://api.supabase.com/v1/projects/$PROJECT_REF/database/query" \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+            -H "Content-Type: application/json" --data @body.json)
+          echo "Supabase answered HTTP $code"
+          head -c 3000 out.json; echo
+          if [ "$code" -lt 200 ] || [ "$code" -ge 300 ]; then
+            echo "::error::The database file didn't run (HTTP $code). See the message above."
+            exit 1
+          fi
+          echo "Database is set up."
+
+      - uses: supabase/setup-cli@v1
+        if: ${{ inputs.deploy_ai_lab }}
+        with:
+          version: latest
+
+      - name: Deploy the ai-lab Edge Function
+        if: ${{ inputs.deploy_ai_lab }}
+        run: |
+          mkdir -p supabase/functions
+          printf 'project_id = "salaamstreet"\n\n[functions.ai-lab]\nverify_jwt = false\n' > supabase/config.toml
+          cp -r backend/functions/ai-lab supabase/functions/ai-lab
+          supabase functions deploy ai-lab --project-ref "$PROJECT_REF" --no-verify-jwt
+          echo "ai-lab is deployed. Open https://salaamstreet.com/#/lab"
