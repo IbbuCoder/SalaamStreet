@@ -27,7 +27,7 @@ under About → Updates (`SS.ROADMAP` in `js/content.js`); keep the two in step.
 | 2.11.6 | NVHS MSA members | ✅ Completed |
 | 2.11.7 | NVHS MSA: join with your school email | ✅ Completed |
 | 2.11.8 | Steadier Qibla camera, MSA admins | ✅ Completed |
-| 3.0 | SalaamStreet Plans: Plus, Pro and Max | 🚧 In progress |
+| 3.0 | The AI update | 🚧 In progress |
 | 3.1 | Personalization | 📋 Planned |
 | 3.2 | Qur'an Experience | 📋 Planned |
 | 3.3 | Community: mosque pages | 📋 Planned |
@@ -136,10 +136,12 @@ the Manage page gains "approve all on the list", a new-announcement button,
 joined-this-week, filters and a CSV download. Release notes:
 [`docs/release-notes/2.11.8.md`](docs/release-notes/2.11.8.md).
 
-## 3.0 — SalaamStreet Plans: Plus, Pro and Max · 🚧 In progress
+## 3.0 — The AI update · 🚧 In progress
 
-**Goal:** keep SalaamStreet's essentials free for everyone, and offer optional
-plans for the AI features that really cost money to run.
+**Goal:** SalaamStreet AI — an Islamic AI tutor that helps with Qur'an and
+tafsir study, questions about Islam, learning and planning, honest about its
+sources and never issuing rulings. The essentials stay free for everyone; the
+AI features, which cost money to run, come with optional plans.
 
 **Free — $0/month, always.** Everything free today stays free, with no ads and
 no new limits: prayer times and reminders, the Qibla, the mosque finder, the
@@ -362,9 +364,10 @@ scheduled.
 
 ## Changes to the plan
 
-- **3.0 became SalaamStreet Plans** (Plus $4.99, Pro $7.99, Max $9.99 a
-  month): optional paid plans built around AI features that cost money to
-  run, so everything else stays free. Work starts with a private AI Testing Lab.
+- **3.0 is the AI update** (SalaamStreet AI), with optional Plus ($4.99),
+  Pro ($7.99) and Max ($9.99 a month) plans for the AI features that cost
+  money to run, so everything else stays free. Work starts with a private AI
+  Testing Lab.
   Personalization and everything after it moved to 3.1–3.9.
 - **2.10:** the earlier plan called this release "SalaamStreet Kids". It became
   "Modes", with Kids Mode as one of five modes.
