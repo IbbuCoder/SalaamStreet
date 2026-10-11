@@ -1,15 +1,32 @@
 -- ════════════════════════════════════════════════════════════════════════
---  SalaamStreet — Supabase schema (Update 2.5: Accounts + Guest Mode)
+--  SalaamStreet — the whole Supabase database, in one file
 --
---  Optional free accounts. The website works fully without them (guest
---  mode); signed-in people get their bookmarks, streaks, Qur'an progress and
---  settings synced across devices.
+--  HOW TO USE: Supabase → SQL Editor → New query → paste this ENTIRE file →
+--  Run. That's all. It is safe to run again at any time (on a new project or
+--  to upgrade an existing one); nothing you've saved is deleted, except the
+--  one-time MSA admin reset noted in section 7.
 --
---  Auth is Supabase Auth (auth.users) with Apple, Google, phone (SMS) and
---  email sign-in. Row-Level Security ensures each person can only ever read
---  or write their own rows. Safe to re-run.
+--  What it sets up, in order:
+--    1. Accounts: profiles, created automatically on sign-up (Supabase Auth:
+--       Google, Apple, phone, email)
+--    2. Sync: bookmarks, streaks, Qur'an progress and settings across devices,
+--       with Row-Level Security (each person sees only their own rows)
+--    3. Realtime: devices hear about changes instantly
+--    4. Reminders when the app is closed (Web Push)          — 2.8
+--    5. Family & Kids Mode                                    — 2.10
+--    6. NVHS MSA announcements, membership and roster        — 2.11–2.11.7
+--    7. One list of MSA admins (the two owners are added)    — 2.11.8
+--    8. AI Testing Lab: settings, limits, usage, security log (private;
+--       only the ai-lab Edge Function can use it)
 --
---  Run this whole file in Supabase → SQL Editor. See README-backend.md.
+--  Not in this file (each needs a secret, so it can't be in a public file):
+--    • GEMINI_API_KEY → Supabase → Edge Functions → Secrets (README-ai.md)
+--    • the every-5-minutes reminder job → README-push.md step 4 (only once
+--      the reminder server is set up)
+--  Sign-in providers, redirect URLs and email templates are set in the
+--  Supabase dashboard: README-backend.md.
+--
+--  Nothing here is secret: the only emails are stored as SHA-256 hashes.
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── Profiles: one row per account, created automatically on sign-up ──────
