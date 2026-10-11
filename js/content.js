@@ -638,9 +638,9 @@
   });
   /* What's planned — honest plans in order, never dates. Nothing here is released yet. */
   SS.ROADMAP = [
-    { v: "3.0.0", icon: "star", en: "SalaamStreet Plans: Plus, Pro and Max", ar: "باقات سلام ستريت: بلس وبرو وماكس",
-      den: "Everything that's free today stays free, with no ads. Optional plans are planned — Plus ($4.99/month), Pro ($7.99) and Max ($9.99) — for AI study help and research that cost money to run. Not available yet.",
-      dar: "كل ما هو مجاني اليوم يبقى مجانيًا وبلا إعلانات. باقات اختيارية مخطط لها — بلس (4.99 دولار شهريًا) وبرو (7.99) وماكس (9.99) — للمساعدة الدراسية والبحث بالذكاء الاصطناعي التي يكلّف تشغيلها. غير متاحة بعد." },
+    { v: "3.0.0", icon: "sparkle", en: "The AI update", ar: "تحديث الذكاء الاصطناعي",
+      den: "SalaamStreet AI: an Islamic AI tutor for Qur'an and tafsir study, questions about Islam, learning and planning — honest about its sources and never issuing rulings. Everything free today stays free. Not available yet.",
+      dar: "سلام ستريت بالذكاء الاصطناعي: معلّم إسلامي ذكي لدراسة القرآن والتفسير، والأسئلة عن الإسلام، والتعلّم والتخطيط — صادق في مصادره ولا يُصدر فتاوى. كل ما هو مجاني اليوم يبقى مجانيًا. غير متاح بعد." },
     { v: "3.1.0", icon: "user", en: "Personalization", ar: "التخصيص",
       den: "A Home screen you arrange yourself: dashboard cards, favourite tools and shortcuts, more notification choices and better mode suggestions.",
       dar: "شاشة رئيسية ترتّبها بنفسك: بطاقات وأدوات مفضلة واختصارات، وخيارات أكثر للتنبيهات، واقتراحات أفضل للأوضاع." },

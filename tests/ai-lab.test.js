@@ -319,3 +319,20 @@ test("no secrets in anything the website serves; the browser never talks to Gemi
   const sw = fs.readFileSync(path.join(ROOT, "sw.js"), "utf8");
   assert.doesNotMatch(sw, /ai-lab/, "the Lab isn't part of the offline app");
 });
+
+test("app stats: counts only, for the admin only", async () => {
+  const { pg, call } = await setup();
+  await pg.query(`insert into auth.users (id, email, raw_app_meta_data, created_at, last_sign_in_at) values
+    (gen_random_uuid(), 'a@x.com', '{"provider":"google"}', now(), now()),
+    (gen_random_uuid(), 'b@x.com', '{"provider":"email"}', now() - interval '30 days', now() - interval '20 days')`);
+  const r = await call("admin", { action: "stats" });
+  assert.equal(r.status, 200, r.text);
+  assert.equal(r.body.stats.accounts, 2);
+  assert.equal(r.body.stats.new_7d, 1);
+  assert.equal(r.body.stats.active_7d, 1);
+  assert.deepEqual(r.body.stats.by_provider, { google: 1, email: 1 });
+  for (const k of ["synced_items", "reminder_devices", "family_children", "msa_members", "msa_pending", "msa_posts"]) assert.equal(typeof r.body.stats[k], "number", k);
+  assert.doesNotMatch(r.text, /@x\.com/, "no emails");
+  assert.equal((await call("other", { action: "stats" })).status, 403);
+  assert.equal((await call(null, { action: "stats" })).status, 401);
+});

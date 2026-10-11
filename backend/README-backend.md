@@ -108,18 +108,21 @@ and then removes from the address bar.
 **Authentication → Providers → Email:** enabled. "Confirm email" can stay on.
 
 SalaamStreet asks for a **6-digit code** (works across devices — e.g. the email is
-opened on a phone while signing in on a laptop). Supabase's default template
-only contains a link, so edit **Authentication → Email Templates → Magic Link**
-and include the code, for example:
+opened on a phone while signing in on a laptop), so every email shows the code.
+Branded templates live in `backend/email-templates/` (built by
+`node tools/build-email-templates.js`):
 
-```html
-<h2>Your SalaamStreet sign-in code</h2>
-<p>Enter this code in SalaamStreet: <strong>{{ .Token }}</strong></p>
-<p>Or tap this link on the same device: <a href="{{ .ConfirmationURL }}">Sign in</a></p>
-```
+| Supabase template | File | Subject |
+|---|---|---|
+| Magic Link | `magic_link.html` | Your SalaamStreet sign-in code: {{ .Token }} |
+| Confirm signup | `confirmation.html` | Welcome to SalaamStreet — your code: {{ .Token }} |
+| Change Email Address | `email_change.html` | Confirm your new email for SalaamStreet |
+| Reset Password | `recovery.html` | Reset your SalaamStreet password |
 
-Do the same for **Confirm signup** and **Change Email Address** templates
-(the latter is used when a phone-only account adds an email).
+Install them either way:
+- **GitHub:** Actions → **Deploy Supabase** → Run workflow (sends `templates.json`).
+- **By hand:** Authentication → **Emails** → each template above → paste the
+  file's contents into the body and the subject from the table → Save.
 
 For production volume, set up **custom SMTP** (Auth → SMTP Settings); the
 built-in mailer is heavily rate-limited.

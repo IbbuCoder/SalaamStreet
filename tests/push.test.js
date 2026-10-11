@@ -60,3 +60,34 @@ test("the server's copies of the calculator and texts match the app", () => {
     assert.equal(Object.keys(dict).length, 13, lang + " has every reminder text (run node tools/build-push-messages.js)");
   }
 });
+
+test("the server makes its own VAPID keys in the format browsers and web-push expect", async () => {
+  const { generateVapidKeys, unb64u } = await import(path.join(ROOT, "backend/functions/send-reminders/keys.js"));
+  const a = await generateVapidKeys(), b = await generateVapidKeys();
+  assert.notEqual(a.privateKey, b.privateKey, "fresh keys each time");
+  const pub = unb64u(a.publicKey), priv = unb64u(a.privateKey);
+  assert.equal(pub.length, 65);
+  assert.equal(pub[0], 4, "uncompressed P-256 point");
+  assert.equal(priv.length, 32);
+  assert.match(a.publicKey, /^[A-Za-z0-9_-]+$/, "base64url, no padding");
+  // The pair belongs together: sign with the private key, verify with the public one.
+  const x = Buffer.from(pub.slice(1, 33)).toString("base64url"), y = Buffer.from(pub.slice(33)).toString("base64url");
+  const sk = await crypto.subtle.importKey("jwk", { kty: "EC", crv: "P-256", x, y, d: a.privateKey }, { name: "ECDSA", namedCurve: "P-256" }, false, ["sign"]);
+  const pk = await crypto.subtle.importKey("raw", pub, { name: "ECDSA", namedCurve: "P-256" }, false, ["verify"]);
+  const data = new TextEncoder().encode("salaam");
+  const sig = await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, sk, data);
+  assert.ok(await crypto.subtle.verify({ name: "ECDSA", hash: "SHA-256" }, pk, sig, data));
+});
+
+test("push_keys: a random schedule secret, and nobody but the server can read it", async () => {
+  const { aiDb } = require("./helpers/ai-lab-store");
+  const pg = await aiDb(); // runs backend/supabase-schema.sql twice
+  const r = await pg.query("select cron_secret, vapid_public from public.push_keys");
+  assert.equal(r.rows.length, 1);
+  assert.match(r.rows[0].cron_secret, /^[0-9a-f]{64}$/);
+  assert.equal(r.rows[0].vapid_public, null, "made by the server on its first run");
+  for (const role of ["anon", "authenticated"]) {
+    await pg.exec(`set role ${role}`);
+    try { await assert.rejects(pg.query("select * from public.push_keys"), /permission denied/); } finally { await pg.exec("reset role"); }
+  }
+});

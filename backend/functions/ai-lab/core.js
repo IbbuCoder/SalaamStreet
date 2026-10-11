@@ -123,7 +123,7 @@ function publicSettings(s) {
  * deps.env(name)   → string | undefined
  * deps.fetch       → fetch (used only for Google)
  * deps.store       → { getUser(token), settings(), updateSettings(patch, userId), reserve(userId, kind),
- *                      finish(id, patch), summary(), logRefusal(userId, event, detail) }
+ *                      finish(id, patch), summary(), stats(), logRefusal(userId, event, detail) }
  * deps.log         → optional { warn(...) } (never given secrets or message text)
  */
 export function createHandler(deps) {
@@ -323,6 +323,7 @@ export function createHandler(deps) {
       const action = body && body.action;
       if (action === "status") return reply(req, 200, await status(user));
       if (action === "test") return reply(req, 200, await test(user));
+      if (action === "stats") return reply(req, 200, { ok: true, stats: await store.stats() });
       if (action === "chat") return reply(req, 200, await chat(user, body));
       if (action === "settings") {
         const patch = validateSettingsPatch(body.patch);

@@ -273,6 +273,28 @@ revoke execute on function public.push_unregister(text) from public;
 grant execute on function public.push_register(jsonb, jsonb) to anon, authenticated;
 grant execute on function public.push_unregister(text) to anon, authenticated;
 
+-- The reminder server's keys, made inside Supabase so nobody ever handles
+-- them: send-reminders creates the VAPID key pair on its first run, and the
+-- secret the schedule uses to call it is random. Only the server can read
+-- this table (the public VAPID key also goes in js/config.js).
+create table if not exists public.push_keys (
+    id            boolean primary key default true check (id),
+    vapid_public  text,
+    vapid_private text,
+    cron_secret   text not null default replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', ''),
+    created_at    timestamptz not null default now()
+);
+insert into public.push_keys (id) values (true) on conflict (id) do nothing;
+alter table public.push_keys enable row level security;
+revoke all on public.push_keys from anon, authenticated;
+do $$
+begin
+    if exists (select 1 from pg_roles where rolname = 'service_role') then
+        grant select, update on public.push_keys to service_role;
+    end if;
+end;
+$$;
+
 -- ════════════════════════════════════════════════════════════════════════
 --  Earlier draft (pre-2.5, never connected to the website): the tables
 --  preferences, bookmarks, progress and favorites are superseded by
@@ -1643,12 +1665,32 @@ returns jsonb language sql stable security definer set search_path = public as $
         'resets_at', (select day.start + interval '1 day' from day));
 $$;
 
-revoke all on function public.ai_reserve(uuid, text), public.ai_usage_summary() from public, anon, authenticated;
+/** App-wide counts for the admin (the Lab's "App stats" card). Numbers only —
+    no names, emails or anyone's data. */
+create or replace function public.admin_stats()
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+begin
+    return jsonb_build_object(
+        'accounts', (select count(*) from auth.users),
+        'new_7d', (select count(*) from auth.users where created_at > now() - interval '7 days'),
+        'active_7d', (select count(*) from auth.users where last_sign_in_at > now() - interval '7 days'),
+        'by_provider', (select coalesce(jsonb_object_agg(p, n), '{}'::jsonb) from (
+            select coalesce(raw_app_meta_data->>'provider', 'other') as p, count(*) as n from auth.users group by 1) x),
+        'synced_items', (select count(*) from public.sync_records where not deleted),
+        'reminder_devices', (select count(*) from public.push_subscriptions),
+        'family_children', (select count(*) from public.family_children),
+        'msa_members', (select count(*) from public.msa_members where status = 'approved'),
+        'msa_pending', (select count(*) from public.msa_members where status in ('pending', 'flagged')),
+        'msa_posts', (select count(*) from public.msa_posts));
+end;
+$$;
+
+revoke all on function public.ai_reserve(uuid, text), public.ai_usage_summary(), public.admin_stats() from public, anon, authenticated;
 do $$
 begin
     if exists (select 1 from pg_roles where rolname = 'service_role') then
         grant select, insert, update, delete on public.ai_settings, public.ai_usage, public.ai_security_log to service_role;
-        grant execute on function public.ai_reserve(uuid, text), public.ai_usage_summary() to service_role;
+        grant execute on function public.ai_reserve(uuid, text), public.ai_usage_summary(), public.admin_stats() to service_role;
     end if;
 end;
 $$;

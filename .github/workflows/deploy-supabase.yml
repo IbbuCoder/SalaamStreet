@@ -17,6 +17,10 @@ on:
         description: "Deploy the ai-lab Edge Function"
         type: boolean
         default: true
+      email_templates:
+        description: "Install the branded sign-in emails (backend/email-templates)"
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -56,6 +60,21 @@ jobs:
             exit 1
           fi
           echo "Database is set up."
+
+      - name: Install the branded sign-in emails
+        if: ${{ inputs.email_templates }}
+        run: |
+          code=$(curl -sS -o out.json -w '%{http_code}' -X PATCH \
+            "https://api.supabase.com/v1/projects/$PROJECT_REF/config/auth" \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+            -H "Content-Type: application/json" --data @backend/email-templates/templates.json)
+          echo "Supabase answered HTTP $code"
+          if [ "$code" -lt 200 ] || [ "$code" -ge 300 ]; then
+            head -c 2000 out.json; echo
+            echo "::error::The email templates weren't saved (HTTP $code)."
+            exit 1
+          fi
+          echo "Sign-in emails updated."
 
       - uses: supabase/setup-cli@v1
         if: ${{ inputs.deploy_ai_lab }}
