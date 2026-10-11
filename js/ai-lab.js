@@ -125,7 +125,7 @@
             field("output_usd_per_mtok", "Output price, $ per 1M tokens (incl. thinking)", "number", 'min="0" step="0.01"') +
             '<div class="lab-set-foot"><button class="btn btn-sm" type="submit">Save settings</button><span class="muted" id="lab-set-out" role="status"></span></div>' +
           '</form>' +
-          '<p class="muted lab-small">Costs are estimates from the token counts Gemini reports and the prices above — when you change the model, change both prices to match it. Check them against Google’s pricing page; Google’s bill is what counts. These limits are app limits, not a hard spending cap — set a budget alert in Google Cloud too.</p>' +
+          '<p class="muted lab-small">Costs shown are what this would cost on Google’s paid plan, worked out from the token counts Gemini reports and the prices above. On the free tier Google charges nothing — when you change the model, change both prices to match it. Check them against Google’s pricing page; Google’s bill is what counts. These limits are app limits, not a hard spending cap — set a budget alert in Google Cloud too.</p>' +
         '</details>' +
         '<p class="muted lab-small">Privacy: messages go to Google’s Gemini API to be answered. SalaamStreet stores only counts, tokens and estimated costs — never what you wrote or the replies. Google’s own data terms depend on your API plan (see backend/README-ai.md).</p>' +
       '</div>';
@@ -234,8 +234,8 @@
       stat("Today", int(u.today_requests) + " / " + int(set.daily_limit)) +
       stat("Remaining today", int(u.remaining_today)) +
       stat("Tokens today", int(u.today_tokens)) +
-      stat("Cost today (est.)", money(u.today_cost_usd)) +
-      stat("Last 7 days (est.)", money(u.week_cost_usd) + " · " + int(u.week_requests) + " req") +
+      stat("If on a paid plan: today", money(u.today_cost_usd)) +
+      stat("If on a paid plan: 7 days", money(u.week_cost_usd) + " · " + int(u.week_requests) + " req") +
       stat("Refused today", int(u.refused_today));
     var lim = $("lab-stats");
     lim.setAttribute("title", "Limits reset at " + timeUtc(u.resets_at));
@@ -289,7 +289,7 @@
       if (m.role === "user") return '<div class="lab-msg me"><div class="lab-bubble">' + esc(m.text) + "</div></div>";
       var meta = m.meta || {};
       var bits = [meta.model, meta.usage && meta.usage.total != null ? int(meta.usage.total) + " tokens" : "tokens not reported",
-        meta.cost_usd != null ? "~" + money(meta.cost_usd) : "", meta.latency_ms ? (meta.latency_ms / 1000).toFixed(1) + " s" : ""].filter(Boolean);
+        meta.cost_usd != null ? "~" + money(meta.cost_usd) + " if paid" : "", meta.latency_ms ? (meta.latency_ms / 1000).toFixed(1) + " s" : ""].filter(Boolean);
       return '<div class="lab-msg ai"><div class="lab-bubble">' + rich(m.text) +
         (meta.truncated ? '<p class="lab-trunc">Cut short: the reply reached the max output tokens.</p>' : "") + "</div>" +
         '<div class="lab-meta"><span>' + esc(bits.join(" · ")) + '</span><button class="btn btn-ghost btn-sm" type="button" data-copy="' + i + '">' + icon("copy") + "<span>Copy</span></button></div></div>";
@@ -298,7 +298,7 @@
   }
   function drawSession() {
     var s = st.session;
-    $("lab-session").textContent = s.requests ? "This conversation: " + s.requests + " request" + (s.requests === 1 ? "" : "s") + " · " + int(s.tokens) + " tokens · ~" + money(s.cost) : "";
+    $("lab-session").textContent = s.requests ? "This conversation: " + s.requests + " request" + (s.requests === 1 ? "" : "s") + " · " + int(s.tokens) + " tokens · ~" + money(s.cost) + " if on a paid plan" : "";
   }
 
   function send() {

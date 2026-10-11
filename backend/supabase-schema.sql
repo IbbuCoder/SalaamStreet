@@ -66,7 +66,7 @@ create index if not exists sync_records_cursor on public.sync_records (user_id, 
 
 -- The server, not the client, stamps the change cursor.
 create or replace function public.sync_records_stamp()
-returns trigger language plpgsql as $$
+returns trigger language plpgsql set search_path = public as $$
 begin
     new.server_at := clock_timestamp();
     return new;
@@ -168,6 +168,8 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
     after insert on auth.users
     for each row execute function public.handle_new_user();
+-- Only the sign-up trigger runs it; it isn't part of the API.
+revoke all on function public.handle_new_user() from public, anon, authenticated;
 
 -- ════════════════════════════════════════════════════════════════════════
 --  Row-Level Security — each person only sees their own data
@@ -922,7 +924,7 @@ returns text language sql stable security definer set search_path = public as $$
     from public.msa_secret s where s.id = 1;
 $$;
 create or replace function public.msa_window()
-returns bigint language sql stable as $$ select floor(extract(epoch from now()) / 600)::bigint; $$;
+returns bigint language sql stable set search_path = public as $$ select floor(extract(epoch from now()) / 600)::bigint; $$;
 
 /* ── Posts: members-only ones only reach members ── */
 create or replace function public.msa_post_json(p public.msa_posts)
