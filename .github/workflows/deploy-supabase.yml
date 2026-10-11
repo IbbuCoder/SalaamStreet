@@ -38,6 +38,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Tidy the access token
+        # A token pasted with a trailing space or line break breaks the request headers.
+        run: |
+          clean=$(printf '%s' "$SUPABASE_ACCESS_TOKEN" | tr -d '[:space:]')
+          echo "::add-mask::$clean"
+          echo "SUPABASE_ACCESS_TOKEN=$clean" >> "$GITHUB_ENV"
+
       - name: Check the access token is set
         run: |
           if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
@@ -52,7 +59,7 @@ jobs:
           code=$(curl -sS -o out.json -w '%{http_code}' -X POST \
             "https://api.supabase.com/v1/projects/$PROJECT_REF/database/query" \
             -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
-            -H "Content-Type: application/json" --data @body.json)
+            -H "Content-Type: application/json" --data-binary @body.json)
           echo "Supabase answered HTTP $code"
           head -c 3000 out.json; echo
           if [ "$code" -lt 200 ] || [ "$code" -ge 300 ]; then
@@ -67,7 +74,7 @@ jobs:
           code=$(curl -sS -o out.json -w '%{http_code}' -X PATCH \
             "https://api.supabase.com/v1/projects/$PROJECT_REF/config/auth" \
             -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
-            -H "Content-Type: application/json" --data @backend/email-templates/templates.json)
+            -H "Content-Type: application/json" --data-binary @backend/email-templates/templates.json)
           echo "Supabase answered HTTP $code"
           if [ "$code" -lt 200 ] || [ "$code" -ge 300 ]; then
             head -c 2000 out.json; echo
