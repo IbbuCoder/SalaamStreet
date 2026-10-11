@@ -27,7 +27,7 @@ under About → Updates (`SS.ROADMAP` in `js/content.js`); keep the two in step.
 | 2.11.6 | NVHS MSA members | ✅ Completed |
 | 2.11.7 | NVHS MSA: join with your school email | ✅ Completed |
 | 2.11.8 | Steadier Qibla camera, MSA admins | ✅ Completed |
-| 3.0 | SalaamStreet Plans: Plus, Pro and Max | 🚧 Up next |
+| 3.0 | SalaamStreet Plans: Plus, Pro and Max | 🚧 In progress |
 | 3.1 | Personalization | 📋 Planned |
 | 3.2 | Qur'an Experience | 📋 Planned |
 | 3.3 | Community: mosque pages | 📋 Planned |
@@ -136,37 +136,49 @@ the Manage page gains "approve all on the list", a new-announcement button,
 joined-this-week, filters and a CSV download. Release notes:
 [`docs/release-notes/2.11.8.md`](docs/release-notes/2.11.8.md).
 
-## 3.0 — SalaamStreet Plans: Plus, Pro and Max · 🚧 Up next
+## 3.0 — SalaamStreet Plans: Plus, Pro and Max · 🚧 In progress
 
-**Goal:** keep SalaamStreet free for everyone, and pay for the parts that
-really cost money to run or take a lot of work, with three optional plans.
+**Goal:** keep SalaamStreet's essentials free for everyone, and offer optional
+plans for the AI features that really cost money to run.
 
-**Free, always.** Everything that is free today stays free, with no ads and no
-limits added: prayer times and prayer reminders, the Qibla (camera too), the
-Qur'an with audio, translations and tafsir, Offline Qur'an, hadith, duas,
-dhikr, the Islamic calendar, Stories, every Mode, Kids Mode and the Family
-page (up to 10 children), an account with sync, and the NVHS MSA page.
-Anything new that costs little to run is free too.
+**Free — $0/month, always.** Everything free today stays free, with no ads and
+no new limits: prayer times and reminders, the Qibla, the mosque finder, the
+Qur'an with audio, translations and tafsir, Offline Qur'an, prayer check-ins,
+duas, dhikr, hadith, the Islamic calendar, Stories, every Mode, Kids Mode and
+the Family page, an account with sync, and the NVHS MSA page.
 
-**Paid, only where it costs.** Each plan includes the one below it.
+**Planned paid plans** (none is available yet; features are plans, not claims;
+no plan is "unlimited"):
 
-| Plan | For | What it adds (each one has a real running cost) |
+| Plan | Price | Planned |
 |---|---|---|
-| **Plus** | One person | Long-term cloud backup of your history (Qur'an reading, dhikr, prayer check-ins) that you can restore on any device; more reminders on your own schedule (Qur'an, adhkar, Jumu'ah, fasting), each one sent by our server |
-| **Pro** | Serious learners and families | More reciters in high quality to download for offline listening; memorization tools that keep your own recordings in the cloud; larger photo and file storage |
-| **Max** | Mosques, MSAs and schools | Your organization's own verified page: announcements with pictures, events, members and admins, push notifications to followers, and help setting it up. Reading and following these pages is always free (see 3.3) |
+| **Plus** | $4.99/month | Islamic AI tutor; Qur'an study and tafsir help where reliable content is available; personal study notes and saved research; learning and worship planning; a set AI allowance |
+| **Pro** | $7.99/month | Everything in Plus; more extensive, source-aware research; organization and planning tools; family study spaces; Hajj and Umrah planning; a higher AI allowance |
+| **Max** | $9.99/month | Everything in Pro; the highest AI and research allowances; larger research projects and multi-document analysis; more collaboration and family features |
 
-**Not decided yet:** prices, monthly or yearly billing, and discounts for
-students or anyone who can't pay. Nobody who can't pay should lose anything
-they need for worship or learning.
+**Stages**
 
-**Not in this release:** no code for payments yet. This is the plan only.
+1. ✅ A private, admin-only AI Testing Lab with real Gemini replies, checked on
+   the server, with limits and an emergency switch
+   ([`backend/README-ai.md`](backend/README-ai.md)). Not public.
+2. 📋 Better usage reporting, source-aware answers (quoting the app's own
+   verified Qur'an and hadith data), optional secure document testing.
+3. 🚧 Plan entitlements checked on the server — prepared in
+   `backend/functions/ai-lab/plans.js` with billing off, so everyone is on Free.
+4. 📋 Build and test Plus features. 5. 📋 Pro. 6. 📋 Max.
+7. 📋 Payments (Stripe test mode first) — only when we decide to start billing.
 
-**Risks:** charging for something people already use for free; payment and
-tax rules; keeping the free app as good as the paid one.
+**Rules:** AI answers never invent Qur'an verses, hadith, quotations or
+citations, say when something is unverified, present differences of scholarly
+opinion fairly, and never issue rulings. Conversations aren't published or
+stored by default. Plans are enforced on the server.
+
+**Risks:** charging for something people already use for free; AI accuracy on
+religious questions; API costs; payment and tax rules.
 **Completion criteria:** a public list of exactly what's free and what's paid;
-nothing that was free gets a new limit; payments handled by a trusted provider
-(we never see card details); cancelling is one tap and keeps your data.
+nothing that was free gets a new limit; allowances enforced on the server;
+payments handled by a trusted provider (we never see card details); cancelling
+is easy and keeps your data.
 
 ## 3.1 — Personalization · 📋 Planned
 
@@ -350,8 +362,9 @@ scheduled.
 
 ## Changes to the plan
 
-- **3.0 became SalaamStreet Plans** (Plus, Pro and Max): optional paid plans
-  for the features that cost money to run, so everything else stays free.
+- **3.0 became SalaamStreet Plans** (Plus $4.99, Pro $7.99, Max $9.99 a
+  month): optional paid plans built around AI features that cost money to
+  run, so everything else stays free. Work starts with a private AI Testing Lab.
   Personalization and everything after it moved to 3.1–3.9.
 - **2.10:** the earlier plan called this release "SalaamStreet Kids". It became
   "Modes", with Kids Mode as one of five modes.

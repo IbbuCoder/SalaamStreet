@@ -87,6 +87,16 @@ function createMock(opts) {
     const req = route.request();
     const url = new URL(req.url());
     const method = req.method();
+    // Edge Functions: the test plugs in the real handler (e.g. ai-lab's core.js).
+    const fn = url.pathname.match(/^\/functions\/v1\/([a-z0-9-]+)$/);
+    if (fn) {
+      const h = api.functions[fn[1]];
+      if (!h) return json(route, 404, { message: "Function not found" });
+      if (state.offlineContexts.has(ctxId)) return route.abort("internetdisconnected");
+      log.push({ ctx: ctxId, method, path: url.pathname, fn: fn[1] });
+      const res = await h(new Request(req.url(), { method, headers: req.headers(), body: method === "GET" || method === "OPTIONS" ? undefined : req.postData() }));
+      return route.fulfill({ status: res.status, headers: Object.fromEntries(res.headers.entries()), body: await res.text() });
+    }
     if (method === "OPTIONS") {
       return route.fulfill({ status: 204, headers: { "access-control-allow-origin": "*", "access-control-allow-headers": "*", "access-control-allow-methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS" } });
     }
@@ -266,8 +276,20 @@ function createMock(opts) {
   }
 
   let nextCtx = 1;
-  return {
+  const api = {
     state,
+    /** name → async (Request) => Response, served at /functions/v1/<name>. */
+    functions: {},
+    /** The user a session token belongs to (what Supabase Auth's getUser answers). */
+    userForToken(tok) {
+      const parts = String(tok || "").split(".");
+      if (parts.length !== 3) return null;
+      try {
+        const claims = JSON.parse(Buffer.from(parts[1], "base64url").toString());
+        if (claims.exp && claims.exp * 1000 < Date.now()) return null;
+        return users.get(claims.sub) || null;
+      } catch (e) { return null; }
+    },
     URL_BASE,
     /** Route a browser context (a "device") to this mock. Returns its id. */
     async attach(context) {
@@ -283,6 +305,7 @@ function createMock(opts) {
     },
     userByEmail(email) { return findUser((x) => x.email === email); },
   };
+  return api;
 }
 
 module.exports = { createMock, familyDb, URL_BASE };

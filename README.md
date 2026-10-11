@@ -112,7 +112,7 @@ Safe-area insets (iPhone notch / home indicator), 16px form inputs (no iOS zoom)
 ├── tools/build-splash.js Generator for the light/dark iOS launch screens
 ├── tools/build-hadith-books.js Generator for js/hadith-books.js (from hadith-api)
 ├── tools/build-push-messages.js Copies reminder texts + praytimes.js to the reminder server
-├── backend/              Supabase schema, setup guides, and functions/send-reminders (closed-app reminders)
+├── backend/              Supabase schema, setup guides, functions/send-reminders (closed-app reminders) and functions/ai-lab (private AI Testing Lab)
 ├── tests/                Unit, database (PGlite) and browser (Playwright) tests
 └── docs/                 Product, architecture and design notes
 ```
@@ -149,6 +149,7 @@ npm run lint         # ESLint
 - `tests/family.test.js` — 2.10 Family & Kids Mode in a real Postgres: parents only reach their own children, a child's device only its own child, single-use expiring pairing codes, server-enforced restrictions, achievements, deletion
 - `tests/praytimes.test.js` — on-device prayer times vs the adhan library (8 cities, 4 seasons, every method)
 - `tests/push.test.js` — the reminder server: what's due when, sent once, in the device's language
+- `tests/ai-lab.test.js` — the private AI Testing Lab's server in a real Postgres: admin-only access checked on every request, limits, emergency switches, Gemini errors, no secrets in the website ([`backend/README-ai.md`](backend/README-ai.md))
 - `tests/offline.test.js` — Offline Qur'an in Chromium with real IndexedDB/Cache API: storage, read-path fallback, resume after a dropped connection or closed tab, quota errors, PDF card hidden while the file is missing
 - `tests/e2e.test.js` — the app in Chromium: startup theme, Tafsir, Qibla compass/camera, guest mode, every sign-in method driven through the real supabase-js client against a mock Supabase API, and the Offline Qur'an (text, audio across surahs, the PDF viewer offline), and every 2.10 mode: switching and persistence, Travel without location and offline, Hajj & Umrah progress, Mosque and Quiet Mode, suggestions, the full parent/child flow against the real database functions, and layout in light and dark
 

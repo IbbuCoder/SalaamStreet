@@ -1514,3 +1514,122 @@ revoke all on function public.msa_student_add(text, text), public.msa_student_re
     public.msa_admin_list(), public.msa_admin_add(text), public.msa_admin_remove(text) from public, anon;
 grant execute on function public.msa_student_add(text, text), public.msa_student_remove(text), public.msa_approve_listed(),
     public.msa_admin_list(), public.msa_admin_add(text), public.msa_admin_remove(text) to authenticated;
+
+-- ════════════════════════════════════════════════════════════════════════
+--  AI Testing Lab (private; not part of any public release)
+--  Used only by the ai-lab Edge Function (backend/functions/ai-lab), which
+--  runs with the service role and checks the admin on every request. Nothing
+--  here is reachable from the app's public key: no table or function is
+--  granted to anon or authenticated.
+--  • ai_settings: one row — the emergency switch, the model, limits and the
+--    prices used for cost estimates. Changed from the Lab page or here.
+--  • ai_usage: one row per request — counts, tokens, estimated cost, status.
+--    Never the conversation itself.
+--  • ai_security_log: refused requests (who and why, never tokens or text).
+--  • ai_reserve(): the daily and per-minute limits, checked and counted in
+--    one step so two requests at once can't both slip past the limit.
+-- ════════════════════════════════════════════════════════════════════════
+create table if not exists public.ai_settings (
+    id                  boolean primary key default true check (id),
+    enabled             boolean not null default true,
+    model               text not null default 'gemini-3.5-flash-lite' check (model ~ '^[a-z0-9][a-z0-9.-]{1,63}$'),
+    daily_limit         integer not null default 50 check (daily_limit between 0 and 2000),
+    minute_limit        integer not null default 5 check (minute_limit between 1 and 60),
+    max_input_chars     integer not null default 6000 check (max_input_chars between 200 and 30000),
+    max_output_tokens   integer not null default 2048 check (max_output_tokens between 64 and 8192),
+    input_usd_per_mtok  numeric(10, 4) not null default 0.30 check (input_usd_per_mtok >= 0),
+    output_usd_per_mtok numeric(10, 4) not null default 2.50 check (output_usd_per_mtok >= 0),
+    updated_at          timestamptz not null default now(),
+    updated_by          uuid
+);
+insert into public.ai_settings (id) values (true) on conflict (id) do nothing;
+
+create table if not exists public.ai_usage (
+    id             bigint generated always as identity primary key,
+    user_id        uuid not null,
+    at             timestamptz not null default now(),
+    kind           text not null check (kind in ('chat', 'test')),
+    status         text not null default 'pending' check (status in ('pending', 'ok', 'error')),
+    model          text,
+    prompt_tokens  integer,
+    output_tokens  integer,
+    thought_tokens integer,
+    total_tokens   integer,
+    cost_usd       numeric(12, 6),
+    latency_ms     integer,
+    error          text check (error is null or char_length(error) <= 80)
+);
+create index if not exists ai_usage_at on public.ai_usage (at);
+
+create table if not exists public.ai_security_log (
+    id      bigint generated always as identity primary key,
+    at      timestamptz not null default now(),
+    user_id uuid,
+    event   text not null check (char_length(event) <= 40),
+    detail  text check (detail is null or char_length(detail) <= 120)
+);
+create index if not exists ai_security_log_at on public.ai_security_log (at);
+
+alter table public.ai_settings enable row level security;
+alter table public.ai_usage enable row level security;
+alter table public.ai_security_log enable row level security;
+revoke all on public.ai_settings, public.ai_usage, public.ai_security_log from anon, authenticated;
+
+/** Check the switch and the limits, and count the request, in one step.
+    Chats count towards the daily limit; connection tests only towards the
+    per-minute limit. The daily limit is for the whole project (a cost cap),
+    not per person. Days are UTC, like Google's own quotas. */
+create or replace function public.ai_reserve(p_user uuid, p_kind text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare s public.ai_settings; used integer; recent integer; rid bigint;
+begin
+    if p_user is null or p_kind not in ('chat', 'test') then raise exception 'bad request' using errcode = '22023'; end if;
+    perform pg_advisory_xact_lock(hashtext('ai_reserve'));
+    select * into s from public.ai_settings where id;
+    select count(*) into used from public.ai_usage
+        where kind = 'chat' and at >= date_trunc('day', now() at time zone 'UTC') at time zone 'UTC';
+    if not s.enabled then
+        return jsonb_build_object('ok', false, 'reason', 'disabled', 'used', used, 'limit', s.daily_limit);
+    end if;
+    if p_kind = 'chat' and used >= s.daily_limit then
+        return jsonb_build_object('ok', false, 'reason', 'daily_limit', 'used', used, 'limit', s.daily_limit);
+    end if;
+    select count(*) into recent from public.ai_usage where at > now() - interval '1 minute';
+    if recent >= s.minute_limit then
+        return jsonb_build_object('ok', false, 'reason', 'rate_limit', 'used', used, 'limit', s.daily_limit);
+    end if;
+    insert into public.ai_usage (user_id, kind, model) values (p_user, p_kind, s.model) returning id into rid;
+    -- Keep the logs small: usage for a year, refusals for 90 days.
+    delete from public.ai_usage where at < now() - interval '365 days';
+    delete from public.ai_security_log where at < now() - interval '90 days';
+    return jsonb_build_object('ok', true, 'id', rid, 'model', s.model,
+        'used', used + case when p_kind = 'chat' then 1 else 0 end, 'limit', s.daily_limit,
+        'max_input_chars', s.max_input_chars, 'max_output_tokens', s.max_output_tokens,
+        'input_usd_per_mtok', s.input_usd_per_mtok, 'output_usd_per_mtok', s.output_usd_per_mtok);
+end;
+$$;
+
+/** Today's and the last 7 days' usage (UTC days), for the Lab page. */
+create or replace function public.ai_usage_summary()
+returns jsonb language sql stable security definer set search_path = public as $$
+    with day as (select date_trunc('day', now() at time zone 'UTC') at time zone 'UTC' as start)
+    select jsonb_build_object(
+        'today_requests', (select count(*) from public.ai_usage, day where kind = 'chat' and at >= day.start),
+        'today_errors', (select count(*) from public.ai_usage, day where kind = 'chat' and status = 'error' and at >= day.start),
+        'today_tokens', (select coalesce(sum(total_tokens), 0) from public.ai_usage, day where at >= day.start),
+        'today_cost_usd', (select coalesce(sum(cost_usd), 0) from public.ai_usage, day where at >= day.start),
+        'week_requests', (select count(*) from public.ai_usage, day where kind = 'chat' and at >= day.start - interval '6 days'),
+        'week_cost_usd', (select coalesce(sum(cost_usd), 0) from public.ai_usage, day where at >= day.start - interval '6 days'),
+        'refused_today', (select count(*) from public.ai_security_log, day where at >= day.start),
+        'resets_at', (select day.start + interval '1 day' from day));
+$$;
+
+revoke all on function public.ai_reserve(uuid, text), public.ai_usage_summary() from public, anon, authenticated;
+do $$
+begin
+    if exists (select 1 from pg_roles where rolname = 'service_role') then
+        grant select, insert, update, delete on public.ai_settings, public.ai_usage, public.ai_security_log to service_role;
+        grant execute on function public.ai_reserve(uuid, text), public.ai_usage_summary() to service_role;
+    end if;
+end;
+$$;

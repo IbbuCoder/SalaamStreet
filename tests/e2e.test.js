@@ -2043,3 +2043,128 @@ test("google sign-in always asks which account to use", async () => {
   assert.match(url, /prompt=select_account/);
   await context.close();
 });
+
+/* ═══════════ AI Testing Lab (private) ═══════════
+   The page talks to the REAL ai-lab server code (core.js, with its Postgres
+   tables in PGlite) through the Supabase mock; only Gemini is a stand-in. */
+test("ai lab: the admin's Google account chats through the server's checks; anyone else is refused", async () => {
+  const crypto = require("crypto");
+  const { aiDb, pgStore, fakeGemini } = require("./helpers/ai-lab-store");
+  const { createHandler } = await import(path.join(ROOT, "backend/functions/ai-lab/core.js"));
+  const KEY = "AIzaE2E-fake-key-for-tests-0000000000";
+  const mock = createMock();
+  const pg = await aiDb(), g = fakeGemini();
+  const env = { GEMINI_API_KEY: KEY, AI_ALLOWED_ORIGINS: base.replace(/\/$/, ""),
+    AI_ADMIN_EMAIL_SHA256: crypto.createHash("sha256").update("google-user@example.com").digest("hex") };
+  mock.functions["ai-lab"] = createHandler({ env: (k) => env[k], fetch: g.fetch, store: pgStore(pg, (t) => mock.userForToken(t)), log: { warn() {} } });
+
+  const A = await device({ mock });
+  await A.context.grantPermissions(["clipboard-read", "clipboard-write"], { origin: base.replace(/\/$/, "") });
+  const toGoogle = [];
+  A.page.on("request", (r) => { if (/generativelanguage\.googleapis\.com/.test(r.url())) toGoogle.push(r.url()); });
+  A.page.on("dialog", (d) => d.accept());
+  await open(A.page, "#/home");
+  assert.equal(await A.page.$$eval('a[href="#/lab"]', (a) => a.length), 0, "not linked from any menu");
+  assert.equal(await A.page.evaluate(() => !!window.SS.labView), false, "its script isn't loaded on other pages");
+  await A.page.evaluate(() => { location.hash = "#/lab"; });
+  await A.page.waitForSelector("#lab-signin");
+  await A.page.click("#lab-signin");
+  await A.page.click('#acct-dialog[open] [data-method="google"]');
+  await A.page.waitForFunction(() => window.SS && SS.account && SS.account.signedIn(), null, { timeout: 10000 });
+  if (!/#\/lab/.test(A.page.url())) await A.page.evaluate(() => { location.hash = "#/lab"; });
+  await A.page.waitForSelector("#lab-app:not([hidden])", { timeout: 10000 });
+  assert.match(await A.page.textContent("#lab-badges"), /AI requests on.*Gemini key set.*Model: gemini-3\.5-flash-lite/);
+  assert.match(await A.page.textContent("#lab-stats"), /0 \/ 50/);
+  assert.equal(await A.page.title(), "AI Testing Lab — SalaamStreet");
+
+  // A real conversation turn: Enter sends, the reply shows with tokens and cost.
+  await A.page.fill("#lab-input", "What are the pillars of Islam?");
+  await A.page.press("#lab-input", "Enter");
+  await A.page.waitForSelector(".lab-msg.ai .lab-bubble:not(.lab-typing)");
+  assert.equal(await A.page.textContent(".lab-msg.me .lab-bubble"), "What are the pillars of Islam?");
+  assert.equal(await A.page.textContent(".lab-msg.ai .lab-bubble"), "Test reply to: What are the pillars of Islam?");
+  assert.match(await A.page.textContent(".lab-msg.ai .lab-meta"), /gemini-3\.5-flash-lite · 1,300 tokens · ~\$0\.001\d/);
+  await A.page.waitForFunction(() => /1 \/ 50/.test(document.getElementById("lab-stats").textContent));
+  // The second turn carries the history.
+  await A.page.fill("#lab-input", "And the first one?");
+  await A.page.click("#lab-send");
+  await A.page.waitForFunction(() => document.querySelectorAll(".lab-msg.ai .lab-bubble:not(.lab-typing)").length === 2);
+  assert.deepEqual(g.calls[1].body.contents.map((c) => c.role), ["user", "model", "user"]);
+  assert.match(await A.page.textContent("#lab-session"), /2 requests · 2,600 tokens/);
+  await A.page.click('.lab-msg.ai [data-copy="1"]');
+  await A.page.waitForFunction(() => navigator.clipboard.readText().then((t) => t === "Test reply to: What are the pillars of Islam?"));
+
+  // Connection test.
+  await A.page.click("#lab-test");
+  await A.page.waitForFunction(() => /Connected\. gemini-3\.5-flash-lite \(Fake Gemini\)/.test(document.getElementById("lab-test-out").textContent));
+
+  // Google's quota error: a clear message, and the question comes back to send again.
+  g.next = { status: 429, json: { error: { message: "Quota exceeded", status: "RESOURCE_EXHAUSTED" } } };
+  await A.page.fill("#lab-input", "Explain tafsir of Al-Fatiha");
+  await A.page.press("#lab-input", "Enter");
+  await A.page.waitForSelector("#lab-err:not([hidden])");
+  assert.match(await A.page.textContent("#lab-err"), /quota/i);
+  assert.equal(await A.page.inputValue("#lab-input"), "Explain tafsir of Al-Fatiha");
+  assert.equal(await A.page.$$eval(".lab-msg.me", (m) => m.length), 2);
+  await pg.query("update public.ai_usage set at = at - interval '2 minutes'"); // past the per-minute limit
+
+  // The server can't be reached.
+  mock.state.offlineContexts.add(A.mockId);
+  await A.page.click("#lab-send");
+  await A.page.waitForFunction(() => /Couldn.t reach the AI server|offline/.test(document.getElementById("lab-err").textContent));
+  mock.state.offlineContexts.delete(A.mockId);
+
+  // Emergency switch: off stops requests on the server; on again works.
+  await A.page.click("#lab-settings summary");
+  await A.page.uncheck("#lab-enabled");
+  await A.page.waitForFunction(() => /Off \(emergency switch\)/.test(document.getElementById("lab-badges").textContent));
+  assert.equal(await A.page.isDisabled("#lab-send"), true);
+  assert.equal((await pg.query("select enabled from public.ai_settings")).rows[0].enabled, false);
+  await A.page.check("#lab-enabled");
+  await A.page.waitForFunction(() => /AI requests on/.test(document.getElementById("lab-badges").textContent));
+
+  // Settings: a new model and daily limit are saved on the server.
+  await A.page.fill("#lab-s-model", "gemini-3.8-flash");
+  await A.page.fill("#lab-s-daily_limit", "10");
+  await A.page.click("#lab-set-form button[type=submit]");
+  await A.page.waitForFunction(() => /Model: gemini-3\.8-flash/.test(document.getElementById("lab-badges").textContent));
+  assert.match(await A.page.textContent("#lab-stats"), /\/ 10/);
+
+  // Phone and desktop: nothing wider than the screen.
+  const fits = () => A.page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
+  assert.equal(await fits(), true, "phone");
+  await shot(A.page, "ai-lab-390");
+  await A.page.setViewportSize({ width: 1280, height: 900 });
+  assert.equal(await fits(), true, "desktop");
+  await shot(A.page, "ai-lab-1280");
+
+  // New conversation clears this page's memory.
+  await A.page.click("#lab-new");
+  await A.page.waitForSelector(".lab-empty");
+  assert.equal(await A.page.$$eval(".lab-msg", (m) => m.length), 0);
+
+  // The key never reaches the browser, and the browser never calls Google.
+  assert.ok((await A.page.content()).indexOf(KEY) === -1);
+  assert.deepEqual(toGoogle, []);
+  assert.deepEqual(A.page.errors, []);
+
+  // Another account (Apple here) is refused by the server, whatever the page does.
+  const B = await device({ mock });
+  await open(B.page, "#/account");
+  await B.page.click("#ac-signin");
+  await B.page.click('#acct-dialog[open] [data-method="apple"]');
+  await B.page.waitForFunction(() => window.SS && SS.account && SS.account.signedIn(), null, { timeout: 10000 });
+  await B.page.evaluate(() => { location.hash = "#/lab"; });
+  await B.page.waitForFunction(() => /can.t use the AI Testing Lab/.test((document.getElementById("lab-gate") || {}).textContent || ""));
+  assert.equal(await B.page.isHidden("#lab-app"), true);
+  // Even calling the server directly with this account's own session gets nothing.
+  const direct = await B.page.evaluate(() => SS.account.client().then((c) => c.auth.getSession()).then((r) =>
+    fetch(SS.CONFIG.supabaseUrl + "/functions/v1/ai-lab", { method: "POST", headers: { authorization: "Bearer " + r.data.session.access_token, "content-type": "application/json" },
+      body: JSON.stringify({ action: "chat", messages: [{ role: "user", text: "hi" }] }) }).then((x) => x.status)));
+  assert.equal(direct, 403);
+  const calls = g.calls.length;
+  assert.equal(calls, 4, "two chats, the quota-error try and one connection test reached Gemini; nothing from the other account");
+  assert.deepEqual(B.page.errors, []);
+  await A.context.close(); await B.context.close();
+  await pg.close();
+});
