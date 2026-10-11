@@ -639,8 +639,8 @@
   /* What's planned — honest plans in order, never dates. Nothing here is released yet. */
   SS.ROADMAP = [
     { v: "3.0.0", icon: "star", en: "SalaamStreet Plans: Plus, Pro and Max", ar: "باقات سلام ستريت: بلس وبرو وماكس",
-      den: "Everything that's free today stays free, with no ads. Optional Plus, Pro and Max plans pay only for what really costs to run: long-term cloud backup, extra reminders, more offline reciters, and verified pages for mosques, MSAs and schools.",
-      dar: "كل ما هو مجاني اليوم يبقى مجانيًا وبلا إعلانات. باقات بلس وبرو وماكس اختيارية لا تُدفع إلا مقابل ما يكلّف تشغيله فعلًا: نسخ احتياطي سحابي طويل الأمد، وتذكيرات إضافية، وقرّاء أكثر للاستماع دون اتصال، وصفحات موثّقة للمساجد والروابط الطلابية والمدارس." },
+      den: "Everything that's free today stays free, with no ads. Optional plans are planned — Plus ($4.99/month), Pro ($7.99) and Max ($9.99) — for AI study help and research that cost money to run. Not available yet.",
+      dar: "كل ما هو مجاني اليوم يبقى مجانيًا وبلا إعلانات. باقات اختيارية مخطط لها — بلس (4.99 دولار شهريًا) وبرو (7.99) وماكس (9.99) — للمساعدة الدراسية والبحث بالذكاء الاصطناعي التي يكلّف تشغيلها. غير متاحة بعد." },
     { v: "3.1.0", icon: "user", en: "Personalization", ar: "التخصيص",
       den: "A Home screen you arrange yourself: dashboard cards, favourite tools and shortcuts, more notification choices and better mode suggestions.",
       dar: "شاشة رئيسية ترتّبها بنفسك: بطاقات وأدوات مفضلة واختصارات، وخيارات أكثر للتنبيهات، واقتراحات أفضل للأوضاع." },

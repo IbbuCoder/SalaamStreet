@@ -14,13 +14,20 @@ const browser = {
   speechSynthesis: "readonly", SpeechSynthesisUtterance: "readonly", File: "readonly",
   indexedDB: "readonly", IDBKeyRange: "readonly", IDBObjectStore: "readonly", Response: "readonly", Cache: "readonly", DOMException: "readonly",
 };
-const node = { require: "readonly", module: "writable", process: "readonly", __dirname: "readonly", Buffer: "readonly", console: "readonly", setTimeout: "readonly", URL: "readonly", globalThis: "readonly" };
+const node = { Request: "readonly", require: "readonly", module: "writable", process: "readonly", __dirname: "readonly", Buffer: "readonly", console: "readonly", setTimeout: "readonly", URL: "readonly", globalThis: "readonly" };
 module.exports = [
   { ignores: ["node_modules/**", "js/vendor/**", "surah/**", "prayer-times/**", "duas/**", "names-of-allah/**", "about/**"] },
   {
     files: ["js/**/*.js", "sw.js"],
     languageOptions: { ecmaVersion: 2017, sourceType: "script", globals: browser },
     rules: { "no-undef": "error", "no-unused-vars": ["warn", { args: "none", caughtErrors: "none" }], "no-redeclare": "error", "no-dupe-keys": "error", "no-unreachable": "error" },
+  },
+  {
+    // Edge Function code shared with the tests (ES modules, run by Deno and Node).
+    files: ["backend/functions/**/*.js"],
+    languageOptions: { ecmaVersion: 2022, sourceType: "module", globals: Object.assign({}, browser, {
+      crypto: "readonly", TextEncoder: "readonly", Request: "readonly" }) },
+    rules: { "no-undef": "error", "no-unused-vars": ["warn", { args: "none", caughtErrors: "none" }], "no-dupe-keys": "error", "no-unreachable": "error" },
   },
   {
     files: ["tests/**/*.js", "tools/**/*.js", "eslint.config.js"],

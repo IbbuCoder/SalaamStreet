@@ -350,7 +350,7 @@
 
   /* ── Router ─────────────────────────────────────────────────── */
   var VIEWS = ["home", "prayer", "qibla", "quran", "surah", "hadith", "duas", "dhikr", "calendar", "settings",
-    "adhkar", "names", "mosques", "learn", "about", "account", "stories", "modes", "mode", "family", "kids", "msa"];
+    "adhkar", "names", "mosques", "learn", "about", "account", "stories", "modes", "mode", "family", "kids", "msa", "lab"];
   // Which nav item to highlight for views that aren't themselves nav items.
   var NAV_ALIAS = { surah: "quran", mode: "modes" };
   // Destinations that live in the phone "More" sheet light up the More tab.
@@ -436,6 +436,28 @@
     }
   }
   SS.navigate = navigate;
+
+  /* Private AI Testing Lab (#/lab): in no menu, and its script loads only
+     here. Who may use it is decided by the server (backend/functions/ai-lab). */
+  var labLoading = null;
+  SS.views.lab = function (params) {
+    if (SS.labView) return SS.labView(params);
+    if (!labLoading) {
+      labLoading = new Promise(function (resolve, reject) {
+        var s = document.createElement("script");
+        s.src = "js/ai-lab.js";
+        s.onload = resolve;
+        s.onerror = reject;
+        document.head.appendChild(s);
+      });
+    }
+    labLoading.then(function () {
+      if (currentView === "lab" && SS.labView) SS.labView(params);
+    }, function () {
+      labLoading = null;
+      $("lab-root").innerHTML = '<p class="muted">Couldn\u2019t load the AI Testing Lab. Check your connection and reload.</p>';
+    });
+  };
 
   /* ── Small global behaviours ────────────────────────────────── */
   function wireScrollState() {

@@ -5,9 +5,9 @@
   "description": "SalaamStreet — a static, client-side Islamic web app. No build step: the site is served as-is. This file only holds developer tooling (tests, lint, page generation).",
   "scripts": {
     "test": "node --test tests/*.test.js",
-    "test:unit": "node --test tests/sync.test.js tests/qibla.test.js tests/schema.test.js tests/family.test.js tests/release.test.js tests/praytimes.test.js tests/push.test.js tests/msa.test.js",
+    "test:unit": "node --test tests/sync.test.js tests/qibla.test.js tests/schema.test.js tests/family.test.js tests/release.test.js tests/praytimes.test.js tests/push.test.js tests/msa.test.js tests/ai-lab.test.js",
     "test:e2e": "node --test tests/e2e.test.js",
-    "lint": "eslint js tests tools sw.js eslint.config.js",
+    "lint": "eslint js tests tools sw.js eslint.config.js backend/functions",
     "build:pages": "node tools/build-pages.js",
     "build:splash": "node tools/build-splash.js",
     "build:og": "node tools/build-og.js"
