@@ -185,4 +185,4 @@ Responses are cached in localStorage, so surahs you've read and today's prayer t
 
 ## Roadmap
 
-What's planned after 2.11.8 — next up, **3.0: the AI update** — then Personalization, Qur'an, Learning, Community, Ramadan, Tools, Family, Notifications and Polish: [`ROADMAP.md`](ROADMAP.md). Release history: [`docs/05-roadmap.md`](docs/05-roadmap.md) and [`docs/release-notes/`](docs/release-notes/).
+What's planned after 2.11.8 — next up, **3.0: SalaamStreet Plans** (optional Plus, Pro and Max; everything free today stays free) — then Personalization, Qur'an, Learning, Community, Ramadan, Tools, Family, Notifications and Polish: [`ROADMAP.md`](ROADMAP.md). Release history: [`docs/05-roadmap.md`](docs/05-roadmap.md) and [`docs/release-notes/`](docs/release-notes/).

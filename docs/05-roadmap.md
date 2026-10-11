@@ -100,7 +100,7 @@ The plan after 2.11.8 lives in [`ROADMAP.md`](../ROADMAP.md) (with status, depen
 criteria for each release). The same list appears in the app under About → Updates (`SS.ROADMAP` in
 `js/content.js`).
 
-- **3.0 The AI update (up next) · 3.1 Personalization · 3.2 Qur'an Experience · 3.3 Community: mosque pages · 3.4 Islamic Learning ·
+- **3.0 SalaamStreet Plans: Plus, Pro and Max (up next) · 3.1 Personalization · 3.2 Qur'an Experience · 3.3 Community: mosque pages · 3.4 Islamic Learning ·
   3.5 Ramadan Experience · 3.6 Advanced Islamic Tools · 3.7 Family Ecosystem · 3.8 Notifications ·
   3.9 Performance, Security & Polish** — then a 4.0 proposal
 

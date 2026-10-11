@@ -638,9 +638,9 @@
   });
   /* What's planned — honest plans in order, never dates. Nothing here is released yet. */
   SS.ROADMAP = [
-    { v: "3.0.0", icon: "sparkle", en: "The AI update", ar: "تحديث الذكاء الاصطناعي",
-      den: "SalaamStreet AI: ask a question and get help finding answers in the Qur'an, authentic hadith and the app's own content — always quoting and citing its sources, never issuing rulings.",
-      dar: "سلام ستريت بالذكاء الاصطناعي: اسأل سؤالًا واحصل على مساعدة في إيجاد الإجابات في القرآن والأحاديث الصحيحة ومحتوى التطبيق — يقتبس مصادره ويذكرها دائمًا، ولا يُصدر فتاوى." },
+    { v: "3.0.0", icon: "star", en: "SalaamStreet Plans: Plus, Pro and Max", ar: "باقات سلام ستريت: بلس وبرو وماكس",
+      den: "Everything that's free today stays free, with no ads. Optional Plus, Pro and Max plans pay only for what really costs to run: long-term cloud backup, extra reminders, more offline reciters, and verified pages for mosques, MSAs and schools.",
+      dar: "كل ما هو مجاني اليوم يبقى مجانيًا وبلا إعلانات. باقات بلس وبرو وماكس اختيارية لا تُدفع إلا مقابل ما يكلّف تشغيله فعلًا: نسخ احتياطي سحابي طويل الأمد، وتذكيرات إضافية، وقرّاء أكثر للاستماع دون اتصال، وصفحات موثّقة للمساجد والروابط الطلابية والمدارس." },
     { v: "3.1.0", icon: "user", en: "Personalization", ar: "التخصيص",
       den: "A Home screen you arrange yourself: dashboard cards, favourite tools and shortcuts, more notification choices and better mode suggestions.",
       dar: "شاشة رئيسية ترتّبها بنفسك: بطاقات وأدوات مفضلة واختصارات، وخيارات أكثر للتنبيهات، واقتراحات أفضل للأوضاع." },
