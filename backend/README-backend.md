@@ -109,20 +109,16 @@ and then removes from the address bar.
 
 SalaamStreet asks for a **6-digit code** (works across devices — e.g. the email is
 opened on a phone while signing in on a laptop), so every email shows the code.
-Branded templates live in `backend/email-templates/` (built by
-`node tools/build-email-templates.js`):
-
-| Supabase template | File | Subject |
-|---|---|---|
-| Magic Link | `magic_link.html` | Your SalaamStreet sign-in code: {{ .Token }} |
-| Confirm signup | `confirmation.html` | Welcome to SalaamStreet — your code: {{ .Token }} |
-| Change Email Address | `email_change.html` | Confirm your new email for SalaamStreet |
-| Reset Password | `recovery.html` | Reset your SalaamStreet password |
+Branded templates for all 13 emails Supabase sends (6 sign-in emails and 7
+security alerts) live in `backend/email-templates/`, built from one layout by
+`node tools/build-email-templates.js`. Subjects and which Supabase row each
+file goes in are in that script (`EMAILS`).
 
 Install them either way:
-- **GitHub:** Actions → **Deploy Supabase** → Run workflow (sends `templates.json`).
-- **By hand:** Authentication → **Emails** → each template above → paste the
-  file's contents into the body and the subject from the table → Save.
+- **GitHub:** Actions → **Deploy Supabase** → Run workflow (sends `templates.json`,
+  which also switches the security alerts on).
+- **By hand:** Authentication → **Emails** → each row → paste the subject and
+  body → Save; switch on the security alerts you want.
 
 For production volume, set up **custom SMTP** (Auth → SMTP Settings); the
 built-in mailer is heavily rate-limited.

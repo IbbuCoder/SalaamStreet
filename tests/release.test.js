@@ -174,17 +174,24 @@ test("Stories: every slide is in English and Arabic, and every Qur'an reference 
   }
 });
 
-test("the sign-in emails are built, show the code, and are small enough to paste", () => {
-  const { EMAILS, render } = require("../tools/build-email-templates.js");
+test("every Supabase email is built, shows what it needs, and is small enough to paste", () => {
+  const { EMAILS, render, apiPayload } = require("../tools/build-email-templates.js");
   const api = JSON.parse(read("backend/email-templates/templates.json"));
-  for (const name of Object.keys(EMAILS)) {
+  assert.deepEqual(api, apiPayload(), "templates.json is out of date: run node tools/build-email-templates.js");
+  assert.equal(Object.keys(EMAILS).length, 13, "all 6 sign-in emails and all 7 security alerts");
+  for (const [name, e] of Object.entries(EMAILS)) {
     const html = read("backend/email-templates/" + name + ".html");
-    assert.equal(html, render(EMAILS[name]), name + ".html is out of date: run node tools/build-email-templates.js");
-    assert.equal(api["mailer_templates_" + name + "_content"], html);
-    assert.ok(api["mailer_subjects_" + name]);
-    assert.match(html, /\{\{ \.Token \}\}/, name + " shows the code");
-    assert.match(html, /\{\{ \.ConfirmationURL \}\}/);
-    assert.ok(html.length < 4000, name + " is short enough to paste from a phone");
+    assert.equal(html, render(e), name + ".html is out of date: run node tools/build-email-templates.js");
+    assert.ok(api["mailer_subjects_" + name] && api["mailer_templates_" + name + "_content"]);
+    if (e.kind === "code" || e.kind === "codeonly") assert.match(html, /\{\{ \.Token \}\}/, name + " shows the code");
+    if (e.kind === "code" || e.kind === "link") assert.match(html, /\{\{ \.ConfirmationURL \}\}/, name + " has the button");
+    if (e.kind === "alert") assert.equal(api["mailer_notifications_" + name.replace(/_notification$/, "") + "_enabled"], true, name + " switched on");
+    // Only the variables Supabase offers in that email.
+    const vars = [...html.matchAll(/\{\{ \.(\w+) \}\}/g)].map((m) => m[1]);
+    const allowed = { email_change: ["NewEmail"], email_changed_notification: ["OldEmail", "Email"], phone_changed_notification: ["OldPhone", "Phone"],
+      identity_linked_notification: ["Provider"], identity_unlinked_notification: ["Provider"], mfa_factor_enrolled_notification: ["FactorType"],
+      mfa_factor_unenrolled_notification: ["FactorType"], password_changed_notification: ["Email"] }[name] || [];
+    for (const v of vars) assert.ok(["Token", "ConfirmationURL"].concat(allowed).includes(v), name + " uses {{ ." + v + " }}");
+    assert.ok(html.length < 4500, name + " is short enough to paste from a phone");
   }
-  assert.deepEqual(Object.keys(EMAILS).sort(), ["confirmation", "email_change", "magic_link", "recovery"]);
 });
