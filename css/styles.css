@@ -2046,6 +2046,10 @@ html[data-theme="dark"] .msa-flag-note{color:#fcd34d}
 .lab-form{margin-block-start:12px}
 .lab-input{inline-size:100%;resize:vertical;min-block-size:72px;max-block-size:40vh;font:inherit;line-height:1.5}
 .lab-form-foot{margin-block-start:8px}
+.lab-cmds{display:flex;flex-wrap:wrap;gap:6px;margin-block-end:8px}
+.lab-cmds .chip{font-family:var(--mono,ui-monospace,monospace);font-size:.8rem}
+.lab-data{display:flex;align-items:center;gap:8px;font-size:.85rem;margin:8px 0 0;cursor:pointer}
+.lab-local .lab-bubble{white-space:pre-line;border:1px dashed var(--text-3)}
 .lab-count.over{color:var(--danger);font-weight:700}
 .lab-hint,.lab-session,.lab-small{font-size:.8rem;margin:6px 0 0}
 .lab-session:empty{display:none}
