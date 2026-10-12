@@ -253,6 +253,14 @@ approver. If another account had claimed the name, it is flagged.
 The roster is loaded the same way as before (MSA → Manage → Edit the list),
 or with a one-time SQL insert that is **not** kept in this repository.
 
+## 3.0.0-beta — SalaamStreet AI (Beta)
+
+**Upgrading to 3.0 Beta:** run the whole updated `supabase-schema.sql` again
+(safe to re-run), then deploy the `ai-lab` Edge Function. Both are done by
+GitHub → Actions → "Deploy Supabase". It adds the AI waiting list
+(`ai_queue`), the beta switch and each person's daily allowance, and raises the
+AI's project-wide limits once. Details: [`README-ai.md`](README-ai.md).
+
 ## 2.11.8 — One list of MSA admins
 
 **Upgrading to 2.11.8:** run the whole updated `supabase-schema.sql` again (safe to re-run).

@@ -55,7 +55,8 @@ test("the admin gets a real-shaped Gemini reply; the key goes only in a header t
   assert.deepEqual(r.body.usage, { prompt: 1000, output: 200, thoughts: 100, total: 1300 });
   // 1000 × $0.30 + (200 + 100 thinking) × $2.50, per million tokens.
   assert.equal(r.body.cost_usd, 0.00105);
-  assert.equal(r.body.remaining_today, 49);
+  assert.equal(r.body.remaining_today, 999, "the beta starts the project's daily limit at 1000");
+  assert.equal(r.body.user_remaining, null, "the admin has no personal allowance");
   const call = g.calls[0];
   assert.equal(call.url, "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent");
   assert.equal(call.headers["x-goog-api-key"], KEY);
@@ -72,15 +73,18 @@ test("the admin gets a real-shaped Gemini reply; the key goes only in a header t
   assert.ok(!cols.some((c) => /text|message|prompt$|content/.test(c)), cols.join(","));
 });
 
-test("no session, a bad or expired session, and other accounts are refused before anything else happens", async () => {
+test("no session, a bad or expired session and an unconfirmed email are refused; only the admin gets the Lab's actions", async () => {
   const { pg, g, call, chat } = await setup();
+  const all = [{ action: "chat", messages: [{ role: "user", text: "hi" }] }, { action: "me" }, { action: "status" }, { action: "test" },
+    { action: "settings", patch: { enabled: false } }];
   const cases = [
-    [null, 401, "signed_out"], ["expired-or-forged", 401, "invalid_session"], ["other", 403, "forbidden"],
-    ["adminByEmailCode", 403, "forbidden"], ["adminUnconfirmed", 403, "forbidden"],
+    [null, 401, "signed_out", all], ["expired-or-forged", 401, "invalid_session", all], ["adminUnconfirmed", 403, "unconfirmed", all],
+    // Signed-in beta users can chat, but the Lab's status, test, stats and settings stay the admin's.
+    ["other", 403, "forbidden", all.slice(2).concat([{ action: "stats" }])],
+    ["adminByEmailCode", 403, "forbidden", all.slice(2)],
   ];
-  for (const [tok, status, code] of cases) {
-    for (const body of [{ action: "chat", messages: [{ role: "user", text: "hi" }] }, { action: "status" }, { action: "test" },
-      { action: "settings", patch: { enabled: false } }]) {
+  for (const [tok, status, code, bodies] of cases) {
+    for (const body of bodies) {
       const r = await call(tok, body);
       assert.equal(r.status, status, tok + " " + body.action);
       assert.equal(r.body.error, code);
@@ -94,6 +98,7 @@ test("no session, a bad or expired session, and other accounts are refused befor
   assert.equal((await one(pg, "select enabled from public.ai_settings")).enabled, true, "settings unchanged");
   const log = (await pg.query("select event, detail from public.ai_security_log order by id")).rows;
   assert.ok(log.length >= 20, "refusals are logged");
+  assert.ok(log.some((l) => l.event === "unconfirmed"));
   assert.ok(log.some((l) => l.detail === "not signed in with Google"));
   assert.ok(log.every((l) => !/@|Bearer|AIza/.test(String(l.detail))), "no emails or tokens in the log");
   void chat;
@@ -101,8 +106,11 @@ test("no session, a bad or expired session, and other accounts are refused befor
 
 test("a paid plan never unlocks the Lab, and billing is off: everyone is on Free", async () => {
   const { call } = await setup();
-  const r = await call("maxPlan", { action: "chat", messages: [{ role: "user", text: "hi" }] });
+  const r = await call("maxPlan", { action: "status" });
   assert.equal(r.status, 403);
+  const c = await call("maxPlan", { action: "chat", messages: [{ role: "user", text: "hi" }] });
+  assert.equal(c.status, 200, "a beta user like everyone else");
+  assert.equal(c.body.user_remaining, 19, "with the same beta allowance as everyone");
   const plans = await loadPlans();
   assert.equal(plans.BILLING_ENABLED, false);
   assert.equal(plans.planFor({ plan: "max", status: "active" }), "free");
@@ -165,7 +173,7 @@ test("connection test: checks the key and model with Google without spending a c
   assert.equal(g.calls[0].url, "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite");
   const st = await call("admin", { action: "status" });
   assert.equal(st.body.usage.today_requests, 0, "tests don't use the daily allowance");
-  assert.equal(st.body.usage.remaining_today, 50);
+  assert.equal(st.body.usage.remaining_today, 1000);
 });
 
 test("daily and per-minute limits are enforced by the database", async () => {
@@ -221,7 +229,7 @@ test("emergency switches: the database switch (from the Lab) and the AI_DISABLED
 
 test("settings: model, limits and prices change only within safe ranges", async () => {
   const { call, chat, g } = await setup();
-  const bad = [{ model: "../../etc" }, { model: "" }, { daily_limit: -1 }, { daily_limit: 1.5 }, { daily_limit: 99999 },
+  const bad = [{ model: "../../etc" }, { model: "" }, { daily_limit: -1 }, { daily_limit: 1.5 }, { daily_limit: 100001 }, { user_daily_limit: 1001 }, { beta_open: "no" }, { minute_limit: 601 },
     { max_output_tokens: 1 }, { enabled: "yes" }, { input_usd_per_mtok: -2 }, { surprise: 1 }, {}, null, [1]];
   for (const patch of bad) {
     const r = await call("admin", { action: "settings", patch });
@@ -275,7 +283,8 @@ test("the Lab's tables and functions can't be reached with the app's public key"
     try {
       for (const sql of ["select * from public.ai_settings", "select * from public.ai_usage", "select * from public.ai_security_log",
         "update public.ai_settings set enabled = false", "insert into public.ai_usage (user_id, kind) values (gen_random_uuid(), 'chat')",
-        `select public.ai_reserve('${ADMIN.id}', 'chat')`, "select public.ai_usage_summary()"]) {
+        `select public.ai_reserve('${ADMIN.id}', 'chat')`, "select public.ai_usage_summary()", "select * from public.ai_queue",
+        `select public.ai_enqueue('${ADMIN.id}')`, `select public.ai_user_status('${ADMIN.id}')`, `select public.ai_dequeue('${ADMIN.id}')`]) {
         await assert.rejects(pg.query(sql), /permission denied/, role + ": " + sql);
       }
     } finally { await pg.exec("reset role;"); }
@@ -361,4 +370,110 @@ test("Islamic-only scope, and the person's app data rides along as data", async 
   const big = await call("admin", { action: "chat", messages: [{ role: "user", text: "hi" }], context: { notes: "x".repeat(25000) } });
   assert.equal(big.status, 413);
   assert.equal(g.calls.length, 3, "bad app data never reaches Gemini");
+});
+
+/* ═══════════ 3.0 Beta: everyone with an account, and the waiting list ═══════════ */
+
+const person = (n) => ({ id: `f0000000-0000-0000-0000-${String(n).padStart(12, "0")}`, email: `person${n}@example.com`,
+  email_confirmed_at: "2026-10-01T00:00:00Z", app_metadata: { provider: "email", providers: ["email"] } });
+for (let i = 1; i <= 6; i++) users["p" + i] = person(i);
+
+test("beta: any signed-in account chats, with its own daily allowance; failed requests don't use it up", async () => {
+  const { pg, g, chat, call } = await setup();
+  await call("admin", { action: "settings", patch: { user_daily_limit: 2, minute_limit: 100 } });
+  const me = await call("p1", { action: "me" });
+  assert.equal(me.status, 200, me.text);
+  assert.deepEqual([me.body.admin, me.body.beta_open, me.body.user_limit, me.body.remaining_today], [false, true, 2, 2]);
+  const a = await chat("p1", "What is wudu?");
+  assert.equal(a.status, 200, a.text);
+  assert.equal(a.body.text, "Test reply to: What is wudu?");
+  assert.deepEqual([a.body.user_used, a.body.user_limit, a.body.user_remaining], [1, 2, 1]);
+  g.next = { status: 503, json: { error: { message: "overloaded" } } };
+  assert.equal((await chat("p1", "x")).status, 502);
+  assert.equal((await chat("p1", "What breaks wudu?")).status, 200, "the failed one didn't count");
+  await pg.query("update public.ai_usage set at = at - interval '2 minutes'");
+  const over = await chat("p1", "one more");
+  assert.equal(over.status, 429);
+  assert.equal(over.body.error, "user_limit");
+  assert.equal((await one(pg, "select count(*)::int as n from public.ai_queue")).n, 0, "out of questions: not left holding a place in line");
+  assert.match(over.body.message, /all 2 of today's questions/);
+  assert.equal((await chat("p2", "Salaam")).status, 200, "someone else still has theirs");
+  // The admin has no personal allowance.
+  for (let i = 0; i < 3; i++) assert.equal((await chat("admin", "admin " + i)).status, 200);
+});
+
+test("beta: one person can't flood it, and the beta switch closes it to everyone but the admin", async () => {
+  const { chat, call } = await setup();
+  await call("admin", { action: "settings", patch: { minute_limit: 100 } });
+  for (let i = 0; i < 3; i++) assert.equal((await chat("p1", "q" + i)).status, 200);
+  const fast = await chat("p1", "q3");
+  assert.equal(fast.status, 429);
+  assert.equal(fast.body.error, "slow_down");
+  await call("admin", { action: "settings", patch: { beta_open: false } });
+  const closed = await chat("p2", "hi");
+  assert.equal(closed.status, 503);
+  assert.equal(closed.body.error, "closed");
+  assert.equal((await call("p2", { action: "me" })).body.beta_open, false);
+  assert.equal((await chat("admin", "still works for me")).status, 200);
+});
+
+test("beta: when it's busy, people wait in line in order, keep their place, and newcomers join behind", async () => {
+  const { pg, g, chat, call } = await setup();
+  await call("admin", { action: "settings", patch: { minute_limit: 2 } });
+  assert.equal((await chat("p1", "a")).status, 200);
+  assert.equal((await chat("p2", "b")).status, 200);
+  // Full for this minute: the next people are queued (202), not refused.
+  const q3 = await chat("p3", "c");
+  assert.equal(q3.status, 202, q3.text);
+  assert.equal(q3.body.error, "queued");
+  assert.equal(q3.body.position, 1);
+  assert.match(q3.body.message, /number 1 in line/);
+  const q4 = await chat("p4", "d");
+  assert.equal(q4.body.position, 2);
+  assert.equal(q4.body.waiting, 2);
+  // Checking in again keeps your place.
+  assert.equal((await chat("p3", "c")).body.position, 1);
+  assert.equal(g.calls.length, 2, "nobody in line reached Gemini");
+  const st = await call("admin", { action: "status" });
+  assert.equal(st.body.usage.waiting_now, 2);
+  assert.equal((await call("p5", { action: "me" })).body.waiting, 2);
+
+  // One slot frees up: only the person at the front gets it, even if a newcomer asks first.
+  await pg.query("update public.ai_usage set at = at - interval '2 minutes' where id = (select min(id) from public.ai_usage)");
+  const cut = await chat("p5", "e");
+  assert.equal(cut.status, 202, "no cutting in");
+  assert.equal(cut.body.position, 3);
+  assert.equal((await chat("p4", "d")).status, 202, "number 2 still waits");
+  const served = await chat("p3", "c");
+  assert.equal(served.status, 200, served.text);
+  assert.equal((await chat("p4", "d")).body.position, 1, "everyone moves up");
+
+  // Leaving the line (or 30 seconds without checking in) gives up the place.
+  assert.equal((await call("p4", { action: "leave" })).status, 200);
+  assert.equal((await chat("p5", "e")).body.position, 1);
+  await pg.query("update public.ai_queue set seen_at = now() - interval '1 minute'");
+  await pg.query("update public.ai_usage set at = at - interval '2 minutes'");
+  assert.equal((await chat("p6", "f")).status, 200, "people who left don't hold up the line");
+  assert.equal((await one(pg, "select count(*)::int as n from public.ai_queue")).n, 0);
+});
+
+test("beta: if Google itself is too busy, the person is put in line instead of getting an error", async () => {
+  const { g, chat, call } = await setup();
+  await call("admin", { action: "settings", patch: { minute_limit: 100 } });
+  g.next = { status: 429, json: { error: { message: "Quota exceeded", status: "RESOURCE_EXHAUSTED" } } };
+  const r = await chat("p1", "hi");
+  assert.equal(r.status, 202, r.text);
+  assert.equal(r.body.error, "queued");
+  assert.equal(r.body.position, 1);
+  // Google stays busy: retrying keeps them in line (never "slow down"), and nothing counts against their allowance.
+  for (let i = 0; i < 4; i++) {
+    g.next = { status: 429, json: { error: { message: "Quota exceeded", status: "RESOURCE_EXHAUSTED" } } };
+    const again = await chat("p1", "hi");
+    assert.equal(again.body.error, "queued", "try " + i);
+    assert.equal(again.body.position, 1);
+  }
+  assert.equal((await call("p1", { action: "me" })).body.used_today, 0);
+  // The admin still sees Google's own error.
+  g.next = { status: 429, json: { error: { message: "Quota exceeded", status: "RESOURCE_EXHAUSTED" } } };
+  assert.equal((await chat("admin", "hi")).body.error, "provider_quota");
 });

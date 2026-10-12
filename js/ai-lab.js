@@ -1,20 +1,25 @@
-/* SalaamStreet — ai-lab.js (classic script, loaded only on #/lab)
-   The private AI Testing Lab: the admin's real Gemini conversations.
+/* SalaamStreet — ai-lab.js (classic script, loaded only on #/ai and #/lab)
+   Two pages over one Edge Function (backend/functions/ai-lab):
+   • #/ai — SalaamStreet AI (3.0 Beta), for everyone with an account: chat,
+     commands, today's allowance, and the waiting list when it's busy.
+   • #/lab — the admin's private AI Testing Lab (in no menu): the same chat
+     plus status, app stats, settings and the emergency switch.
 
-   • Not linked from any menu. Hiding it is NOT the protection: every request
-     goes to the ai-lab Edge Function, which checks the signed-in account on
-     the server (backend/functions/ai-lab/core.js) and refuses everyone else.
-     This page only shows what the server allows.
-   • The Gemini key never reaches the browser; this page sends the person's
-     own Supabase session token and nothing else.
+   • Hiding the Lab is NOT the protection: every request carries the person's
+     own Supabase session token and the server decides what they may do
+     (backend/functions/ai-lab/core.js). This page only shows what it allows.
+   • The Gemini key never reaches the browser.
    • The conversation lives in this page's memory only: it's gone on reload,
      "New conversation" or "Clear", and is never saved on the device or the
-     server. English only, like other admin tools.
+     server. English only for the beta, like other admin tools.
    • The assistant only answers Islamic questions (the rule lives in the
      server's system prompt). With "Use my app data" on, each message also
      carries a short summary of this device's SalaamStreet data (bookmarks,
      reading progress, prayers, dhikr) so answers can be personal. Slash
-     commands (/help) build ready-made prompts from that data. */
+     commands (/help) build ready-made prompts from that data.
+   • Waiting list: when the server answers "queued", the question stays on
+     screen with the person's place in line and is sent again every few
+     seconds (each try keeps their place) until it's answered or they leave. */
 (function () {
   "use strict";
   window.SS = window.SS || {};
@@ -23,14 +28,25 @@
   function icon(n) { return SS.ui.icon(n); }
   var CFG = SS.CONFIG || {};
 
-  var st = {
-    msgs: [],          // { role: "user"|"model", text, meta? } — this page only
-    busy: false,
-    status: null,      // the server's last status reply
-    session: { tokens: 0, cost: 0, requests: 0 },
-    waitTimer: 0,
-    useData: true,     // attach appData() to each message
-  };
+  var MODE = "";        // "ai" (everyone) or "lab" (admin)
+  function lab() { return MODE === "lab"; }
+  var RETRY_MS = 5000;  // how often someone in line checks in (the server forgets them after 30 s)
+  var st;
+  function freshState() {
+    return {
+      msgs: [],          // { role: "user"|"model", text, meta? } — this page only
+      busy: false,
+      status: null,      // the Lab: the server's last status reply
+      me: null,          // #/ai: the person's allowance and the beta's state
+      queue: null,       // { position, waiting, wait_seconds } while waiting in line
+      queueTimer: 0,
+      req: 0,            // bumps when a request is abandoned, so its late reply is ignored
+      session: { tokens: 0, cost: 0, requests: 0 },
+      waitTimer: 0,
+      useData: true,     // attach appData() to each message
+    };
+  }
+  st = freshState();
 
   /* ── The person's app data ────────────────────────────────────── */
   function get(k, d) { var v = SS.store.get(k, d); return v == null ? d : v; }
@@ -187,12 +203,55 @@
   }
 
   /* ── Page ─────────────────────────────────────────────────────── */
+  function chatCard() {
+    return '<section class="card lab-chat" aria-labelledby="lab-chat-h">' +
+      '<div class="card-title"><h2 id="lab-chat-h">Conversation</h2><div class="lab-acts">' +
+        '<button class="btn btn-outline btn-sm" id="lab-new" type="button">' + icon("plus") + '<span>New conversation</span></button>' +
+        '<button class="btn btn-ghost btn-sm" id="lab-clear" type="button">' + icon("trash") + '<span>Clear</span></button></div></div>' +
+      (lab() ? "" : '<p class="muted lab-small ai-quota" id="ai-quota" role="status"></p>') +
+      '<div class="lab-log" id="lab-log" role="log" aria-live="polite" aria-label="Messages"></div>' +
+      '<p class="lab-err" id="lab-err" role="alert" hidden></p>' +
+      '<form class="lab-form" id="lab-form">' +
+        '<label class="visually-hidden" for="lab-input">Message</label>' +
+        '<div class="lab-cmds" id="lab-cmds" role="group" aria-label="Commands">' + COMMANDS.map(function (c) {
+          return '<button class="chip" type="button" data-cmd="' + c.name + '" title="' + esc(c.hint) + '">/' + c.name + "</button>";
+        }).join("") + "</div>" +
+        '<textarea class="input lab-input" id="lab-input" rows="3" placeholder="Ask an Islamic question, or type / for commands (/help)…" autocomplete="off"></textarea>' +
+        '<div class="row-between lab-form-foot"><span class="muted lab-count" id="lab-count"></span>' +
+        '<button class="btn" id="lab-send" type="submit">' + icon("next") + '<span>Send</span></button></div>' +
+        '<label class="lab-data muted"><input type="checkbox" id="lab-usedata" checked /> Use my app data (bookmarks, progress, prayers, dhikr) to personalise answers</label>' +
+        '<p class="muted lab-hint">Enter sends · Shift+Enter adds a line · This conversation is kept on this page only.</p>' +
+      '</form>' +
+      (lab() ? '<p class="muted lab-session" id="lab-session"></p>' : "") +
+    '</section>';
+  }
   function shell() {
-    var root = $("lab-root");
+    var root = $(MODE + "-root");
     if (root.getAttribute("data-ready")) return;
+    // One page at a time: the other one's elements share these ids.
+    var other = $((lab() ? "ai" : "lab") + "-root");
+    if (other) { other.innerHTML = ""; other.removeAttribute("data-ready"); }
+    leaveLine();
+    clearInterval(st.waitTimer);
+    st = freshState();
+    statsAt = 0;
     root.setAttribute("data-ready", "1");
-    root.innerHTML =
-      '<header class="page-head lab-head"><span class="lab-logo" aria-hidden="true">' + icon("sparkle") + '</span>' +
+    root.innerHTML = lab() ? labShell() : aiShell();
+    wire();
+  }
+  function aiShell() {
+    return '<header class="page-head lab-head"><span class="lab-logo" aria-hidden="true">' + icon("chat") + '</span>' +
+      '<div><h1 id="lab-h" tabindex="-1">SalaamStreet AI <span class="badge ai-beta">Beta</span></h1>' +
+      '<p>Ask about the Qur’an, hadith, prayer, duas and Muslim life. It only answers Islamic questions. Answers can be wrong — check anything important with a trusted scholar or source.</p></div></header>' +
+      '<div id="lab-gate" aria-live="polite"></div>' +
+      '<div id="lab-app" class="stack" hidden>' + chatCard() +
+        '<p class="muted lab-small">Beta: free for everyone with an account, with a daily allowance. When lots of people are asking at once you’ll wait in line for a moment. ' +
+        'Privacy: your questions (and, with “Use my app data” on, a short summary of your bookmarks and progress) are sent to Google’s Gemini to be answered. ' +
+        'SalaamStreet doesn’t keep your conversations — they’re gone when you leave this page. Not a mufti: for rulings on your own situation, ask a qualified scholar.</p>' +
+      '</div>';
+  }
+  function labShell() {
+    return '<header class="page-head lab-head"><span class="lab-logo" aria-hidden="true">' + icon("sparkle") + '</span>' +
       '<div><h1 id="lab-h" tabindex="-1">AI Testing Lab</h1><p>Private · admin only. Islamic questions only. Real Gemini replies — check anything important against trusted sources.</p></div></header>' +
       '<div id="lab-gate" aria-live="polite"></div>' +
       '<div id="lab-app" class="stack" hidden>' +
@@ -208,32 +267,17 @@
           '<div class="card-title"><h2 id="lab-as-h">App stats</h2><span class="muted lab-small">Counts only — no names or emails</span></div>' +
           '<dl class="lab-stats" id="lab-app-stats"><div><dt>Loading…</dt><dd>&nbsp;</dd></div></dl>' +
         '</section>' +
-        '<section class="card lab-chat" aria-labelledby="lab-chat-h">' +
-          '<div class="card-title"><h2 id="lab-chat-h">Conversation</h2><div class="lab-acts">' +
-            '<button class="btn btn-outline btn-sm" id="lab-new" type="button">' + icon("plus") + '<span>New conversation</span></button>' +
-            '<button class="btn btn-ghost btn-sm" id="lab-clear" type="button">' + icon("trash") + '<span>Clear</span></button></div></div>' +
-          '<div class="lab-log" id="lab-log" role="log" aria-live="polite" aria-label="Messages"></div>' +
-          '<p class="lab-err" id="lab-err" role="alert" hidden></p>' +
-          '<form class="lab-form" id="lab-form">' +
-            '<label class="visually-hidden" for="lab-input">Message</label>' +
-            '<div class="lab-cmds" id="lab-cmds" role="group" aria-label="Commands">' + COMMANDS.map(function (c) {
-              return '<button class="chip" type="button" data-cmd="' + c.name + '" title="' + esc(c.hint) + '">/' + c.name + "</button>";
-            }).join("") + "</div>" +
-            '<textarea class="input lab-input" id="lab-input" rows="3" placeholder="Ask an Islamic question, or type / for commands (/help)…" autocomplete="off"></textarea>' +
-            '<div class="row-between lab-form-foot"><span class="muted lab-count" id="lab-count"></span>' +
-            '<button class="btn" id="lab-send" type="submit">' + icon("next") + '<span>Send</span></button></div>' +
-            '<label class="lab-data muted"><input type="checkbox" id="lab-usedata" checked /> Use my app data (bookmarks, progress, prayers, dhikr) to personalise answers</label>' +
-            '<p class="muted lab-hint">Enter sends · Shift+Enter adds a line · This conversation is kept on this page only.</p>' +
-          '</form>' +
-          '<p class="muted lab-session" id="lab-session"></p>' +
-        '</section>' +
+        chatCard() +
         '<details class="card lab-settings" id="lab-settings"><summary><h2>Settings and emergency switch</h2></summary>' +
           '<div class="lab-kill row-between"><div><b>AI requests</b><p class="muted" id="lab-kill-note"></p></div>' +
             '<label class="switch"><input type="checkbox" id="lab-enabled" aria-label="AI requests on" /><span class="trk"></span><span class="th"></span></label></div>' +
+          '<div class="lab-kill row-between"><div><b>Beta open to everyone with an account</b><p class="muted" id="lab-beta-note"></p></div>' +
+            '<label class="switch"><input type="checkbox" id="lab-beta" aria-label="Beta open to everyone" /><span class="trk"></span><span class="th"></span></label></div>' +
           '<form id="lab-set-form" class="lab-set-grid">' +
             field("model", "Model ID", "text", "") +
-            field("daily_limit", "Daily request limit", "number", 'min="0" max="2000" step="1"') +
-            field("minute_limit", "Requests per minute", "number", 'min="1" max="60" step="1"') +
+            field("user_daily_limit", "Questions per person per day", "number", 'min="0" max="1000" step="1"') +
+            field("daily_limit", "Daily request limit (everyone together)", "number", 'min="0" max="100000" step="1"') +
+            field("minute_limit", "Requests per minute (more wait in line)", "number", 'min="1" max="600" step="1"') +
             field("max_output_tokens", "Max output tokens", "number", 'min="64" max="8192" step="1"') +
             field("max_input_chars", "Max message length (characters)", "number", 'min="200" max="30000" step="1"') +
             field("input_usd_per_mtok", "Input price, $ per 1M tokens", "number", 'min="0" step="0.01"') +
@@ -244,7 +288,6 @@
         '</details>' +
         '<p class="muted lab-small">Privacy: messages go to Google’s Gemini API to be answered. SalaamStreet stores only counts, tokens and estimated costs — never what you wrote or the replies. Google’s own data terms depend on your API plan (see backend/README-ai.md).</p>' +
       '</div>';
-    wire();
   }
   function field(id, label, type, attrs) {
     return '<div class="field"><label for="lab-s-' + id + '">' + esc(label) + '</label><input class="input input-sm" id="lab-s-' + id + '" name="' + id + '" type="' + type + '" ' + attrs + ' required /></div>';
@@ -271,6 +314,12 @@
       reset(); $("lab-input").focus();
     };
     $("lab-clear").onclick = function () { if (!st.busy) { reset(); $("lab-input").value = ""; count(); } };
+    $("lab-log").addEventListener("click", function (e) {
+      if (e.target.closest("[data-leave]")) { leaveLine(true); return; }
+      var b = e.target.closest("[data-copy]");
+      if (b) SS.ui.copyText(st.msgs[+b.getAttribute("data-copy")].text);
+    });
+    if (!lab()) return;
     $("lab-refresh").onclick = function () { loadStatus(); };
     $("lab-test").onclick = testConnection;
     $("lab-enabled").onchange = function () {
@@ -278,18 +327,19 @@
       if (!on || confirm("Turn AI requests back on?")) saveSettings({ enabled: on });
       else this.checked = false;
     };
+    $("lab-beta").onchange = function () {
+      var on = this.checked;
+      if (on || confirm("Close the beta? Everyone but you will be told it's closed for now.")) saveSettings({ beta_open: on });
+      else this.checked = true;
+    };
     $("lab-set-form").addEventListener("submit", function (e) {
       e.preventDefault();
       var f = e.target, patch = {};
-      ["model", "daily_limit", "minute_limit", "max_output_tokens", "max_input_chars", "input_usd_per_mtok", "output_usd_per_mtok"].forEach(function (k) {
+      ["model", "user_daily_limit", "daily_limit", "minute_limit", "max_output_tokens", "max_input_chars", "input_usd_per_mtok", "output_usd_per_mtok"].forEach(function (k) {
         var v = f.elements[k].value.trim();
         patch[k] = k === "model" ? v : Number(v);
       });
       saveSettings(patch);
-    });
-    $("lab-log").addEventListener("click", function (e) {
-      var b = e.target.closest("[data-copy]");
-      if (b) SS.ui.copyText(st.msgs[+b.getAttribute("data-copy")].text);
     });
   }
 
@@ -299,8 +349,9 @@
     showErr("");
     drawLog(); drawSession();
   }
+  function maxChars() { return st.status ? st.status.settings.max_input_chars : st.me ? st.me.max_input_chars : 0; }
   function count() {
-    var max = st.status ? st.status.settings.max_input_chars : 0;
+    var max = maxChars();
     var n = $("lab-input").value.length;
     $("lab-count").textContent = max ? n.toLocaleString("en-US") + " / " + max.toLocaleString("en-US") : "";
     $("lab-count").classList.toggle("over", !!max && n > max);
@@ -318,23 +369,46 @@
     clearInterval(st.waitTimer);
     if (kind === "ok") { g.innerHTML = ""; return; }
     var html = '<div class="card lab-gate"><p>' + esc(msg) + "</p>";
-    if (kind === "signin") html += '<button class="btn" id="lab-signin" type="button">' + icon("google") + "<span>Sign in with Google</span></button>";
+    if (kind === "signin") html += lab() ? '<button class="btn" id="lab-signin" type="button">' + icon("google") + "<span>Sign in with Google</span></button>"
+      : '<button class="btn" id="lab-signin" type="button">' + icon("user") + "<span>Sign in or create an account</span></button>";
     if (kind === "denied") html += '<button class="btn btn-outline" id="lab-switch" type="button">' + icon("logout") + "<span>Use another account</span></button>";
     if (kind === "retry") html += '<button class="btn btn-outline" id="lab-retry" type="button">' + icon("refresh") + "<span>Try again</span></button>";
     g.innerHTML = html + "</div>";
     if ($("lab-signin")) $("lab-signin").onclick = function () { SS.account.openSignIn(); };
     if ($("lab-switch")) $("lab-switch").onclick = function () { Promise.resolve(SS.account.signOut()).then(function () { gate("signin", "Sign in with the admin Google account."); waitForSignIn(); }); };
-    if ($("lab-retry")) $("lab-retry").onclick = loadStatus;
+    if ($("lab-retry")) $("lab-retry").onclick = load;
   }
   function waitForSignIn() {
     clearInterval(st.waitTimer);
     st.waitTimer = setInterval(function () {
-      if (SS.currentView() !== "lab") return clearInterval(st.waitTimer);
-      if (SS.account.signedIn()) { clearInterval(st.waitTimer); loadStatus(); }
+      if (SS.currentView() !== MODE) return clearInterval(st.waitTimer);
+      if (SS.account.signedIn()) { clearInterval(st.waitTimer); load(); }
     }, 800);
   }
 
   /* ── Status ───────────────────────────────────────────────────── */
+  function load() { return lab() ? loadStatus() : loadMe(); }
+  /** #/ai: the person's allowance today and whether the beta is open. */
+  function loadMe() {
+    return api("me").then(function (r) {
+      if (r.ok) { st.me = r; gate("ok"); drawMe(); count(); return r; }
+      if (r.error === "signed_out" || r.error === "invalid_session") {
+        gate("signin", "Sign in to use SalaamStreet AI. It\u2019s free during the beta \u2014 you just need a SalaamStreet account.");
+        waitForSignIn();
+      } else if (st.me) { if (!$("lab-err").textContent) showErr(r.message || "Couldn't refresh."); }
+      else gate("retry", r.message || "Couldn't load SalaamStreet AI.");
+      return r;
+    });
+  }
+  function drawMe() {
+    var m = st.me, q = $("ai-quota");
+    var open = m.enabled && m.beta_open, left = m.remaining_today;
+    q.textContent = m.admin ? "Admin: no daily allowance." : int(left) + " of " + int(m.user_limit) + " questions left today \u00b7 more at " + timeUtc(m.resets_at) + ".";
+    $("lab-send").disabled = st.busy || !open || (!m.admin && left <= 0);
+    if (!m.enabled) showErr("SalaamStreet AI is switched off for now. Please try again later.");
+    else if (!m.beta_open) showErr("The SalaamStreet AI beta is closed for now. Please check back soon.");
+    else if (!m.admin && left <= 0) showErr("You've asked all of today's questions. More at " + timeUtc(m.resets_at) + ".");
+  }
   function loadStatus() {
     return api("status").then(function (r) {
       if (r.ok) { st.status = r; gate("ok"); drawStatus(); count(); loadStats(); return r; }
@@ -353,13 +427,16 @@
     $("lab-badges").innerHTML =
       (on ? badge("badge-ok", "AI requests on") : badge("badge-warn", s.disabled_by_secret ? "Off (AI_DISABLED secret)" : "Off (emergency switch)")) +
       (s.gemini_key_set ? badge("badge-muted", "Gemini key set") : badge("badge-warn", "GEMINI_API_KEY not set")) +
-      badge("badge-muted", "Model: " + set.model);
+      badge("badge-muted", "Model: " + set.model) +
+      (set.beta_open ? badge("badge-ok", "Beta open") : badge("badge-warn", "Beta closed")) +
+      (u.waiting_now ? badge("badge-warn", int(u.waiting_now) + " waiting in line") : "");
     $("lab-stats").innerHTML =
       stat("Today", int(u.today_requests) + " / " + int(set.daily_limit)) +
       stat("Remaining today", int(u.remaining_today)) +
       stat("Tokens today", int(u.today_tokens)) +
       stat("If on a paid plan: today", money(u.today_cost_usd)) +
       stat("If on a paid plan: 7 days", money(u.week_cost_usd) + " · " + int(u.week_requests) + " req") +
+      stat("People today", int(u.people_today)) +
       stat("Refused today", int(u.refused_today));
     var lim = $("lab-stats");
     lim.setAttribute("title", "Limits reset at " + timeUtc(u.resets_at));
@@ -369,6 +446,9 @@
       Object.keys(set).forEach(function (k) { if (f.elements[k]) f.elements[k].value = set[k]; });
     }
     $("lab-enabled").checked = !!set.enabled;
+    $("lab-beta").checked = !!set.beta_open;
+    $("lab-beta-note").textContent = set.beta_open ? "Open: anyone signed in can ask " + int(set.user_daily_limit) + " questions a day (#/ai)."
+      : "Closed: only you can use the AI. Everyone else is told the beta is closed for now.";
     $("lab-kill-note").textContent = s.disabled_by_secret ? "The AI_DISABLED secret is set, so requests stay off whatever this switch says."
       : set.enabled ? "On. Turn off to stop all AI requests at once." : "Off. No AI requests are sent until you turn this back on.";
     if (!s.gemini_key_set) showErr("GEMINI_API_KEY isn't set yet. Add it in Supabase → Edge Functions → Secrets (backend/README-ai.md).");
@@ -421,7 +501,7 @@
     return api("settings", { patch: patch }).then(function (r) {
       out.textContent = r.ok ? "Saved." : (r.message || "Couldn't save.");
       if (r.ok) { st.status.settings = r.settings; drawStatus(); loadStatus(); }
-      else if (st.status) $("lab-enabled").checked = !!st.status.settings.enabled;
+      else if (st.status) { $("lab-enabled").checked = !!st.status.settings.enabled; $("lab-beta").checked = !!st.status.settings.beta_open; }
     });
   }
 
@@ -436,15 +516,44 @@
       if (m.role === "user") return '<div class="lab-msg me"><div class="lab-bubble">' + esc(m.shown || m.text) + "</div></div>";
       if (m.local) return '<div class="lab-msg ai lab-local"><div class="lab-bubble">' + rich(m.text) + "</div></div>";
       var meta = m.meta || {};
-      var bits = [meta.model, meta.usage && meta.usage.total != null ? int(meta.usage.total) + " tokens" : "tokens not reported",
+      var bits = !lab() ? [] : [meta.model, meta.usage && meta.usage.total != null ? int(meta.usage.total) + " tokens" : "tokens not reported",
         meta.cost_usd != null ? "~" + money(meta.cost_usd) + " if paid" : "", meta.latency_ms ? (meta.latency_ms / 1000).toFixed(1) + " s" : ""].filter(Boolean);
       return '<div class="lab-msg ai"><div class="lab-bubble">' + rich(m.text) +
         (meta.truncated ? '<p class="lab-trunc">Cut short: the reply reached the max output tokens.</p>' : "") + "</div>" +
         '<div class="lab-meta"><span>' + esc(bits.join(" · ")) + '</span><button class="btn btn-ghost btn-sm" type="button" data-copy="' + i + '">' + icon("copy") + "<span>Copy</span></button></div></div>";
-    }).join("") + (st.busy ? '<div class="lab-msg ai"><div class="lab-bubble lab-typing" aria-label="Gemini is answering"><span></span><span></span><span></span></div></div>' : "");
+    }).join("") + (st.queue ? waitCard(st.queue)
+      : st.busy ? '<div class="lab-msg ai"><div class="lab-bubble lab-typing" aria-label="' + (lab() ? "Gemini" : "SalaamStreet AI") + ' is answering"><span></span><span></span><span></span></div></div>' : "");
     log.scrollTop = log.scrollHeight;
   }
+  /** Where the person is in line. Their question is sent again every few seconds. */
+  function waitCard(q) {
+    var secs = Math.max(5, q.wait_seconds || 0);
+    return '<div class="lab-msg ai lab-wait"><div class="lab-bubble" role="status">' +
+      '<p class="lab-wait-pos"><b>You\u2019re number ' + int(q.position) + " in line</b>" + (q.waiting > 1 ? " of " + int(q.waiting) : "") + "</p>" +
+      "<p>SalaamStreet AI is busy right now. Keep this page open \u2014 your question will be sent automatically" +
+      " (about " + (secs < 60 ? secs + " seconds" : Math.round(secs / 60) + " minute" + (secs >= 90 ? "s" : "")) + ").</p>" +
+      '<div class="lab-typing" aria-hidden="true"><span></span><span></span><span></span></div>' +
+      '<button class="btn btn-ghost btn-sm" type="button" data-leave>' + icon("x") + "<span>Leave the line</span></button></div></div>";
+  }
+  /** Stop waiting: the question goes back in the box. quiet=false also tells the server. */
+  function leaveLine(byPerson) {
+    if (!st || !st.queue) return;
+    clearTimeout(st.queueTimer);
+    st.queue = null;
+    st.busy = false;
+    st.req++;
+    api("leave");
+    var mine = st.msgs.pop();
+    if (byPerson) {
+      var input = $("lab-input");
+      if (input && !input.value && mine) { input.value = mine.shown || mine.text; count(); }
+      showErr("You left the line. Send your question again whenever you\u2019re ready.");
+      drawLog();
+      if (st.me) drawMe(); else $("lab-send").disabled = false;
+    }
+  }
   function drawSession() {
+    if (!lab()) return;
     var s = st.session;
     $("lab-session").textContent = s.requests ? "This conversation: " + s.requests + " request" + (s.requests === 1 ? "" : "s") + " · " + int(s.tokens) + " tokens · ~" + money(s.cost) + " if on a paid plan" : "";
   }
@@ -452,7 +561,7 @@
   function send() {
     var input = $("lab-input"), text = input.value.trim();
     if (!text || st.busy || $("lab-send").disabled) return;
-    var max = st.status ? st.status.settings.max_input_chars : 0;
+    var max = maxChars();
     if (max && text.length > max) { showErr("That message is " + text.length + " characters; the limit is " + max + "."); return; }
     showErr("");
     input.value = ""; count();
@@ -480,7 +589,18 @@
   function ask(input) {
     var extra = { messages: st.msgs.filter(function (m) { return !m.local; }).map(function (m) { return { role: m.role, text: m.text }; }) };
     if (st.useData) { try { extra.context = appData(); } catch (_) { /* send without it */ } }
+    var id = ++st.req;
     api("chat", extra).then(function (r) {
+      if (id !== st.req) return; // they left the line or the page meanwhile
+      if (!r.ok && r.error === "queued") {
+        // Busy: wait in line, checking in (and keeping our place) every few seconds.
+        st.queue = { position: r.position, waiting: r.waiting, wait_seconds: r.wait_seconds };
+        drawLog();
+        clearTimeout(st.queueTimer);
+        st.queueTimer = setTimeout(function () { if (st.queue && id === st.req && SS.currentView() === MODE) ask(input); }, RETRY_MS);
+        return;
+      }
+      st.queue = null;
       st.busy = false;
       if (r.ok) {
         st.msgs.push({ role: "model", text: r.text, meta: r });
@@ -493,25 +613,35 @@
         var mine = st.msgs.pop();
         if (!input.value) { input.value = mine.shown || mine.text; count(); }
         showErr((r.message || "The request failed.") + (r.provider ? " Google said: " + r.provider : ""));
-        if (r.error === "signed_out" || r.error === "invalid_session" || r.error === "forbidden") loadStatus();
+        if (r.error === "signed_out" || r.error === "invalid_session" || r.error === "forbidden") load();
+        if (r.error === "user_limit" && st.me) st.me.remaining_today = 0;
       }
       drawLog(); drawSession();
-      if (st.status) loadStatus(); else $("lab-send").disabled = false;
+      if (r.ok && st.me && r.user_remaining != null) st.me.remaining_today = r.user_remaining;
+      if (st.status) loadStatus();
+      else if (st.me) drawMe();
+      else $("lab-send").disabled = false;
     });
   }
 
   /* ── View ─────────────────────────────────────────────────────── */
-  SS.labView = function () {
+  /** Show #/ai (view "ai") or #/lab (view "lab"). */
+  SS.aiPage = function (view) {
+    MODE = view === "lab" ? "lab" : "ai";
     shell();
-    document.title = "AI Testing Lab — SalaamStreet";
-    $("tb-title").textContent = "AI Testing Lab";
+    var name = lab() ? "AI Testing Lab" : "SalaamStreet AI";
+    document.title = name + " — SalaamStreet";
+    $("tb-title").textContent = name;
     drawLog(); drawSession();
     if (!CFG.supabaseUrl || !CFG.supabaseAnonKey) {
-      gate("none", "Accounts aren't set up on this copy of SalaamStreet, so the AI Testing Lab can't be used here.");
+      gate("none", "Accounts aren't set up on this copy of SalaamStreet, so " + name + " can't be used here.");
       return;
     }
+    if (st.status || st.me) { load(); return; } // coming back: keep the conversation
     gate("retry", "Checking your account…");
     $("lab-gate").querySelector("button").hidden = true;
-    loadStatus();
+    load();
   };
+  /** Leaving the page: give up any place in line (the question goes back in the box). */
+  SS.aiLeave = function () { leaveLine(true); };
 })();

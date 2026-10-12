@@ -1,6 +1,6 @@
 # SalaamStreet Roadmap
 
-What we plan to build after **2.11.8 — Steadier Qibla camera, MSA admins**, in order. This is a plan, not a
+What we plan to build after **3.0.0-beta — SalaamStreet AI (Beta)**, in order. This is a plan, not a
 promise: nothing planned below exists in the app yet, and there are no dates —
 releases ship when they're ready and tested. The same list appears in the app
 under About → Updates (`SS.ROADMAP` in `js/content.js`); keep the two in step.
@@ -27,6 +27,7 @@ under About → Updates (`SS.ROADMAP` in `js/content.js`); keep the two in step.
 | 2.11.6 | NVHS MSA members | ✅ Completed |
 | 2.11.7 | NVHS MSA: join with your school email | ✅ Completed |
 | 2.11.8 | Steadier Qibla camera, MSA admins | ✅ Completed |
+| 3.0 Beta | SalaamStreet AI (Beta) | ✅ Completed |
 | 3.0 | The AI update | 🚧 In progress |
 | 3.1 | Personalization | 📋 Planned |
 | 3.2 | Qur'an Experience | 📋 Planned |
@@ -163,12 +164,16 @@ no plan is "unlimited"):
 1. ✅ A private, admin-only AI Testing Lab with real Gemini replies, checked on
    the server, with limits and an emergency switch
    ([`backend/README-ai.md`](backend/README-ai.md)). Not public.
-2. 📋 Better usage reporting, source-aware answers (quoting the app's own
+2. ✅ **3.0 Beta:** SalaamStreet AI open to everyone with an account, at
+   `#/ai` — Islamic questions only, app-data commands, a daily allowance per
+   person, and a fair waiting list when it's busy. Plans are still off.
+   Notes: [`docs/release-notes/3.0.0-beta.md`](docs/release-notes/3.0.0-beta.md).
+3. 📋 Better usage reporting, source-aware answers (quoting the app's own
    verified Qur'an and hadith data), optional secure document testing.
-3. 🚧 Plan entitlements checked on the server — prepared in
+4. 🚧 Plan entitlements checked on the server — prepared in
    `backend/functions/ai-lab/plans.js` with billing off, so everyone is on Free.
-4. 📋 Build and test Plus features. 5. 📋 Pro. 6. 📋 Max.
-7. 📋 Payments (Stripe test mode first) — only when we decide to start billing.
+5. 📋 Build and test Plus features. 6. 📋 Pro. 7. 📋 Max.
+8. 📋 Payments (Stripe test mode first) — only when we decide to start billing.
 
 **Rules:** AI answers never invent Qur'an verses, hadith, quotations or
 citations, say when something is unverified, present differences of scholarly

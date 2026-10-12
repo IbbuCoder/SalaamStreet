@@ -350,17 +350,17 @@
 
   /* ── Router ─────────────────────────────────────────────────── */
   var VIEWS = ["home", "prayer", "qibla", "quran", "surah", "hadith", "duas", "dhikr", "calendar", "settings",
-    "adhkar", "names", "mosques", "learn", "about", "account", "stories", "modes", "mode", "family", "kids", "msa", "lab"];
+    "adhkar", "names", "mosques", "learn", "about", "account", "stories", "modes", "mode", "family", "kids", "msa", "lab", "ai"];
   // Which nav item to highlight for views that aren't themselves nav items.
   var NAV_ALIAS = { surah: "quran", mode: "modes" };
   // Destinations that live in the phone "More" sheet light up the More tab.
-  var IN_MORE = { hadith: 1, duas: 1, dhikr: 1, calendar: 1, settings: 1, adhkar: 1, names: 1, mosques: 1, learn: 1, about: 1, account: 1, stories: 1, modes: 1, family: 1, msa: 1 };
+  var IN_MORE = { hadith: 1, duas: 1, dhikr: 1, calendar: 1, settings: 1, adhkar: 1, names: 1, mosques: 1, learn: 1, about: 1, account: 1, stories: 1, modes: 1, family: 1, msa: 1, ai: 1 };
   var TITLE_KEY = {
     home: "nav.dashboard", prayer: "prayer.title", qibla: "qibla.title", quran: "quran.title", surah: "quran.title",
     hadith: "hadith.title", duas: "duas.title", dhikr: "dhikr.title", calendar: "cal.title", settings: "settings.title",
     adhkar: "adhkar.title", names: "names.title", mosques: "mosques.title", learn: "learn.title", about: "about.title",
     account: "account.title", stories: "stories.title", modes: "modes.title", mode: "modes.title",
-    family: "family.title", kids: "kids.title", msa: "msa.title",
+    family: "family.title", kids: "kids.title", msa: "msa.title", ai: "ai.title",
   };
   var currentView = "", currentHash = "";
   var HOME_TITLE = document.title;
@@ -437,13 +437,15 @@
   }
   SS.navigate = navigate;
 
-  /* Private AI Testing Lab (#/lab): in no menu, and its script loads only
-     here. Who may use it is decided by the server (backend/functions/ai-lab). */
-  var labLoading = null;
-  SS.views.lab = function (params) {
-    if (SS.labView) return SS.labView(params);
-    if (!labLoading) {
-      labLoading = new Promise(function (resolve, reject) {
+  /* SalaamStreet AI (#/ai, 3.0 Beta) and the private AI Testing Lab (#/lab,
+     in no menu) share one script, loaded only when one of them opens. Who may
+     use them is decided by the server (backend/functions/ai-lab). */
+  var aiLoading = null;
+  function aiScript(view, params) {
+    var run = function () { if (currentView === view && SS.aiPage) SS.aiPage(view, params); };
+    if (SS.aiPage) return run();
+    if (!aiLoading) {
+      aiLoading = new Promise(function (resolve, reject) {
         var s = document.createElement("script");
         s.src = "js/ai-lab.js";
         s.onload = resolve;
@@ -451,13 +453,15 @@
         document.head.appendChild(s);
       });
     }
-    labLoading.then(function () {
-      if (currentView === "lab" && SS.labView) SS.labView(params);
-    }, function () {
-      labLoading = null;
-      $("lab-root").innerHTML = '<p class="muted">Couldn\u2019t load the AI Testing Lab. Check your connection and reload.</p>';
+    aiLoading.then(run, function () {
+      aiLoading = null;
+      $(view + "-root").innerHTML = '<p class="muted">Couldn\u2019t load ' + (view === "ai" ? "SalaamStreet AI" : "the AI Testing Lab") + ". Check your connection and reload.</p>";
     });
-  };
+  }
+  SS.views.lab = function (params) { aiScript("lab", params); };
+  SS.views.ai = function (params) { aiScript("ai", params); };
+  SS.leave = SS.leave || {};
+  SS.leave.ai = SS.leave.lab = function () { if (SS.aiLeave) SS.aiLeave(); };
 
   /* ── Small global behaviours ────────────────────────────────── */
   function wireScrollState() {

@@ -1,13 +1,58 @@
-# SalaamStreet AI Testing Lab — setup and operation
+# SalaamStreet AI (3.0 Beta) and the AI Testing Lab — setup and operation
 
-A private page where the admin (`ibrahim.asim.contact@gmail.com`, signed in
-with Google) has real conversations with Google Gemini. Nobody else can use
-it, and it isn't linked from any menu.
+Two pages, one server:
 
-- Page: `https://salaamstreet.com/#/lab` (code: `js/ai-lab.js`, loaded only there)
+- **SalaamStreet AI (Beta)** — `https://salaamstreet.com/#/ai`, in the menus.
+  Anyone signed in with a confirmed email can ask Islamic questions, with a
+  daily allowance each and a fair **waiting list** when it's busy.
+- **AI Testing Lab** — `https://salaamstreet.com/#/lab`, in no menu. The admin
+  (`ibrahim.asim.contact@gmail.com`, signed in with Google) gets the same chat
+  plus status, app stats, settings, the beta switch and the emergency switch.
+
+- Code: `js/ai-lab.js` (both pages, loaded only on them)
 - Server: Supabase Edge Function `ai-lab` (`backend/functions/ai-lab/`)
-- Database: the "AI Testing Lab (private)" section at the end of `backend/supabase-schema.sql`
-- Tests: `tests/ai-lab.test.js` (server + database), the "ai lab" test in `tests/e2e.test.js` (page)
+- Database: the "SalaamStreet AI" section at the end of `backend/supabase-schema.sql`
+- Tests: `tests/ai-lab.test.js` (server + database), the "ai lab" test in `tests/e2e.test.js` (both pages)
+
+## 3.0 Beta: who can use it, limits and the waiting list
+
+**Upgrading to 3.0 Beta:** run the whole updated `supabase-schema.sql` again
+(safe to re-run), then deploy `ai-lab` (the "Deploy Supabase" GitHub Action
+does both).
+
+- **Who:** any account with a confirmed email address (Google, Apple, email
+  code — and phone accounts that have added an email). No account → asked to
+  sign in. The Lab's actions (status, test, stats, settings) stay admin-only,
+  checked on the server.
+- **Per person:** `user_daily_limit` questions per UTC day (starts at 20).
+  Failed requests don't use it up. At most 3 requests a minute per person.
+- **For everyone together:** `daily_limit` (the cost cap) and `minute_limit`
+  (capacity). When the beta started, these were raised once to at least 1000
+  a day and 15 a minute; change them in the Lab.
+- **Waiting list:** when this minute's capacity is used up, or Google itself
+  says it's too busy (HTTP 429), the person is put in line (`ai_queue`)
+  instead of getting an error. The page shows "You're number N in line",
+  keeps the question on screen and tries again every 5 seconds; each try
+  keeps their place. Newcomers join behind people already waiting, so nobody
+  cuts in. "Leave the line", leaving the page, or 30 seconds without a
+  check-in gives the place up. The admin never waits in line.
+- **Beta switch:** Lab → Settings → "Beta open to everyone with an account".
+  Off: everyone but the admin is told the beta is closed for now. The
+  emergency switch (and `AI_DISABLED`) still stops everyone, admin included.
+- **Watch it:** the Lab's Status card shows people today, how many are
+  waiting in line, and today's estimated cost.
+
+**Before you rely on it**, check two things with Google (they're your
+decisions, not something the app can check):
+
+1. **Billing / data use.** On Gemini's free tier Google may use prompts to
+   improve its products, and the free tier's rate limits are low (people will
+   wait in line more). For a public beta, turn on billing for the project and
+   set a budget alert.
+2. **Age.** Google's Gemini API terms restrict using the API in apps aimed at,
+   or likely to be used by, people under 18. SalaamStreet is used by
+   high-school students, so read the current terms and decide whether to
+   limit the beta (for example to adults) before promoting it.
 
 Stripe is **not** used, needed or contacted. Paid plans are described in
 `backend/functions/ai-lab/plans.js` with billing switched off (see "Plans" below).
@@ -16,19 +61,20 @@ Stripe is **not** used, needed or contacted. Paid plans are described in
 
 ```
 Browser (GitHub Pages)                 Supabase                               Google
-#/lab  ── session token ──▶  Edge Function ai-lab  ── x-goog-api-key ──▶  Gemini API
-        ◀── reply / error ──  1. Supabase Auth confirms the token          (generateContent)
-                              2. email hash on the admin list + Google
-                              3. emergency switches, limits (Postgres)
+#/ai, #/lab ── session token ──▶  Edge Function ai-lab  ── x-goog-api-key ──▶  Gemini API
+        ◀── reply / queued / error  1. Supabase Auth confirms the token     (generateContent)
+                              2. confirmed email (Lab actions: admin hash + Google)
+                              3. switches, limits, allowance, waiting list (Postgres)
                               4. calls Gemini with GEMINI_API_KEY (secret)
                               5. records counts, tokens, cost — not text
 ```
 
 - The Gemini key lives only in Supabase's Edge Function secrets. It is never in
   this repository, the website, the browser, or any reply.
-- Every request is checked on the server: no valid session → 401; any account
-  other than the admin's Google account → 403 (and logged). Hiding the page is
-  not the protection; calling the function directly gets the same answers.
+- Every request is checked on the server: no valid session → 401; no
+  confirmed email → 403; the Lab's actions from any account other than the
+  admin's Google account → 403 (and logged). Hiding the Lab is not the
+  protection; calling the function directly gets the same answers.
 - Plans never unlock the Lab, and the Lab never needs a plan.
 
 ## What you need to do (once)
@@ -135,9 +181,11 @@ On the Lab page → **Settings and emergency switch** (saved on the server):
 | Setting | Default | Notes |
 |---|---|---|
 | AI requests (emergency switch) | on | Off stops every AI request at once. |
+| Beta open to everyone with an account | on | Off: only the admin can use the AI. |
+| Questions per person per day | 20 | Each person's allowance (UTC days). The admin has none. |
 | Model ID | `gemini-3.5-flash-lite` | Cheapest current stable model. For better answers try `gemini-3.8-flash`. "Test connection" confirms the ID. |
-| Daily request limit | 50 | For the whole project (a cost cap), resets at midnight UTC. Connection tests don't count. |
-| Requests per minute | 5 | Includes connection tests. |
+| Daily request limit | 1000 (since the beta) | For everyone together (a cost cap), resets at midnight UTC. Connection tests don't count. |
+| Requests per minute | 15 (since the beta) | Capacity for everyone together, including connection tests. Past it, people wait in line. |
 | Max output tokens | 2048 | Per reply, including thinking. |
 | Max message length | 6000 characters | The conversation sent to Gemini is capped at 4× this; older turns are dropped first. |
 | Input / output price per 1M tokens | $0.30 / $2.50 | For estimates only. **Change both when you change the model.** |
@@ -165,9 +213,10 @@ Or directly in SQL: `update public.ai_settings set enabled = false;`
 
 - Each chat sends the whole visible conversation again, so long conversations
   cost more per message. "New conversation" resets that.
-- Worst case at the defaults (50 chats/day, ~24k characters ≈ 6k tokens in and
-  2k out each) is roughly $0.35/day with Flash-Lite or about $0.60/day with
-  3.8 Flash at the introductory price. Typical testing is far less.
+- Worst case at the beta defaults (1000 chats/day, ~24k characters ≈ 6k
+  tokens in and 2k out each) is roughly $7/day with Flash-Lite or about
+  $12/day with 3.8 Flash at the introductory price. Typical questions are much
+  shorter (often under $0.002 each). Lower `daily_limit` to cap it.
 - The app's limits stop the app. They are not a hard cap on your Google bill:
   anyone holding the key could use it elsewhere, and estimates can differ from
   Google's billing. Keep the key secret, use a budget alert, and you can also

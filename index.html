@@ -206,6 +206,7 @@
       <symbol id="i-mosque" viewBox="0 0 24 24"><path d="M12 2.5v2"/><path d="M6.5 11a5.5 5.5 0 0 1 11 0"/><path d="M5 11h14v10H5z"/><path d="M10 21v-4a2 2 0 0 1 4 0v4"/><path d="M2.5 21V9.5M21.5 21V9.5M2.5 21h19"/></symbol>
       <symbol id="i-letters" viewBox="0 0 24 24"><path d="M3.5 19 8 5l4.5 14M5 14.5h6"/><path d="M15 9.5c3 0 5.5 1.3 5.5 4.5s-2.5 5-5.5 5"/><circle cx="17.5" cy="5.5" r="1" fill="currentColor"/></symbol>
       <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></symbol>
+      <symbol id="i-chat" viewBox="0 0 24 24"><path d="M20 12.5a7.5 7.5 0 0 1-11.2 6.5L4 20l1.1-4.3A7.5 7.5 0 1 1 20 12.5z"/><path d="M9 11.5h.01M12.5 11.5h.01M16 11.5h.01"/></symbol>
       <symbol id="i-sparkle" viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 16l.7 1.8 1.8.7-1.8.7L19 21l-.7-1.8-1.8-.7 1.8-.7z"/></symbol>
       <symbol id="i-sunrise" viewBox="0 0 24 24"><path d="M3 18h18M6.5 18a5.5 5.5 0 0 1 11 0"/><path d="M12 3.5v4M4.6 9.6l1.4 1.4M19.4 9.6 18 11M9.5 6l2.5-2.5L14.5 6"/></symbol>
       <symbol id="i-camera" viewBox="0 0 24 24"><path d="M3.5 8.5a2 2 0 0 1 2-2h2.2l1.6-2.5h5.4l1.6 2.5h2.2a2 2 0 0 1 2 2v9.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/><circle cx="12" cy="13" r="3.8"/></symbol>
@@ -244,6 +245,7 @@
       <a class="navlink" href="#/dhikr" data-nav="dhikr"><svg class="ic" aria-hidden="true"><use href="#i-beads"/></svg><span data-i18n="nav.dhikr">Dhikr</span></a>
       <a class="navlink" href="#/calendar" data-nav="calendar"><svg class="ic" aria-hidden="true"><use href="#i-calendar"/></svg><span data-i18n="nav.calendar">Calendar</span></a>
       <p class="nav-label" data-i18n="nav.knowledge">Knowledge</p>
+      <a class="navlink" href="#/ai" data-nav="ai"><svg class="ic" aria-hidden="true"><use href="#i-chat"/></svg><span data-i18n="nav.ai">SalaamStreet AI</span><span class="badge nav-soon" data-i18n="ai.beta">Beta</span></a>
       <a class="navlink" href="#/quran" data-nav="quran"><svg class="ic" aria-hidden="true"><use href="#i-book"/></svg><span data-i18n="nav.quran">Qur'an</span></a>
       <a class="navlink" href="#/hadith" data-nav="hadith"><svg class="ic" aria-hidden="true"><use href="#i-scroll"/></svg><span data-i18n="nav.hadith">Hadith</span></a>
       <a class="navlink" href="#/stories" data-nav="stories"><svg class="ic" aria-hidden="true"><use href="#i-open-book"/></svg><span data-i18n="nav.stories">Stories</span><span class="badge nav-soon" data-i18n="stories.new">New</span></a>
@@ -1003,6 +1005,9 @@
     <!-- ═══════════ AI Testing Lab (private) ═══════════
          Not linked anywhere. js/ai-lab.js loads only here, and the server
          (backend/functions/ai-lab) decides who may use it. -->
+    <section class="view view-narrow" id="view-ai" hidden aria-labelledby="lab-h">
+      <div id="ai-root"></div>
+    </section>
     <section class="view view-narrow" id="view-lab" hidden aria-labelledby="lab-h">
       <div id="lab-root"></div>
     </section>
@@ -1283,6 +1288,7 @@
         <button class="icon-btn" data-close type="button" aria-label="Close"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
       </div>
       <nav class="more-grid" aria-label="More">
+        <a href="#/ai" data-nav="ai"><span class="q-ic"><svg aria-hidden="true"><use href="#i-chat"/></svg></span><span data-i18n="nav.ai">SalaamStreet AI</span></a>
         <a href="#/account" data-nav="account"><span class="q-ic"><svg aria-hidden="true"><use href="#i-user"/></svg></span><span data-i18n="nav.account">Account</span></a>
         <a href="#/modes" data-nav="modes"><span class="q-ic"><svg aria-hidden="true"><use href="#i-layers"/></svg></span><span data-i18n="modes.nav">Modes</span></a>
         <a href="#/msa" data-nav="msa"><span class="q-ic"><svg aria-hidden="true"><use href="#i-users"/></svg></span><span data-i18n="nav.msa">NVHS MSA</span></a>

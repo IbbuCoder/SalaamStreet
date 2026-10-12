@@ -224,8 +224,27 @@
   ];
 
   /* ── Version & release notes (newest first) ──────────────────────── */
-  SS.VERSION = "2.11.8";
+  SS.VERSION = "3.0.0-beta";
   SS.CHANGELOG = [
+    {
+      v: "3.0.0-beta", date: "2026-10-12",
+      en: "SalaamStreet AI (Beta)", ar: "مساعد SalaamStreet الذكي (تجريبي)",
+      den: "Meet SalaamStreet AI, an Islamic assistant for everyone with a free account. Ask about the Qur'an, hadith, prayer, duas and Muslim life, or use commands that work with your own bookmarks and progress. It's a beta, so answers can be wrong — always check anything important.",
+      dar: "تعرّف على مساعد SalaamStreet الذكي، مساعد إسلامي لكل من لديه حساب مجاني. اسأل عن القرآن والحديث والصلاة والأدعية وحياة المسلم، أو استخدم أوامر تعمل مع إشاراتك المرجعية وتقدّمك. إنه إصدار تجريبي، فقد تخطئ الإجابات — تحقّق دائمًا من كل أمر مهم.",
+      groups: [
+        { en: "SalaamStreet AI (Beta)", ar: "مساعد SalaamStreet الذكي (تجريبي)", items: [
+          { en: "An Islamic assistant for everyone with a free account — find it in the menu as SalaamStreet AI", ar: "مساعد إسلامي لكل من لديه حساب مجاني — تجده في القائمة باسم مساعد SalaamStreet الذكي" },
+          { en: "It only answers Islamic questions, never invents verses or hadith, and points you to a scholar for rulings", ar: "لا يجيب إلا عن الأسئلة الإسلامية، ولا يخترع آيات أو أحاديث، ويحيلك إلى عالم في الفتاوى" },
+          { en: "Commands: /bookmarks, /ayah 2:255, /progress, /plan, /dua, /quiz and /reflect — type /help to see them all", ar: "أوامر: ‎/bookmarks و‎/ayah 2:255 و‎/progress و‎/plan و‎/dua و‎/quiz و‎/reflect — اكتب ‎/help لرؤيتها كلها" },
+          { en: "With your permission it uses your bookmarks, reading progress, prayers and dhikr to make answers personal", ar: "بإذنك يستخدم إشاراتك المرجعية وتقدّم قراءتك وصلواتك وأذكارك ليجعل الإجابات شخصية" },
+        ] },
+        { en: "Fair for everyone", ar: "عادل للجميع", items: [
+          { en: "A free daily allowance of questions during the beta", ar: "عدد يومي مجاني من الأسئلة خلال الفترة التجريبية" },
+          { en: "When lots of people are asking at once, you wait in a short line and your question is sent automatically", ar: "عندما يسأل كثيرون في وقت واحد تنتظر في صف قصير ويُرسل سؤالك تلقائيًا" },
+          { en: "Your conversations aren't saved — they're gone when you leave the page", ar: "لا تُحفظ محادثاتك — تختفي عند مغادرة الصفحة" },
+        ] },
+      ],
+    },
     {
       v: "2.11.8", date: "2026-10-10",
       en: "Steadier Qibla camera, MSA admins", ar: "كاميرا قبلة أثبت، ومشرفو الرابطة",
@@ -639,8 +658,8 @@
   /* What's planned — honest plans in order, never dates. Nothing here is released yet. */
   SS.ROADMAP = [
     { v: "3.0.0", icon: "sparkle", en: "The AI update", ar: "تحديث الذكاء الاصطناعي",
-      den: "SalaamStreet AI: an Islamic AI tutor for Qur'an and tafsir study, questions about Islam, learning and planning — honest about its sources and never issuing rulings. Everything free today stays free. Not available yet.",
-      dar: "سلام ستريت بالذكاء الاصطناعي: معلّم إسلامي ذكي لدراسة القرآن والتفسير، والأسئلة عن الإسلام، والتعلّم والتخطيط — صادق في مصادره ولا يُصدر فتاوى. كل ما هو مجاني اليوم يبقى مجانيًا. غير متاح بعد." },
+      den: "SalaamStreet AI: an Islamic AI tutor for Qur'an and tafsir study, questions about Islam, learning and planning — honest about its sources and never issuing rulings. Everything free today stays free. Now in beta for everyone with an account; optional plans come later.",
+      dar: "سلام ستريت بالذكاء الاصطناعي: معلّم إسلامي ذكي لدراسة القرآن والتفسير، والأسئلة عن الإسلام، والتعلّم والتخطيط — صادق في مصادره ولا يُصدر فتاوى. كل ما هو مجاني اليوم يبقى مجانيًا. متاح الآن تجريبيًا لكل من لديه حساب، والخطط الاختيارية لاحقًا." },
     { v: "3.1.0", icon: "user", en: "Personalization", ar: "التخصيص",
       den: "A Home screen you arrange yourself: dashboard cards, favourite tools and shortcuts, more notification choices and better mode suggestions.",
       dar: "شاشة رئيسية ترتّبها بنفسك: بطاقات وأدوات مفضلة واختصارات، وخيارات أكثر للتنبيهات، واقتراحات أفضل للأوضاع." },

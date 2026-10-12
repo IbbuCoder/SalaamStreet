@@ -1,14 +1,18 @@
 // SalaamStreet — ai-lab core (plain JavaScript, shared by the Edge Function
-// and the tests). The private AI Testing Lab: one admin, real Gemini replies.
+// and the tests). SalaamStreet AI (3.0 Beta) for everyone with an account,
+// and the admin's AI Testing Lab (status, settings, stats).
 //
 // Every request is checked here, on the server, before anything else:
 //   1. a Supabase session token that Supabase Auth itself confirms (signature
 //      and expiry are checked by Supabase, not by us decoding the token);
-//   2. a confirmed email whose SHA-256 is on the admin list, signed in with
-//      Google. Plans are never consulted, so no plan can unlock the Lab.
+//   2. a confirmed email address. That's enough to chat during the beta.
+//   3. For the Lab's own actions (status, test, stats, settings): an email
+//      whose SHA-256 is on the admin list, signed in with Google. Plans are
+//      never consulted, so no plan can unlock the Lab.
 // Then: the emergency switches (AI_DISABLED secret and the database switch),
-// the daily and per-minute limits (counted atomically in Postgres), size
-// limits, a timeout, and careful error handling. The Gemini key is only ever
+// the beta switch, the project's daily and per-minute limits, each person's
+// daily allowance and the waiting list (all counted atomically in Postgres),
+// size limits, a timeout, and careful error handling. The Gemini key is only ever
 // read from the environment and sent in a request header to Google; it never
 // appears in a response or a log line. Conversations are not stored.
 
@@ -23,7 +27,7 @@ const MAX_TURNS = 40;
 const MAX_CONTEXT = 20000; // characters of app data, as JSON
 
 export const SYSTEM_PROMPT = [
-  "You are the SalaamStreet AI assistant, being tested privately by the app's administrator.",
+  "You are SalaamStreet AI (Beta), the Islamic assistant in the SalaamStreet app.",
   "Scope — you ONLY help with Islam and Islamic topics:",
   "- In scope: the Qur'an, tafsir, hadith, seerah, Islamic history, aqeedah, fiqh, worship (salah, fasting, zakat, Hajj),",
   "  duas and dhikr, Arabic for understanding the Qur'an, Islamic ethics and manners, Muslim life and family, Islamic studies schoolwork,",
@@ -56,7 +60,7 @@ export const CONTEXT_PROMPT = [
 ].join("\n");
 
 export const LIMITS = Object.freeze({
-  daily_limit: [0, 2000], minute_limit: [1, 60], max_input_chars: [200, 30000], max_output_tokens: [64, 8192],
+  daily_limit: [0, 100000], minute_limit: [1, 600], user_daily_limit: [0, 1000], max_input_chars: [200, 30000], max_output_tokens: [64, 8192],
   input_usd_per_mtok: [0, 1000], output_usd_per_mtok: [0, 1000],
 });
 const MODEL_RE = /^[a-z0-9][a-z0-9.-]{1,63}$/;
@@ -116,9 +120,9 @@ export function validateSettingsPatch(patch) {
   const out = {};
   for (const k of Object.keys(patch)) {
     const v = patch[k];
-    if (k === "enabled") {
-      if (typeof v !== "boolean") throw new LabError(400, "bad_request", "enabled must be true or false.");
-      out.enabled = v;
+    if (k === "enabled" || k === "beta_open") {
+      if (typeof v !== "boolean") throw new LabError(400, "bad_request", `${k} must be true or false.`);
+      out[k] = v;
     } else if (k === "model") {
       const m = String(v || "").trim().replace(/^models\//, "");
       if (!MODEL_RE.test(m)) throw new LabError(400, "bad_request", "That isn't a valid Gemini model ID (for example gemini-3.5-flash-lite).");
@@ -140,7 +144,8 @@ export function validateSettingsPatch(patch) {
 
 function publicSettings(s) {
   return {
-    enabled: !!s.enabled, model: s.model, daily_limit: s.daily_limit, minute_limit: s.minute_limit,
+    enabled: !!s.enabled, beta_open: !!s.beta_open, user_daily_limit: s.user_daily_limit,
+    model: s.model, daily_limit: s.daily_limit, minute_limit: s.minute_limit,
     max_input_chars: s.max_input_chars, max_output_tokens: s.max_output_tokens,
     input_usd_per_mtok: Number(s.input_usd_per_mtok), output_usd_per_mtok: Number(s.output_usd_per_mtok),
     updated_at: s.updated_at || null,
@@ -150,8 +155,9 @@ function publicSettings(s) {
 /**
  * deps.env(name)   → string | undefined
  * deps.fetch       → fetch (used only for Google)
- * deps.store       → { getUser(token), settings(), updateSettings(patch, userId), reserve(userId, kind),
- *                      finish(id, patch), summary(), stats(), logRefusal(userId, event, detail) }
+ * deps.store       → { getUser(token), settings(), updateSettings(patch, userId), reserve(userId, kind, admin),
+ *                      finish(id, patch), summary(), stats(), logRefusal(userId, event, detail),
+ *                      enqueue(userId), dequeue(userId), userStatus(userId) }
  * deps.log         → optional { warn(...) } (never given secrets or message text)
  */
 export function createHandler(deps) {
@@ -178,26 +184,34 @@ export function createHandler(deps) {
     try { await store.logRefusal(userId || null, event, detail ? String(detail).slice(0, 120) : null); } catch (_) { /* logging must not break the reply */ }
   }
 
+  /** Anyone signed in with a confirmed email. Returns { user, admin }. */
   async function authorize(req) {
     const m = (req.headers.get("authorization") || "").match(/^Bearer\s+(\S+)$/i);
-    if (!m) { await refuse(null, "no_session"); throw new LabError(401, "signed_out", "Sign in with the admin Google account to use the AI Testing Lab."); }
+    if (!m) { await refuse(null, "no_session"); throw new LabError(401, "signed_out", "Sign in to use SalaamStreet AI."); }
     let user = null;
     try { user = await store.getUser(m[1]); } catch (_) { user = null; }
     if (!user || !user.id) { await refuse(null, "invalid_session"); throw new LabError(401, "invalid_session", "Your sign-in has expired or isn't valid. Sign in again."); }
     const email = String(user.email || "").trim().toLowerCase();
     const confirmed = !!(user.email_confirmed_at || user.confirmed_at);
+    if (!email || !confirmed || user.is_anonymous) {
+      await refuse(user.id, "unconfirmed", !email ? "no email" : "email not confirmed");
+      throw new LabError(403, "unconfirmed", "Confirm your account's email address first, then try again.");
+    }
     const am = user.app_metadata || {};
     const providers = [].concat(am.providers || [], am.provider || [], (user.identities || []).map((i) => i && i.provider));
     const google = providers.indexOf("google") > -1;
     const allowed = (env("AI_ADMIN_EMAIL_SHA256") ? env("AI_ADMIN_EMAIL_SHA256").split(",") : DEFAULT_ADMIN_SHA256)
       .map((s) => s.trim().toLowerCase()).filter(Boolean);
-    const listed = !!email && allowed.indexOf(await sha256Hex(email)) > -1;
-    if (!listed || !confirmed || !google) {
-      await refuse(user.id, "not_admin", !listed ? "not on the admin list" : !confirmed ? "email not confirmed" : "not signed in with Google");
-      throw new LabError(403, "forbidden", !listed ? "This account can't use the AI Testing Lab."
-        : !confirmed ? "Confirm this account's email address first." : "Sign in with Google (the admin's Google account) to use the AI Testing Lab.");
-    }
-    return user;
+    const listed = allowed.indexOf(await sha256Hex(email)) > -1;
+    return { user, admin: listed && google, listed, google };
+  }
+
+  /** The Lab's own actions: the admin's Google account only. */
+  async function requireAdmin(who) {
+    if (who.admin) return;
+    await refuse(who.user.id, "not_admin", !who.listed ? "not on the admin list" : "not signed in with Google");
+    throw new LabError(403, "forbidden", !who.listed ? "This account can't use the AI Testing Lab."
+      : "Sign in with Google (the admin's Google account) to use the AI Testing Lab.");
   }
 
   function killSwitchEnv() { return truthy(env("AI_DISABLED")); }
@@ -215,6 +229,7 @@ export function createHandler(deps) {
         today_tokens: Number(usage.today_tokens) || 0, today_cost_usd: Number(usage.today_cost_usd) || 0,
         week_requests: Number(usage.week_requests) || 0, week_cost_usd: Number(usage.week_cost_usd) || 0,
         refused_today: Number(usage.refused_today) || 0, resets_at: usage.resets_at || null,
+        people_today: Number(usage.people_today) || 0, waiting_now: Number(usage.waiting_now) || 0,
         remaining_today: Math.max(0, s.daily_limit - (Number(usage.today_requests) || 0)),
       } : null,
       billing_enabled: false,
@@ -227,17 +242,37 @@ export function createHandler(deps) {
     return key;
   }
 
-  async function reserve(user, kind) {
-    if (killSwitchEnv()) throw new LabError(503, "disabled", "AI requests are switched off by the AI_DISABLED secret.");
-    const r = await store.reserve(user.id, kind);
+  /** The reply for someone put on the waiting list (HTTP 202: not an error, just not yet). */
+  function queued(q) {
+    const pos = Number(q && q.position) || 1;
+    return new LabError(202, "queued", `SalaamStreet AI is busy right now. You're number ${pos} in line — keep this page open and your question will be sent automatically.`,
+      { position: pos, waiting: Number(q && q.waiting) || pos, wait_seconds: Number(q && q.wait_seconds) || 10 });
+  }
+
+  async function reserve(who, kind) {
+    if (killSwitchEnv()) throw new LabError(503, "disabled", who.admin ? "AI requests are switched off by the AI_DISABLED secret." : "SalaamStreet AI is switched off for now. Please try again later.");
+    const r = await store.reserve(who.user.id, kind, who.admin);
     if (!r || !r.ok) {
       const reason = (r && r.reason) || "error";
-      if (reason === "disabled") throw new LabError(503, "disabled", "AI requests are switched off (emergency switch).");
-      if (reason === "daily_limit") throw new LabError(429, "daily_limit", `Today's limit of ${r.limit} requests is used up. It resets at midnight UTC.`, { used: r.used, limit: r.limit });
+      if (reason === "queued") throw queued(r);
+      if (reason === "disabled") throw new LabError(503, "disabled", who.admin ? "AI requests are switched off (emergency switch)." : "SalaamStreet AI is switched off for now. Please try again later.");
+      if (reason === "closed") throw new LabError(503, "closed", "The SalaamStreet AI beta is closed for now. Please check back soon.");
+      if (reason === "user_limit") throw new LabError(429, "user_limit", `You've asked all ${r.limit} of today's questions. They reset at midnight UTC.`, { used: r.used, limit: r.limit });
+      if (reason === "user_rate_limit") throw new LabError(429, "slow_down", "You're sending questions very quickly. Wait a few seconds and try again.");
+      if (reason === "daily_limit") throw new LabError(429, "daily_limit", who.admin ? `Today's limit of ${r.limit} requests is used up. It resets at midnight UTC.`
+        : "SalaamStreet AI has answered as many questions as it can today. Please try again tomorrow.", { used: r.used, limit: r.limit });
       if (reason === "rate_limit") throw new LabError(429, "rate_limit", "Too many requests in the last minute. Wait a moment and try again.");
       throw new LabError(500, "server_error", "Couldn't check the usage limits.");
     }
     return r;
+  }
+
+  async function me(who) {
+    const u = await store.userStatus(who.user.id);
+    const limit = Number(u.user_limit) || 0, used = Number(u.used_today) || 0;
+    return { ok: true, admin: who.admin, beta: true, enabled: !!u.enabled && !killSwitchEnv(), beta_open: !!u.beta_open || who.admin,
+      used_today: used, user_limit: who.admin ? null : limit, remaining_today: who.admin ? null : Math.max(0, limit - used),
+      max_input_chars: u.max_input_chars, waiting: Number(u.waiting) || 0, resets_at: u.resets_at || null };
   }
 
   async function callGoogle(url, init, key) {
@@ -271,9 +306,9 @@ export function createHandler(deps) {
     return { data: data || {}, latency };
   }
 
-  async function test(user) {
+  async function test(who) {
     const key = needKey();
-    const r = await reserve(user, "test");
+    const r = await reserve(who, "test");
     const base = env("GEMINI_API_BASE") || GEMINI_BASE;
     try {
       const { data, latency } = await callGoogle(`${base}/v1beta/models/${encodeURIComponent(r.model)}`, { method: "GET" }, key);
@@ -286,7 +321,7 @@ export function createHandler(deps) {
     }
   }
 
-  async function chat(user, body) {
+  async function chat(who, body) {
     const key = needKey();
     const s = await store.settings();
     const raw = body.messages;
@@ -299,7 +334,7 @@ export function createHandler(deps) {
     if (last.text.length > s.max_input_chars) throw new LabError(413, "too_long", `Your message is ${last.text.length} characters; the limit is ${s.max_input_chars}.`);
     const context = readContext(body.context);
     const fit = fitHistory(msgs.slice(-MAX_TURNS), s.max_input_chars * 4);
-    const r = await reserve(user, "chat");
+    const r = await reserve(who, "chat");
     const base = env("GEMINI_API_BASE") || GEMINI_BASE;
     const req = {
       systemInstruction: { parts: [{ text: SYSTEM_PROMPT }].concat(context ? [{ text: CONTEXT_PROMPT + "\n" + context }] : []) },
@@ -330,10 +365,14 @@ export function createHandler(deps) {
       await store.finish(r.id, Object.assign(done, { status: "ok" }));
       return { ok: true, text, model: r.model, model_version: data.modelVersion || null, finish_reason: finish,
         truncated: finish === "MAX_TOKENS", usage, cost_usd: cost, latency_ms: latency, dropped_turns: fit.dropped,
-        used_today: r.used, daily_limit: r.limit, remaining_today: Math.max(0, r.limit - r.used) };
+        used_today: r.used, daily_limit: r.limit, remaining_today: Math.max(0, r.limit - r.used),
+        user_used: who.admin ? null : r.user_used, user_limit: who.admin ? null : r.user_limit,
+        user_remaining: who.admin ? null : Math.max(0, r.user_limit - r.user_used) };
     } catch (e) {
       if (e instanceof LabError && ["blocked", "max_tokens", "empty"].indexOf(e.code) > -1) throw e;
       await store.finish(r.id, { status: "error", error: (e && e.code) || "error" }).catch(() => {});
+      // Google itself is too busy: everyone but the admin keeps a fair place in line.
+      if (e instanceof LabError && e.code === "provider_quota" && !who.admin) throw queued(await store.enqueue(who.user.id));
       throw e;
     }
   }
@@ -344,19 +383,22 @@ export function createHandler(deps) {
       if (req.method !== "POST") throw new LabError(405, "method", "Use POST.");
       const len = Number(req.headers.get("content-length") || 0);
       if (len > MAX_BODY) throw new LabError(413, "too_long", "The request is too large.");
-      const user = await authorize(req); // before reading anything else
+      const who = await authorize(req); // before reading anything else
       const raw = await req.text();
       if (raw.length > MAX_BODY) throw new LabError(413, "too_long", "The request is too large.");
       let body;
       try { body = JSON.parse(raw || "{}"); } catch (_) { throw new LabError(400, "bad_request", "The request isn't valid JSON."); }
       const action = body && body.action;
-      if (action === "status") return reply(req, 200, await status(user));
-      if (action === "test") return reply(req, 200, await test(user));
+      if (action === "me") return reply(req, 200, await me(who));
+      if (action === "chat") return reply(req, 200, await chat(who, body));
+      if (action === "leave") { await store.dequeue(who.user.id); return reply(req, 200, { ok: true }); }
+      if (["status", "test", "stats", "settings"].indexOf(action) > -1) await requireAdmin(who);
+      if (action === "status") return reply(req, 200, await status(who.user));
+      if (action === "test") return reply(req, 200, await test(who));
       if (action === "stats") return reply(req, 200, { ok: true, stats: await store.stats() });
-      if (action === "chat") return reply(req, 200, await chat(user, body));
       if (action === "settings") {
         const patch = validateSettingsPatch(body.patch);
-        const s = await store.updateSettings(patch, user.id);
+        const s = await store.updateSettings(patch, who.user.id);
         return reply(req, 200, { ok: true, settings: publicSettings(s) });
       }
       throw new LabError(400, "bad_request", "Unknown action.");

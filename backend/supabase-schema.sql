@@ -1557,9 +1557,11 @@ grant execute on function public.msa_student_add(text, text), public.msa_student
     public.msa_admin_list(), public.msa_admin_add(text), public.msa_admin_remove(text) to authenticated;
 
 -- ════════════════════════════════════════════════════════════════════════
---  AI Testing Lab (private; not part of any public release)
+--  SalaamStreet AI (3.0 Beta) and the admin's AI Testing Lab
 --  Used only by the ai-lab Edge Function (backend/functions/ai-lab), which
---  runs with the service role and checks the admin on every request. Nothing
+--  runs with the service role and checks every request's account: anyone
+--  signed in (with a confirmed email) may chat during the beta; only the
+--  admin may use the Lab's status, settings and stats. Nothing
 --  here is reachable from the app's public key: no table or function is
 --  granted to anon or authenticated.
 --  • ai_settings: one row — the emergency switch, the model, limits and the
@@ -1567,15 +1569,17 @@ grant execute on function public.msa_student_add(text, text), public.msa_student
 --  • ai_usage: one row per request — counts, tokens, estimated cost, status.
 --    Never the conversation itself.
 --  • ai_security_log: refused requests (who and why, never tokens or text).
---  • ai_reserve(): the daily and per-minute limits, checked and counted in
---    one step so two requests at once can't both slip past the limit.
+--  • ai_queue: the waiting list — who's waiting for the AI while it's busy.
+--  • ai_reserve(): the switches, the project's daily and per-minute limits,
+--    each person's daily allowance and the waiting list, checked and counted
+--    in one step so two requests at once can't both slip past a limit.
 -- ════════════════════════════════════════════════════════════════════════
 create table if not exists public.ai_settings (
     id                  boolean primary key default true check (id),
     enabled             boolean not null default true,
     model               text not null default 'gemini-3.5-flash-lite' check (model ~ '^[a-z0-9][a-z0-9.-]{1,63}$'),
-    daily_limit         integer not null default 50 check (daily_limit between 0 and 2000),
-    minute_limit        integer not null default 5 check (minute_limit between 1 and 60),
+    daily_limit         integer not null default 50 check (daily_limit between 0 and 100000),
+    minute_limit        integer not null default 5 check (minute_limit between 1 and 600),
     max_input_chars     integer not null default 6000 check (max_input_chars between 200 and 30000),
     max_output_tokens   integer not null default 2048 check (max_output_tokens between 64 and 8192),
     input_usd_per_mtok  numeric(10, 4) not null default 0.30 check (input_usd_per_mtok >= 0),
@@ -1584,6 +1588,23 @@ create table if not exists public.ai_settings (
     updated_by          uuid
 );
 insert into public.ai_settings (id) values (true) on conflict (id) do nothing;
+
+-- 3.0 Beta: open to every account. beta_open closes it to everyone but the
+-- admin (the emergency switch, enabled, stops everyone). user_daily_limit is
+-- each person's questions per UTC day.
+alter table public.ai_settings add column if not exists beta_open boolean not null default true;
+alter table public.ai_settings add column if not exists user_daily_limit integer not null default 20;
+alter table public.ai_settings add column if not exists beta_started boolean not null default false;
+alter table public.ai_settings drop constraint if exists ai_settings_daily_limit_check;
+alter table public.ai_settings add constraint ai_settings_daily_limit_check check (daily_limit between 0 and 100000);
+alter table public.ai_settings drop constraint if exists ai_settings_minute_limit_check;
+alter table public.ai_settings add constraint ai_settings_minute_limit_check check (minute_limit between 1 and 600);
+alter table public.ai_settings drop constraint if exists ai_settings_user_daily_limit_check;
+alter table public.ai_settings add constraint ai_settings_user_daily_limit_check check (user_daily_limit between 0 and 1000);
+-- Once, when the beta starts: the Lab's limits were sized for one person.
+-- Raise them to a starting point for everyone (change them in the Lab).
+update public.ai_settings set daily_limit = greatest(daily_limit, 1000), minute_limit = greatest(minute_limit, 15),
+    beta_started = true where id and not beta_started;
 
 create table if not exists public.ai_usage (
     id             bigint generated always as identity primary key,
@@ -1601,6 +1622,15 @@ create table if not exists public.ai_usage (
     error          text check (error is null or char_length(error) <= 80)
 );
 create index if not exists ai_usage_at on public.ai_usage (at);
+create index if not exists ai_usage_user_at on public.ai_usage (user_id, at);
+
+-- The waiting list. A person stays in line while their page keeps checking
+-- in (every few seconds); after 30 seconds without one they've left.
+create table if not exists public.ai_queue (
+    user_id   uuid primary key,
+    joined_at timestamptz not null default now(),
+    seen_at   timestamptz not null default now()
+);
 
 create table if not exists public.ai_security_log (
     id      bigint generated always as identity primary key,
@@ -1614,29 +1644,61 @@ create index if not exists ai_security_log_at on public.ai_security_log (at);
 alter table public.ai_settings enable row level security;
 alter table public.ai_usage enable row level security;
 alter table public.ai_security_log enable row level security;
-revoke all on public.ai_settings, public.ai_usage, public.ai_security_log from anon, authenticated;
+alter table public.ai_queue enable row level security;
+revoke all on public.ai_settings, public.ai_usage, public.ai_security_log, public.ai_queue from anon, authenticated;
 
-/** Check the switch and the limits, and count the request, in one step.
-    Chats count towards the daily limit; connection tests only towards the
-    per-minute limit. The daily limit is for the whole project (a cost cap),
-    not per person. Days are UTC, like Google's own quotas. */
-create or replace function public.ai_reserve(p_user uuid, p_kind text)
+/** Check the switches and the limits, and count the request, in one step.
+    Chats count towards the daily limits; connection tests only towards the
+    per-minute limit. daily_limit is for the whole project (a cost cap);
+    user_daily_limit is each person's (failed requests don't use it up).
+    The admin (p_admin) skips the beta switch, the personal allowance and the
+    waiting list. Everyone else waits in line when the per-minute capacity is
+    used up, and newcomers join behind the people already waiting. Days are
+    UTC, like Google's own quotas. */
+drop function if exists public.ai_reserve(uuid, text);
+create or replace function public.ai_reserve(p_user uuid, p_kind text, p_admin boolean default false)
 returns jsonb language plpgsql security definer set search_path = public as $$
-declare s public.ai_settings; used integer; recent integer; rid bigint;
+declare s public.ai_settings; used integer; mine integer := 0; recent integer; rid bigint; q jsonb;
 begin
     if p_user is null or p_kind not in ('chat', 'test') then raise exception 'bad request' using errcode = '22023'; end if;
     perform pg_advisory_xact_lock(hashtext('ai_reserve'));
     select * into s from public.ai_settings where id;
+    delete from public.ai_queue where seen_at < now() - interval '30 seconds';
     select count(*) into used from public.ai_usage
         where kind = 'chat' and at >= date_trunc('day', now() at time zone 'UTC') at time zone 'UTC';
     if not s.enabled then
         return jsonb_build_object('ok', false, 'reason', 'disabled', 'used', used, 'limit', s.daily_limit);
     end if;
+    if p_kind = 'chat' and not p_admin and not s.beta_open then
+        return jsonb_build_object('ok', false, 'reason', 'closed');
+    end if;
     if p_kind = 'chat' and used >= s.daily_limit then
         return jsonb_build_object('ok', false, 'reason', 'daily_limit', 'used', used, 'limit', s.daily_limit);
     end if;
+    if p_kind = 'chat' and not p_admin then
+        select count(*) into mine from public.ai_usage
+            where user_id = p_user and kind = 'chat' and status <> 'error'
+              and at >= date_trunc('day', now() at time zone 'UTC') at time zone 'UTC';
+        if mine >= s.user_daily_limit then
+            delete from public.ai_queue where user_id = p_user; -- out of questions: don't hold up the line
+            return jsonb_build_object('ok', false, 'reason', 'user_limit', 'used', mine, 'limit', s.user_daily_limit);
+        end if;
+        -- Requests Google refused as too busy aren't the person's doing, so they don't count here.
+        if (select count(*) from public.ai_usage where user_id = p_user and status <> 'error' and at > now() - interval '1 minute') >= 3 then
+            delete from public.ai_queue where user_id = p_user;
+            return jsonb_build_object('ok', false, 'reason', 'user_rate_limit');
+        end if;
+    end if;
     select count(*) into recent from public.ai_usage where at > now() - interval '1 minute';
-    if recent >= s.minute_limit then
+    if p_kind = 'chat' and not p_admin then
+        -- Room for this person only after everyone who joined the line before them.
+        if s.minute_limit - recent <= (select count(*) from public.ai_queue a where a.user_id <> p_user
+                and a.joined_at < coalesce((select b.joined_at from public.ai_queue b where b.user_id = p_user), 'infinity')) then
+            q := public.ai_enqueue(p_user);
+            return q || jsonb_build_object('ok', false, 'reason', 'queued');
+        end if;
+        delete from public.ai_queue where user_id = p_user;
+    elsif recent >= s.minute_limit then
         return jsonb_build_object('ok', false, 'reason', 'rate_limit', 'used', used, 'limit', s.daily_limit);
     end if;
     insert into public.ai_usage (user_id, kind, model) values (p_user, p_kind, s.model) returning id into rid;
@@ -1645,9 +1707,48 @@ begin
     delete from public.ai_security_log where at < now() - interval '90 days';
     return jsonb_build_object('ok', true, 'id', rid, 'model', s.model,
         'used', used + case when p_kind = 'chat' then 1 else 0 end, 'limit', s.daily_limit,
+        'user_used', mine + case when p_kind = 'chat' and not p_admin then 1 else 0 end, 'user_limit', s.user_daily_limit,
         'max_input_chars', s.max_input_chars, 'max_output_tokens', s.max_output_tokens,
         'input_usd_per_mtok', s.input_usd_per_mtok, 'output_usd_per_mtok', s.output_usd_per_mtok);
 end;
+$$;
+
+/** Join the waiting list (or check in, keeping your place). Returns your
+    position, how many are waiting, and a rough wait in seconds. Also used when
+    Google itself is too busy, so the person keeps a fair place in line. */
+create or replace function public.ai_enqueue(p_user uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare s public.ai_settings; me timestamptz; pos integer; total integer;
+begin
+    if p_user is null then raise exception 'bad request' using errcode = '22023'; end if;
+    select * into s from public.ai_settings where id;
+    insert into public.ai_queue (user_id) values (p_user)
+        on conflict (user_id) do update set seen_at = now()
+        returning joined_at into me;
+    select count(*) into pos from public.ai_queue where seen_at >= now() - interval '30 seconds' and joined_at <= me;
+    select count(*) into total from public.ai_queue where seen_at >= now() - interval '30 seconds';
+    return jsonb_build_object('position', pos, 'waiting', total,
+        'wait_seconds', greatest(5, ceil(pos * 60.0 / greatest(s.minute_limit, 1)))::integer);
+end;
+$$;
+
+/** One person's beta status: their allowance today and whether the beta is open. */
+create or replace function public.ai_user_status(p_user uuid)
+returns jsonb language sql stable security definer set search_path = public as $$
+    select jsonb_build_object(
+        'enabled', s.enabled, 'beta_open', s.beta_open, 'user_limit', s.user_daily_limit,
+        'max_input_chars', s.max_input_chars,
+        'used_today', (select count(*) from public.ai_usage where user_id = p_user and kind = 'chat' and status <> 'error'
+            and at >= date_trunc('day', now() at time zone 'UTC') at time zone 'UTC'),
+        'waiting', (select count(*) from public.ai_queue where seen_at >= now() - interval '30 seconds'),
+        'resets_at', date_trunc('day', now() at time zone 'UTC') at time zone 'UTC' + interval '1 day')
+    from public.ai_settings s where s.id;
+$$;
+
+/** Leave the waiting list (the person cancelled or left the page). */
+create or replace function public.ai_dequeue(p_user uuid)
+returns void language sql security definer set search_path = public as $$
+    delete from public.ai_queue where user_id = p_user;
 $$;
 
 /** Today's and the last 7 days' usage (UTC days), for the Lab page. */
@@ -1662,6 +1763,8 @@ returns jsonb language sql stable security definer set search_path = public as $
         'week_requests', (select count(*) from public.ai_usage, day where kind = 'chat' and at >= day.start - interval '6 days'),
         'week_cost_usd', (select coalesce(sum(cost_usd), 0) from public.ai_usage, day where at >= day.start - interval '6 days'),
         'refused_today', (select count(*) from public.ai_security_log, day where at >= day.start),
+        'people_today', (select count(distinct user_id) from public.ai_usage, day where kind = 'chat' and at >= day.start),
+        'waiting_now', (select count(*) from public.ai_queue where seen_at >= now() - interval '30 seconds'),
         'resets_at', (select day.start + interval '1 day' from day));
 $$;
 
@@ -1685,12 +1788,14 @@ begin
 end;
 $$;
 
-revoke all on function public.ai_reserve(uuid, text), public.ai_usage_summary(), public.admin_stats() from public, anon, authenticated;
+revoke all on function public.ai_reserve(uuid, text, boolean), public.ai_enqueue(uuid), public.ai_user_status(uuid), public.ai_dequeue(uuid),
+    public.ai_usage_summary(), public.admin_stats() from public, anon, authenticated;
 do $$
 begin
     if exists (select 1 from pg_roles where rolname = 'service_role') then
-        grant select, insert, update, delete on public.ai_settings, public.ai_usage, public.ai_security_log to service_role;
-        grant execute on function public.ai_reserve(uuid, text), public.ai_usage_summary(), public.admin_stats() to service_role;
+        grant select, insert, update, delete on public.ai_settings, public.ai_usage, public.ai_security_log, public.ai_queue to service_role;
+        grant execute on function public.ai_reserve(uuid, text, boolean), public.ai_enqueue(uuid), public.ai_user_status(uuid), public.ai_dequeue(uuid),
+            public.ai_usage_summary(), public.admin_stats() to service_role;
     end if;
 end;
 $$;
