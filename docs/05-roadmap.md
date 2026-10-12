@@ -94,9 +94,13 @@ laptops and large monitors. Core worship features are, and will stay, free.
   flickers; one list of MSA admins who post and manage, adding students and admins in the app; a better Manage
   page. Full notes: [`release-notes/2.11.8.md`](release-notes/2.11.8.md)
 
+- **3.0.0-beta — SalaamStreet AI (Beta):** an Islamic assistant for everyone with a free account, with commands
+  that use your own bookmarks and progress, a daily allowance per person, and a fair waiting list when it's busy.
+  Full notes: [`release-notes/3.0.0-beta.md`](release-notes/3.0.0-beta.md)
+
 ## Planned (no release dates; plans may change)
 
-The plan after 2.11.8 lives in [`ROADMAP.md`](../ROADMAP.md) (with status, dependencies, risks and completion
+The plan after 3.0 Beta lives in [`ROADMAP.md`](../ROADMAP.md) (with status, dependencies, risks and completion
 criteria for each release). The same list appears in the app under About → Updates (`SS.ROADMAP` in
 `js/content.js`).
 

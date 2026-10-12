@@ -49,7 +49,10 @@ function pgStore(pg, getUser) {
       const sets = keys.map((k, i) => `${k} = $${i + 1}`).concat([`updated_at = now()`, `updated_by = $${keys.length + 1}`]);
       return (await q(`update public.ai_settings set ${sets.join(", ")} where id returning *`, keys.map((k) => patch[k]).concat([uid]))).rows[0];
     },
-    reserve: async (uid, kind) => (await q("select public.ai_reserve($1, $2) as r", [uid, kind])).rows[0].r,
+    reserve: async (uid, kind, admin) => (await q("select public.ai_reserve($1, $2, $3) as r", [uid, kind, !!admin])).rows[0].r,
+    enqueue: async (uid) => (await q("select public.ai_enqueue($1) as r", [uid])).rows[0].r,
+    dequeue: async (uid) => { await q("select public.ai_dequeue($1)", [uid]); },
+    userStatus: async (uid) => (await q("select public.ai_user_status($1) as r", [uid])).rows[0].r,
     finish: async (id, patch) => {
       const keys = Object.keys(patch);
       await q(`update public.ai_usage set ${keys.map((k, i) => `${k} = $${i + 1}`).join(", ")} where id = $${keys.length + 1}`, keys.map((k) => patch[k]).concat([id]));

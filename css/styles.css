@@ -2050,6 +2050,11 @@ html[data-theme="dark"] .msa-flag-note{color:#fcd34d}
 .lab-cmds .chip{font-family:var(--mono,ui-monospace,monospace);font-size:.8rem}
 .lab-data{display:flex;align-items:center;gap:8px;font-size:.85rem;margin:8px 0 0;cursor:pointer}
 .lab-local .lab-bubble{white-space:pre-line;border:1px dashed var(--text-3)}
+.ai-beta{vertical-align:middle;font-size:.7rem;margin-inline-start:6px}
+.ai-quota{margin:0 0 8px}
+.lab-wait .lab-bubble{white-space:normal;border:1px solid var(--gold);display:grid;gap:6px;justify-items:start}
+.lab-wait .lab-bubble p{margin:0}
+.lab-wait-pos{font-size:1.05rem}
 .lab-count.over{color:var(--danger);font-weight:700}
 .lab-hint,.lab-session,.lab-small{font-size:.8rem;margin:6px 0 0}
 .lab-session:empty{display:none}

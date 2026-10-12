@@ -1,5 +1,6 @@
 // SalaamStreet — ai-lab (Supabase Edge Function, Deno)
-// The private AI Testing Lab's backend: the admin's real Gemini conversations.
+// SalaamStreet AI (3.0 Beta, for everyone with an account) and the admin's
+// private AI Testing Lab.
 // All the checks live in core.js (shared with the tests); this file connects
 // them to Supabase. See backend/README-ai.md for setup.
 //
@@ -30,7 +31,12 @@ const store = {
     return must(await db.from("ai_settings").update({ ...patch, updated_at: new Date().toISOString(), updated_by: userId })
       .eq("id", true).select("*").single());
   },
-  async reserve(userId: string, kind: string) { return must(await db.rpc("ai_reserve", { p_user: userId, p_kind: kind })); },
+  async reserve(userId: string, kind: string, admin: boolean) {
+    return must(await db.rpc("ai_reserve", { p_user: userId, p_kind: kind, p_admin: !!admin }));
+  },
+  async enqueue(userId: string) { return must(await db.rpc("ai_enqueue", { p_user: userId })); },
+  async dequeue(userId: string) { must(await db.rpc("ai_dequeue", { p_user: userId })); },
+  async userStatus(userId: string) { return must(await db.rpc("ai_user_status", { p_user: userId })); },
   async finish(id: number, patch: Record<string, unknown>) { must(await db.from("ai_usage").update(patch).eq("id", id)); },
   async summary() { return must(await db.rpc("ai_usage_summary")); },
   async stats() { return must(await db.rpc("admin_stats")); },

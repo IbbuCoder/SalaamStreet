@@ -2049,7 +2049,7 @@ test("google sign-in always asks which account to use", async () => {
 /* ═══════════ AI Testing Lab (private) ═══════════
    The page talks to the REAL ai-lab server code (core.js, with its Postgres
    tables in PGlite) through the Supabase mock; only Gemini is a stand-in. */
-test("ai lab: the admin's Google account chats through the server's checks; anyone else is refused", async () => {
+test("ai lab + SalaamStreet AI beta: the admin's Lab, everyone else's #/ai with its allowance and waiting list", async () => {
   const crypto = require("crypto");
   const { aiDb, pgStore, fakeGemini } = require("./helpers/ai-lab-store");
   const { createHandler } = await import(path.join(ROOT, "backend/functions/ai-lab/core.js"));
@@ -2067,7 +2067,8 @@ test("ai lab: the admin's Google account chats through the server's checks; anyo
   A.page.on("dialog", (d) => d.accept());
   await open(A.page, "#/home");
   assert.equal(await A.page.$$eval('a[href="#/lab"]', (a) => a.length), 0, "not linked from any menu");
-  assert.equal(await A.page.evaluate(() => !!window.SS.labView), false, "its script isn't loaded on other pages");
+  assert.equal(await A.page.evaluate(() => !!window.SS.aiPage), false, "its script isn't loaded on other pages");
+  assert.ok(await A.page.$$eval('a[href="#/ai"]', (a) => a.length) >= 2, "SalaamStreet AI is in the menus");
   await A.page.evaluate(() => { location.hash = "#/lab"; });
   await A.page.waitForSelector("#lab-signin");
   await A.page.click("#lab-signin");
@@ -2076,7 +2077,8 @@ test("ai lab: the admin's Google account chats through the server's checks; anyo
   if (!/#\/lab/.test(A.page.url())) await A.page.evaluate(() => { location.hash = "#/lab"; });
   await A.page.waitForSelector("#lab-app:not([hidden])", { timeout: 10000 });
   assert.match(await A.page.textContent("#lab-badges"), /AI requests on.*Gemini key set.*Model: gemini-3\.5-flash-lite/);
-  assert.match(await A.page.textContent("#lab-stats"), /0 \/ 50/);
+  assert.match(await A.page.textContent("#lab-stats"), /0 \/ 1,000/);
+  assert.match(await A.page.textContent("#lab-badges"), /Beta open/);
   assert.equal(await A.page.title(), "AI Testing Lab — SalaamStreet");
   await A.page.waitForFunction(() => /Accounts/.test(document.getElementById("lab-app-stats").textContent));
 
@@ -2087,7 +2089,7 @@ test("ai lab: the admin's Google account chats through the server's checks; anyo
   assert.equal(await A.page.textContent(".lab-msg.me .lab-bubble"), "What are the pillars of Islam?");
   assert.equal(await A.page.textContent(".lab-msg.ai .lab-bubble"), "Test reply to: What are the pillars of Islam?");
   assert.match(await A.page.textContent(".lab-msg.ai .lab-meta"), /gemini-3\.5-flash-lite · 1,300 tokens · ~\$0\.001\d if paid/);
-  await A.page.waitForFunction(() => /1 \/ 50/.test(document.getElementById("lab-stats").textContent));
+  await A.page.waitForFunction(() => /1 \/ 1,000/.test(document.getElementById("lab-stats").textContent));
   // The second turn carries the history.
   await A.page.fill("#lab-input", "And the first one?");
   await A.page.click("#lab-send");
@@ -2176,7 +2178,7 @@ test("ai lab: the admin's Google account chats through the server's checks; anyo
   assert.deepEqual(toGoogle, []);
   assert.deepEqual(A.page.errors, []);
 
-  // Another account (Apple here) is refused by the server, whatever the page does.
+  // Another account (Apple here) can't use the Lab, whatever the page does…
   const B = await device({ mock });
   await open(B.page, "#/account");
   await B.page.click("#ac-signin");
@@ -2185,13 +2187,52 @@ test("ai lab: the admin's Google account chats through the server's checks; anyo
   await B.page.evaluate(() => { location.hash = "#/lab"; });
   await B.page.waitForFunction(() => /can.t use the AI Testing Lab/.test((document.getElementById("lab-gate") || {}).textContent || ""));
   assert.equal(await B.page.isHidden("#lab-app"), true);
-  // Even calling the server directly with this account's own session gets nothing.
+  // Even calling the server directly with this account's own session gets nothing from the Lab.
   const direct = await B.page.evaluate(() => SS.account.client().then((c) => c.auth.getSession()).then((r) =>
     fetch(SS.CONFIG.supabaseUrl + "/functions/v1/ai-lab", { method: "POST", headers: { authorization: "Bearer " + r.data.session.access_token, "content-type": "application/json" },
-      body: JSON.stringify({ action: "chat", messages: [{ role: "user", text: "hi" }] }) }).then((x) => x.status)));
+      body: JSON.stringify({ action: "status" }) }).then((x) => x.status)));
   assert.equal(direct, 403);
-  const calls = g.calls.length;
-  assert.equal(calls, 5, "two chats, /bookmarks, the quota-error try and one connection test reached Gemini; nothing from the other account");
+  assert.equal(g.calls.length, 5, "two chats, /bookmarks, the quota-error try and one connection test reached Gemini; nothing from the other account");
+
+  // …but, like everyone with an account, it can use SalaamStreet AI (Beta) at #/ai.
+  await pg.query("update public.ai_usage set at = at - interval '2 minutes'");
+  await pg.query("update public.ai_settings set user_daily_limit = 5, minute_limit = 1");
+  await B.page.evaluate(() => { location.hash = "#/ai"; });
+  await B.page.waitForSelector("#lab-app:not([hidden]) #ai-quota");
+  assert.equal(await B.page.title(), "SalaamStreet AI — SalaamStreet");
+  assert.match(await B.page.textContent("#lab-h"), /SalaamStreet AI\s*Beta/);
+  assert.match(await B.page.textContent("#ai-quota"), /5 of 5 questions left today/);
+  assert.equal(await B.page.$$eval("#lab-settings, #lab-badges, #lab-app-stats", (e) => e.length), 0, "none of the Lab's admin tools");
+  await B.page.fill("#lab-input", "What is Laylat al-Qadr?");
+  await B.page.press("#lab-input", "Enter");
+  await B.page.waitForSelector(".lab-msg.ai:not(.lab-wait) .lab-bubble:not(.lab-typing)");
+  assert.equal(await B.page.textContent(".lab-msg.ai .lab-bubble"), "Test reply to: What is Laylat al-Qadr?");
+  assert.equal(await B.page.textContent(".lab-msg.ai .lab-meta span"), "", "no tokens or costs for everyone else");
+  await B.page.waitForFunction(() => /4 of 5 questions left/.test(document.getElementById("ai-quota").textContent));
+
+  // Busy (one request a minute here): the next question waits in line, then goes by itself.
+  await B.page.fill("#lab-input", "And which nights is it sought in?");
+  await B.page.press("#lab-input", "Enter");
+  await B.page.waitForSelector(".lab-wait");
+  assert.match(await B.page.textContent(".lab-wait"), /You.re number 1 in line/);
+  assert.equal(await B.page.isDisabled("#lab-send"), true);
+  assert.equal((await pg.query("select count(*)::int as n from public.ai_queue")).rows[0].n, 1);
+  // "Leave the line" gives the question back and the place up…
+  await B.page.click(".lab-wait [data-leave]");
+  await B.page.waitForFunction(() => !document.querySelector(".lab-wait"));
+  assert.equal(await B.page.inputValue("#lab-input"), "And which nights is it sought in?");
+  await B.page.waitForFunction(() => /You left the line/.test(document.getElementById("lab-err").textContent));
+  // …and asking again rejoins; once there's room it's answered without doing anything.
+  await B.page.press("#lab-input", "Enter");
+  await B.page.waitForSelector(".lab-wait");
+  await pg.query("update public.ai_usage set at = at - interval '2 minutes'");
+  await B.page.waitForFunction(() => document.querySelectorAll(".lab-msg.ai:not(.lab-wait) .lab-bubble:not(.lab-typing)").length === 2, null, { timeout: 15000 });
+  assert.equal(await B.page.$$eval(".lab-msg.ai .lab-bubble", (b) => b[1].textContent), "Test reply to: And which nights is it sought in?");
+  assert.equal(await B.page.$$eval(".lab-msg.me", (m) => m.length), 2, "the question is shown once");
+  assert.equal((await pg.query("select count(*)::int as n from public.ai_queue")).rows[0].n, 0);
+  await B.page.waitForFunction(() => /3 of 5 questions left/.test(document.getElementById("ai-quota").textContent));
+  assert.equal(await B.page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true, "fits a phone");
+  await shot(B.page, "ai-beta-390");
   assert.deepEqual(B.page.errors, []);
   await A.context.close(); await B.context.close();
   await pg.close();
