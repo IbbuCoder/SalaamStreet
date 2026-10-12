@@ -186,6 +186,43 @@ Or directly in SQL: `update public.ai_settings set enabled = false;`
   API plan and Google's terms; this app doesn't claim Google stores nothing.
 - No API keys or session tokens are logged. Server logs only record error codes.
 
+## Islamic questions only
+
+The system prompt (`SYSTEM_PROMPT` in `core.js`) limits the assistant to Islam
+and Islamic topics, plus the person's own SalaamStreet data and how to use the
+app. Anything else (general coding, maths, news, sport and so on) gets a short,
+kind refusal and a suggestion for an Islamic question instead. This is done
+with instructions, not by retraining Gemini. That's the practical way to set
+the scope, but it isn't watertight, so a determined user can sometimes get
+around it. To change the scope, edit the list in `SYSTEM_PROMPT` and redeploy
+`ai-lab`.
+
+## App data and commands
+
+With **Use my app data** ticked (the default), each message carries a short
+JSON summary of this device's data: bookmarks (with notes and folders, newest
+80), last-read ayah, Qur'an progress, dhikr streak, the last 7 days of the
+prayer log and favourite duas. The page builds it (`appData()` in
+`js/ai-lab.js`) and only reads storage, never writes. The server checks it's
+an object of at most 20,000 characters and gives it to Gemini as data, never
+as instructions. It goes to Google like the messages do, and SalaamStreet
+doesn't store it.
+
+Commands (type them, or tap the chips above the box):
+
+| Command | What it does |
+| --- | --- |
+| `/help` | Lists the commands (answered on the page, not sent to Gemini) |
+| `/bookmarks` | Themes and reflections from your bookmarked ayahs |
+| `/ayah 2:255` | Explains an ayah, sending the Arabic and translation from the app |
+| `/progress` | How you're doing with Qur'an, prayers and dhikr, with next steps |
+| `/plan 30` | A plan to finish the Qur'an in N days from where you are |
+| `/dua exams` | Duas for a need, pointing out your favourites |
+| `/quiz seerah` | A 5-question quiz, one question at a time |
+| `/reflect` | A short reflection on your last-read ayah |
+
+To add a command, add an entry to `COMMANDS` in `js/ai-lab.js`.
+
 ## Accuracy rules the model is given
 
 Every request carries a fixed instruction (`SYSTEM_PROMPT` in `core.js`): never

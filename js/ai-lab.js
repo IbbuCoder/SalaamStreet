@@ -9,7 +9,12 @@
      own Supabase session token and nothing else.
    • The conversation lives in this page's memory only: it's gone on reload,
      "New conversation" or "Clear", and is never saved on the device or the
-     server. English only, like other admin tools. */
+     server. English only, like other admin tools.
+   • The assistant only answers Islamic questions (the rule lives in the
+     server's system prompt). With "Use my app data" on, each message also
+     carries a short summary of this device's SalaamStreet data (bookmarks,
+     reading progress, prayers, dhikr) so answers can be personal. Slash
+     commands (/help) build ready-made prompts from that data. */
 (function () {
   "use strict";
   window.SS = window.SS || {};
@@ -24,7 +29,109 @@
     status: null,      // the server's last status reply
     session: { tokens: 0, cost: 0, requests: 0 },
     waitTimer: 0,
+    useData: true,     // attach appData() to each message
   };
+
+  /* ── The person's app data ────────────────────────────────────── */
+  function get(k, d) { var v = SS.store.get(k, d); return v == null ? d : v; }
+  function surahName(n) { var s = (SS.SURAHS || [])[n - 1]; return s ? s.en : "Surah " + n; }
+  function ref(key) { var p = String(key).split(":"); return surahName(+p[0]) + " " + p[0] + ":" + p[1]; }
+  function day(d) { return SS.localDate ? SS.localDate(d) : d.toISOString().slice(0, 10); }
+  /** A compact, bounded summary of what this device has stored. */
+  function appData() {
+    var bm = get("quran:bookmarks", {}), keys = Object.keys(bm).sort(function (a, b) { return ((bm[b] && bm[b].at) || 0) - ((bm[a] && bm[a].at) || 0); });
+    var prog = get("quran:progress", {}), read = 0, done = 0;
+    (SS.SURAHS || []).forEach(function (s) { var a = Math.min(+prog[s.n] || 0, s.ayahs); read += a; if (a >= s.ayahs) done++; });
+    var last = get("quran:lastRead", null), streak = get("dhikr:streak", null), log = get("prayers:log", {});
+    var week = {};
+    for (var i = 6; i >= 0; i--) { var d = day(new Date(Date.now() - i * 864e5)); week[d] = Object.keys(log[d] || {}); }
+    var favs = get("duas:favorites", {});
+    return {
+      today: day(new Date()),
+      bookmarks: keys.slice(0, 80).map(function (k) {
+        var e = bm[k] || {}, o = { ref: ref(k) };
+        if (e.note) o.note = String(e.note).slice(0, 200);
+        if (e.folder) o.folder = e.folder;
+        if (e.at) o.saved = day(new Date(e.at));
+        return o;
+      }),
+      bookmark_count: keys.length,
+      last_read: last && last.surah ? ref(last.surah + ":" + (last.ayah || 1)) : null,
+      quran_progress: { ayahs_read: read, of: 6236, percent: Math.round(read / 6236 * 1000) / 10, surahs_completed: done },
+      dhikr_streak: streak ? { current: streak.current || 0, longest: streak.longest || 0, last_day: streak.lastDate || null } : null,
+      prayers_logged_last_7_days: week,
+      favourite_duas: (SS.DUAS || []).filter(function (x) { return favs[x.id]; }).slice(0, 40).map(function (x) { return x.titleEn; }),
+    };
+  }
+
+  /* ── Slash commands ───────────────────────────────────────────── */
+  /** Global ayah number (1–6236) for "2:255", or 0. */
+  function globalAyah(sur, ay) {
+    var list = SS.SURAHS || [], g = 0;
+    if (!(sur >= 1 && sur <= list.length) || !(ay >= 1 && ay <= list[sur - 1].ayahs)) return 0;
+    for (var i = 0; i < sur - 1; i++) g += list[i].ayahs;
+    return g + ay;
+  }
+  /** A prompt about one ayah, with its text loaded by the app when possible; null if the ayah doesn't exist. */
+  function ayahPrompt(sur, ay, ask) {
+    var g = globalAyah(sur, ay);
+    if (!g) return null;
+    var head = ref(sur + ":" + ay) + ". " + ask;
+    return SS.api.ayah(g).then(function (a) {
+      return { prompt: head + "\n\nText from the app (quote it exactly if you quote it):\n" + a.arabic + "\n" + a.translation };
+    }, function () {
+      return { prompt: head + " (The app couldn't load the text, so don't quote it word for word.)" };
+    });
+  }
+  var COMMANDS = [
+    { name: "help", hint: "list the commands" },
+    { name: "bookmarks", hint: "themes and reflections from your bookmarked ayahs", data: true,
+      run: function () {
+        if (!Object.keys(get("quran:bookmarks", {})).length) return { local: "You haven't bookmarked any ayahs on this device yet. Bookmark some in the Qur'an, then try /bookmarks again." };
+        return { prompt: "Look at my bookmarked ayahs (and my notes and folders on them). Group them into themes, give a short reflection for each theme, and suggest one ayah to revisit this week and why." };
+      } },
+    { name: "ayah", args: "2:255", hint: "explain an ayah, with its text from the app",
+      run: function (arg) {
+        var m = String(arg || "").match(/^(\d{1,3})\s*[:.\s]\s*(\d{1,3})$/);
+        return (m && ayahPrompt(+m[1], +m[2], "Explain it for me: its meaning, its context, the main lessons, and how I can act on it today."))
+          || { local: "Give an ayah like /ayah 2:255 (surah:ayah)." };
+      } },
+    { name: "progress", hint: "how you're doing, and a next step", data: true,
+      run: function () { return { prompt: "Using my app data, summarise how I'm doing with the Qur'an, my prayers this week and my dhikr streak. Be encouraging and honest, and give me one small, specific next step for each." }; } },
+    { name: "plan", args: "30", hint: "a Qur'an reading plan from where you are", data: true,
+      run: function (arg) {
+        var days = Math.min(365, Math.max(1, parseInt(arg, 10) || 30));
+        return { prompt: "Make me a Qur'an reading plan to finish the rest of the Qur'an in " + days + " days, starting from my progress and last-read position. Give a daily amount and a simple weekly checklist, and tips for staying consistent." };
+      } },
+    { name: "dua", args: "anxiety", hint: "duas for a need (checks your favourites)", data: true,
+      run: function (arg) {
+        if (!arg) return { local: "Say what the dua is for, like /dua exams or /dua anxiety." };
+        return { prompt: "Suggest authentic duas for: " + arg + ". Mention any of my favourite duas that fit. For each, give the source if you're confident, and say it's from memory and should be checked." };
+      } },
+    { name: "quiz", args: "seerah", hint: "a short quiz on an Islamic topic",
+      run: function (arg) { return { prompt: "Give me a 5-question multiple-choice quiz on " + (arg || "a mix of basic Islamic knowledge") + ". Ask one question at a time and wait for my answer before telling me if I'm right and asking the next." }; } },
+    { name: "reflect", hint: "a short reflection on your last-read ayah",
+      run: function () {
+        var l = get("quran:lastRead", null);
+        return (l && ayahPrompt(+l.surah, +l.ayah || 1, "I read this most recently. Give me a short, heartfelt reflection on it (under 150 words) and one question to think about."))
+          || { local: "There's no last-read position on this device yet. Read a little in the Qur'an, then try /reflect again." };
+      } },
+  ];
+  function findCommand(name) { for (var i = 0; i < COMMANDS.length; i++) if (COMMANDS[i].name === name) return COMMANDS[i]; return null; }
+  function helpText() {
+    return "Commands (they use this device's SalaamStreet data):\n" + COMMANDS.map(function (c) {
+      return "/" + c.name + (c.args ? " " + c.args : "") + " — " + c.hint;
+    }).join("\n") + "\n\nI only answer Islamic questions. Turn off “Use my app data” to stop sending your data with messages.";
+  }
+  /** "/cmd args" → Promise<{ prompt, data? } | { local }>; plain text → { prompt: text }. */
+  function expand(text) {
+    var m = text.match(/^\/([a-z]+)\b\s*([\s\S]*)$/i);
+    if (!m) return Promise.resolve({ prompt: text });
+    var name = m[1].toLowerCase(), c = findCommand(name === "verse" ? "ayah" : name);
+    if (!c) return Promise.resolve({ local: "Unknown command /" + name + ". Type /help to see them all." });
+    if (!c.run) return Promise.resolve({ local: helpText() });
+    return Promise.resolve(c.run(m[2].trim())).then(function (r) { r.data = !!c.data; return r; });
+  }
 
   /* ── Server ───────────────────────────────────────────────────── */
   function fnUrl() { return CFG.supabaseUrl.replace(/\/+$/, "") + "/functions/v1/ai-lab"; }
@@ -86,7 +193,7 @@
     root.setAttribute("data-ready", "1");
     root.innerHTML =
       '<header class="page-head lab-head"><span class="lab-logo" aria-hidden="true">' + icon("sparkle") + '</span>' +
-      '<div><h1 id="lab-h" tabindex="-1">AI Testing Lab</h1><p>Private · admin only. Real Gemini replies — check anything important against trusted sources.</p></div></header>' +
+      '<div><h1 id="lab-h" tabindex="-1">AI Testing Lab</h1><p>Private · admin only. Islamic questions only. Real Gemini replies — check anything important against trusted sources.</p></div></header>' +
       '<div id="lab-gate" aria-live="polite"></div>' +
       '<div id="lab-app" class="stack" hidden>' +
         '<section class="card lab-status" aria-labelledby="lab-st-h">' +
@@ -109,9 +216,13 @@
           '<p class="lab-err" id="lab-err" role="alert" hidden></p>' +
           '<form class="lab-form" id="lab-form">' +
             '<label class="visually-hidden" for="lab-input">Message</label>' +
-            '<textarea class="input lab-input" id="lab-input" rows="3" placeholder="Ask anything — an Islamic question, tafsir help, schoolwork, planning…" autocomplete="off"></textarea>' +
+            '<div class="lab-cmds" id="lab-cmds" role="group" aria-label="Commands">' + COMMANDS.map(function (c) {
+              return '<button class="chip" type="button" data-cmd="' + c.name + '" title="' + esc(c.hint) + '">/' + c.name + "</button>";
+            }).join("") + "</div>" +
+            '<textarea class="input lab-input" id="lab-input" rows="3" placeholder="Ask an Islamic question, or type / for commands (/help)…" autocomplete="off"></textarea>' +
             '<div class="row-between lab-form-foot"><span class="muted lab-count" id="lab-count"></span>' +
             '<button class="btn" id="lab-send" type="submit">' + icon("next") + '<span>Send</span></button></div>' +
+            '<label class="lab-data muted"><input type="checkbox" id="lab-usedata" checked /> Use my app data (bookmarks, progress, prayers, dhikr) to personalise answers</label>' +
             '<p class="muted lab-hint">Enter sends · Shift+Enter adds a line · This conversation is kept on this page only.</p>' +
           '</form>' +
           '<p class="muted lab-session" id="lab-session"></p>' +
@@ -145,6 +256,15 @@
       if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); }
     });
     $("lab-input").addEventListener("input", count);
+    $("lab-usedata").onchange = function () { st.useData = this.checked; };
+    $("lab-cmds").onclick = function (e) {
+      var b = e.target.closest("[data-cmd]");
+      if (!b) return;
+      var c = findCommand(b.getAttribute("data-cmd")), input = $("lab-input");
+      input.value = "/" + c.name + (c.args ? " " : "");
+      if (!c.args) { send(); return; }
+      input.focus(); count();
+    };
     $("lab-new").onclick = function () {
       if (st.busy) return;
       if (st.msgs.length && !confirm("Start a new conversation? This one isn't saved anywhere.")) return;
@@ -309,11 +429,12 @@
   function drawLog() {
     var log = $("lab-log");
     if (!st.msgs.length && !st.busy) {
-      log.innerHTML = '<div class="lab-empty muted">' + icon("sparkle") + "<p>Start a conversation. Try an Islamic question, ask for help with a surah’s tafsir, compare scholarly opinions, or get help with schoolwork or a plan.</p></div>";
+      log.innerHTML = '<div class="lab-empty muted">' + icon("sparkle") + "<p>Ask an Islamic question — tafsir, hadith, fiqh opinions, seerah, duas — or try a command like /bookmarks, /ayah 2:255 or /progress. Type /help for them all.</p></div>";
       return;
     }
     log.innerHTML = st.msgs.map(function (m, i) {
-      if (m.role === "user") return '<div class="lab-msg me"><div class="lab-bubble">' + esc(m.text) + "</div></div>";
+      if (m.role === "user") return '<div class="lab-msg me"><div class="lab-bubble">' + esc(m.shown || m.text) + "</div></div>";
+      if (m.local) return '<div class="lab-msg ai lab-local"><div class="lab-bubble">' + rich(m.text) + "</div></div>";
       var meta = m.meta || {};
       var bits = [meta.model, meta.usage && meta.usage.total != null ? int(meta.usage.total) + " tokens" : "tokens not reported",
         meta.cost_usd != null ? "~" + money(meta.cost_usd) + " if paid" : "", meta.latency_ms ? (meta.latency_ms / 1000).toFixed(1) + " s" : ""].filter(Boolean);
@@ -334,12 +455,32 @@
     var max = st.status ? st.status.settings.max_input_chars : 0;
     if (max && text.length > max) { showErr("That message is " + text.length + " characters; the limit is " + max + "."); return; }
     showErr("");
-    st.msgs.push({ role: "user", text: text });
     input.value = ""; count();
     st.busy = true;
     $("lab-send").disabled = true;
-    drawLog();
-    api("chat", { messages: st.msgs.map(function (m) { return { role: m.role, text: m.text }; }) }).then(function (r) {
+    expand(text).then(function (x) {
+      if (x.local) {
+        // Answered on this page: shown, but never sent to Gemini.
+        st.msgs.push({ role: "user", text: text, local: true }, { role: "model", text: x.local, local: true });
+        st.busy = false; $("lab-send").disabled = false;
+        drawLog();
+        return;
+      }
+      if (x.data && !st.useData) {
+        st.busy = false; $("lab-send").disabled = false;
+        input.value = text; count();
+        showErr("This command needs your app data. Turn on “Use my app data” first.");
+        return;
+      }
+      st.msgs.push({ role: "user", text: x.prompt, shown: text });
+      drawLog();
+      ask(input);
+    });
+  }
+  function ask(input) {
+    var extra = { messages: st.msgs.filter(function (m) { return !m.local; }).map(function (m) { return { role: m.role, text: m.text }; }) };
+    if (st.useData) { try { extra.context = appData(); } catch (_) { /* send without it */ } }
+    api("chat", extra).then(function (r) {
       st.busy = false;
       if (r.ok) {
         st.msgs.push({ role: "model", text: r.text, meta: r });
@@ -350,7 +491,7 @@
       } else {
         // Put the question back so it can be sent again.
         var mine = st.msgs.pop();
-        if (!input.value) { input.value = mine.text; count(); }
+        if (!input.value) { input.value = mine.shown || mine.text; count(); }
         showErr((r.message || "The request failed.") + (r.provider ? " Google said: " + r.provider : ""));
         if (r.error === "signed_out" || r.error === "invalid_session" || r.error === "forbidden") loadStatus();
       }

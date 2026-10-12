@@ -2097,6 +2097,31 @@ test("ai lab: the admin's Google account chats through the server's checks; anyo
   await A.page.click('.lab-msg.ai [data-copy="1"]');
   await A.page.waitForFunction(() => navigator.clipboard.readText().then((t) => t === "Test reply to: What are the pillars of Islam?"));
 
+  // Slash commands: /help answers on the page; /bookmarks sends a ready-made prompt plus the app data.
+  await A.page.evaluate(() => SS.store.set("quran:bookmarks", { "2:255": { at: Date.now(), note: "Ayat al-Kursi", folder: "Protection" } }));
+  await A.page.fill("#lab-input", "/help");
+  await A.page.press("#lab-input", "Enter");
+  await A.page.waitForSelector(".lab-local .lab-bubble");
+  assert.match(await A.page.textContent(".lab-local:last-child .lab-bubble"), /\/bookmarks .*\n.*\/ayah 2:255/s);
+  assert.equal(g.calls.filter((c) => /generateContent/.test(c.url)).length, 2, "/help never reaches Gemini");
+  await pg.query("update public.ai_usage set at = at - interval '2 minutes'");
+  await A.page.click('#lab-cmds [data-cmd="bookmarks"]');
+  await A.page.waitForFunction(() => document.querySelectorAll(".lab-msg.ai:not(.lab-local) .lab-bubble:not(.lab-typing)").length === 3);
+  const bmCall = g.calls[g.calls.length - 1];
+  assert.match(bmCall.body.contents.slice(-1)[0].parts[0].text, /my bookmarked ayahs/);
+  assert.equal(bmCall.body.contents.length, 5, "local /help turns aren't sent");
+  assert.match(bmCall.body.systemInstruction.parts[1].text, /"ref":"Al-Baqarah 2:255","note":"Ayat al-Kursi","folder":"Protection"/);
+  assert.equal(await A.page.$$eval(".lab-msg.me .lab-bubble", (b) => b[b.length - 1].textContent), "/bookmarks");
+  // With app data off, data commands ask for it first and nothing is sent.
+  await A.page.uncheck("#lab-usedata");
+  await A.page.fill("#lab-input", "/progress");
+  await A.page.press("#lab-input", "Enter");
+  await A.page.waitForFunction(() => /needs your app data/.test(document.getElementById("lab-err").textContent));
+  assert.equal(await A.page.inputValue("#lab-input"), "/progress");
+  await A.page.check("#lab-usedata");
+  await A.page.fill("#lab-input", "");
+  await pg.query("update public.ai_usage set at = at - interval '2 minutes'");
+
   // Connection test.
   await A.page.click("#lab-test");
   await A.page.waitForFunction(() => /Connected\. gemini-3\.5-flash-lite \(Fake Gemini\)/.test(document.getElementById("lab-test-out").textContent));
@@ -2108,7 +2133,7 @@ test("ai lab: the admin's Google account chats through the server's checks; anyo
   await A.page.waitForSelector("#lab-err:not([hidden])");
   assert.match(await A.page.textContent("#lab-err"), /quota/i);
   assert.equal(await A.page.inputValue("#lab-input"), "Explain tafsir of Al-Fatiha");
-  assert.equal(await A.page.$$eval(".lab-msg.me", (m) => m.length), 2);
+  assert.equal(await A.page.$$eval(".lab-msg.me", (m) => m.length), 4);
   await pg.query("update public.ai_usage set at = at - interval '2 minutes'"); // past the per-minute limit
 
   // The server can't be reached.
@@ -2166,7 +2191,7 @@ test("ai lab: the admin's Google account chats through the server's checks; anyo
       body: JSON.stringify({ action: "chat", messages: [{ role: "user", text: "hi" }] }) }).then((x) => x.status)));
   assert.equal(direct, 403);
   const calls = g.calls.length;
-  assert.equal(calls, 4, "two chats, the quota-error try and one connection test reached Gemini; nothing from the other account");
+  assert.equal(calls, 5, "two chats, /bookmarks, the quota-error try and one connection test reached Gemini; nothing from the other account");
   assert.deepEqual(B.page.errors, []);
   await A.context.close(); await B.context.close();
   await pg.close();
