@@ -1680,9 +1680,12 @@ begin
             where user_id = p_user and kind = 'chat' and status <> 'error'
               and at >= date_trunc('day', now() at time zone 'UTC') at time zone 'UTC';
         if mine >= s.user_daily_limit then
+            delete from public.ai_queue where user_id = p_user; -- out of questions: don't hold up the line
             return jsonb_build_object('ok', false, 'reason', 'user_limit', 'used', mine, 'limit', s.user_daily_limit);
         end if;
-        if (select count(*) from public.ai_usage where user_id = p_user and at > now() - interval '1 minute') >= 3 then
+        -- Requests Google refused as too busy aren't the person's doing, so they don't count here.
+        if (select count(*) from public.ai_usage where user_id = p_user and status <> 'error' and at > now() - interval '1 minute') >= 3 then
+            delete from public.ai_queue where user_id = p_user;
             return jsonb_build_object('ok', false, 'reason', 'user_rate_limit');
         end if;
     end if;

@@ -395,6 +395,7 @@ test("beta: any signed-in account chats, with its own daily allowance; failed re
   const over = await chat("p1", "one more");
   assert.equal(over.status, 429);
   assert.equal(over.body.error, "user_limit");
+  assert.equal((await one(pg, "select count(*)::int as n from public.ai_queue")).n, 0, "out of questions: not left holding a place in line");
   assert.match(over.body.message, /all 2 of today's questions/);
   assert.equal((await chat("p2", "Salaam")).status, 200, "someone else still has theirs");
   // The admin has no personal allowance.
@@ -457,12 +458,21 @@ test("beta: when it's busy, people wait in line in order, keep their place, and 
 });
 
 test("beta: if Google itself is too busy, the person is put in line instead of getting an error", async () => {
-  const { g, chat } = await setup();
+  const { g, chat, call } = await setup();
+  await call("admin", { action: "settings", patch: { minute_limit: 100 } });
   g.next = { status: 429, json: { error: { message: "Quota exceeded", status: "RESOURCE_EXHAUSTED" } } };
   const r = await chat("p1", "hi");
   assert.equal(r.status, 202, r.text);
   assert.equal(r.body.error, "queued");
   assert.equal(r.body.position, 1);
+  // Google stays busy: retrying keeps them in line (never "slow down"), and nothing counts against their allowance.
+  for (let i = 0; i < 4; i++) {
+    g.next = { status: 429, json: { error: { message: "Quota exceeded", status: "RESOURCE_EXHAUSTED" } } };
+    const again = await chat("p1", "hi");
+    assert.equal(again.body.error, "queued", "try " + i);
+    assert.equal(again.body.position, 1);
+  }
+  assert.equal((await call("p1", { action: "me" })).body.used_today, 0);
   // The admin still sees Google's own error.
   g.next = { status: 429, json: { error: { message: "Quota exceeded", status: "RESOURCE_EXHAUSTED" } } };
   assert.equal((await chat("admin", "hi")).body.error, "provider_quota");
