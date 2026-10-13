@@ -2056,7 +2056,7 @@ test("ai lab + SalaamStreet AI beta: the admin's Lab, everyone else's #/ai with 
   const KEY = "AIzaE2E-fake-key-for-tests-0000000000";
   const mock = createMock();
   const pg = await aiDb(), g = fakeGemini();
-  const env = { GEMINI_API_KEY: KEY, AI_ALLOWED_ORIGINS: base.replace(/\/$/, ""),
+  const env = { GEMINI_API_KEY: KEY, AI_ALLOWED_ORIGINS: base.replace(/\/$/, ""), AI_TIMEOUT_MS: "1500", AI_RETRY_PAUSE_MS: "1",
     AI_ADMIN_EMAIL_SHA256: crypto.createHash("sha256").update("google-user@example.com").digest("hex") };
   mock.functions["ai-lab"] = createHandler({ env: (k) => env[k], fetch: g.fetch, store: pgStore(pg, (t) => mock.userForToken(t)), log: { warn() {} } });
 
@@ -2244,6 +2244,21 @@ test("ai lab + SalaamStreet AI beta: the admin's Lab, everyone else's #/ai with 
   assert.equal((await pg.query("select count(*)::int as n from public.ai_queue")).rows[0].n, 0);
   await B.page.waitForFunction(() => /3 of 5 questions left/.test(document.getElementById("ai-quota").textContent));
 
+  // Google has a hiccup twice in a row: a plain message and "Try again", which then works.
+  await pg.query("update public.ai_usage set at = at - interval '2 minutes'");
+  await pg.query("update public.ai_settings set user_daily_limit = 20, daily_limit = 100"); // room for the rest of this test
+  g.next = [{ status: 503, json: { error: { message: "overloaded" } } }, { status: 503, json: { error: { message: "overloaded" } } }];
+  await B.page.fill("#lab-input", "What is sadaqah?");
+  await B.page.press("#lab-input", "Enter");
+  await B.page.waitForSelector("#lab-again:not([hidden])");
+  assert.match(await B.page.textContent("#lab-err"), /couldn.t get an answer just now/);
+  assert.doesNotMatch(await B.page.textContent("#lab-err"), /Google said|overloaded|HTTP/);
+  assert.equal(await B.page.inputValue("#lab-input"), "What is sadaqah?");
+  await pg.query("update public.ai_usage set at = at - interval '2 minutes'");
+  await B.page.click("#lab-again");
+  await B.page.waitForFunction(() => /Test reply to: What is sadaqah\?/.test(document.getElementById("lab-log").textContent));
+  assert.equal(await B.page.isHidden("#lab-again"), true);
+
   // Off-topic: the reply comes with a stern warning, and the notice shows the count.
   await pg.query("update public.ai_usage set at = at - interval '2 minutes'");
   await B.page.fill("#lab-input", "Who won the football last night?");
@@ -2259,8 +2274,20 @@ test("ai lab + SalaamStreet AI beta: the admin's Lab, everyone else's #/ai with 
   await B.page.uncheck("#lab-usedata");
   await B.page.fill("#lab-input", "What have I bookmarked?");
   await B.page.press("#lab-input", "Enter");
-  await B.page.waitForFunction(() => document.querySelectorAll(".lab-msg.ai:not(.lab-wait):not(.lab-warn) .lab-bubble:not(.lab-typing)").length === 4);
+  await B.page.waitForFunction(() => document.querySelectorAll(".lab-msg.ai:not(.lab-wait):not(.lab-warn) .lab-bubble:not(.lab-typing)").length === 5);
   assert.match(g.calls[g.calls.length - 1].body.systemInstruction.parts[1].text, /switched OFF "Use my app data"/);
+
+  // Stop: a slow answer can be abandoned; the question goes back in the box.
+  await pg.query("update public.ai_usage set at = at - interval '2 minutes'");
+  g.next = ["hang", "hang"];
+  await B.page.fill("#lab-input", "A slow one");
+  await B.page.press("#lab-input", "Enter");
+  await B.page.waitForSelector(".lab-pending [data-stop]");
+  await B.page.click(".lab-pending [data-stop]");
+  await B.page.waitForFunction(() => !document.querySelector(".lab-pending"));
+  assert.equal(await B.page.inputValue("#lab-input"), "A slow one");
+  assert.equal(await B.page.isDisabled("#lab-send"), false);
+  await B.page.fill("#lab-input", "");
 
   // A third strike pauses access: the page says until when, and sending is off.
   await pg.query("update public.ai_members set strikes = 2, last_strike_at = now()");

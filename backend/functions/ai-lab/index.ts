@@ -6,7 +6,8 @@
 //
 // Secrets (supabase secrets set …): GEMINI_API_KEY (required).
 // Optional: AI_DISABLED=true (emergency off), AI_ADMIN_EMAIL_SHA256,
-// AI_ALLOWED_ORIGINS, AI_TIMEOUT_MS.
+// AI_ALLOWED_ORIGINS, AI_TIMEOUT_MS (per try, default 25000), AI_FALLBACK_MODEL
+// (used for the one retry after a Google hiccup), AI_RETRY_PAUSE_MS.
 // SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are provided by Supabase.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { createHandler } from "./core.js";

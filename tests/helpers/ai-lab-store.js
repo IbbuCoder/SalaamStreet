@@ -73,8 +73,9 @@ function fakeGemini() {
     next: null, // { status, json } | "network" | "hang"
     fetch: async (url, init) => {
       calls.push({ url: String(url), method: init.method, headers: init.headers, body: init.body ? JSON.parse(init.body) : null });
-      const n = g.next;
-      g.next = null;
+      // `next` shapes one reply; an array shapes the next few, in order.
+      const n = Array.isArray(g.next) ? g.next.shift() : g.next;
+      if (!Array.isArray(g.next) || !g.next.length) g.next = null;
       if (n === "network") throw new TypeError("fetch failed");
       if (n === "hang") {
         return new Promise((_, reject) => init.signal.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError"))));

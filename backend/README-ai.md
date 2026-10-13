@@ -285,6 +285,24 @@ do, the new page can't start a chat.
   where user_id = (select id from auth.users where email = 'person@example.com');
   ```
 
+## When Google has a hiccup
+
+Gemini sometimes answers with a server error ("overloaded", HTTP 5xx), drops
+the connection or is very slow. The server now tries **once more** after a
+short pause (on `AI_FALLBACK_MODEL` if you set that secret, otherwise the
+same model). Each try waits at most `AI_TIMEOUT_MS` (default 25 seconds).
+If both fail, everyone but the admin gets a plain message ("couldn't get an
+answer just now… try again in a moment") with a **Try again** button, and
+nothing is taken from their daily allowance. The admin still sees Google's own
+error in the Lab. While an answer is slow the page says "Still thinking…", and
+**Stop** puts the question back in the box.
+
+Optional secret, for a backup model on the retry:
+
+```sh
+supabase secrets set AI_FALLBACK_MODEL=<another Gemini model ID>
+```
+
 ## "Use my app data" off
 
 The page always tells the server whether "Use my app data" is on

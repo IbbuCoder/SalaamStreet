@@ -2096,3 +2096,8 @@ html[data-theme="dark"] .msa-flag-note{color:#fcd34d}
 .legal ul{margin:0;padding-inline-start:1.2em;display:grid;gap:6px}
 .legal .legal-warn{color:var(--danger)}
 p.legal-warn{background:var(--danger-soft);border-inline-start:4px solid var(--danger);border-radius:var(--radius-xs);padding:10px 12px}
+/* SalaamStreet AI: retry after an error, and reassurance while a slow answer arrives */
+.lab-err-row{display:flex;flex-wrap:wrap;align-items:center;gap:0 8px}
+.lab-err-row .lab-err{flex:1 1 220px}
+.lab-err-row #lab-again{margin-block-start:10px}
+.lab-slow{font-style:italic}
