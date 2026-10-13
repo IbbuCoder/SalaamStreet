@@ -37,6 +37,8 @@ const store = {
   async enqueue(userId: string) { return must(await db.rpc("ai_enqueue", { p_user: userId })); },
   async dequeue(userId: string) { must(await db.rpc("ai_dequeue", { p_user: userId })); },
   async userStatus(userId: string) { return must(await db.rpc("ai_user_status", { p_user: userId })); },
+  async acceptTerms(userId: string, version: string) { return must(await db.rpc("ai_accept_terms", { p_user: userId, p_version: version })); },
+  async strike(userId: string) { return must(await db.rpc("ai_strike", { p_user: userId })); },
   async finish(id: number, patch: Record<string, unknown>) { must(await db.from("ai_usage").update(patch).eq("id", id)); },
   async summary() { return must(await db.rpc("ai_usage_summary")); },
   async stats() { return must(await db.rpc("admin_stats")); },

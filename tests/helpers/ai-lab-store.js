@@ -53,6 +53,8 @@ function pgStore(pg, getUser) {
     enqueue: async (uid) => (await q("select public.ai_enqueue($1) as r", [uid])).rows[0].r,
     dequeue: async (uid) => { await q("select public.ai_dequeue($1)", [uid]); },
     userStatus: async (uid) => (await q("select public.ai_user_status($1) as r", [uid])).rows[0].r,
+    acceptTerms: async (uid, v) => (await q("select public.ai_accept_terms($1, $2) as r", [uid, v])).rows[0].r,
+    strike: async (uid) => (await q("select public.ai_strike($1) as r", [uid])).rows[0].r,
     finish: async (id, patch) => {
       const keys = Object.keys(patch);
       await q(`update public.ai_usage set ${keys.map((k, i) => `${k} = $${i + 1}`).join(", ")} where id = $${keys.length + 1}`, keys.map((k) => patch[k]).concat([id]));
@@ -80,6 +82,10 @@ function fakeGemini() {
       if (n) return new Response(JSON.stringify(n.json || {}), { status: n.status || 200 });
       if (/:generateContent$/.test(url)) {
         const asked = init.body ? JSON.parse(init.body).contents.slice(-1)[0].parts[0].text : "";
+        if (/\bfootball\b/i.test(asked)) { // stands in for the model refusing an off-topic question
+          return new Response(JSON.stringify({ candidates: [{ content: { role: "model", parts: [{ text: "[[OFF_TOPIC]] I can only help with Islamic questions. Try asking about Fajr." }] }, finishReason: "STOP" }],
+            usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 10, totalTokenCount: 20 } }), { status: 200 });
+        }
         return new Response(JSON.stringify({
           candidates: [{ content: { role: "model", parts: [{ text: "Test reply to: " + asked }] }, finishReason: "STOP" }],
           usageMetadata: { promptTokenCount: 1000, candidatesTokenCount: 200, thoughtsTokenCount: 100, totalTokenCount: 1300 },
