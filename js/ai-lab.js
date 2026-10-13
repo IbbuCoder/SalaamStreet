@@ -19,7 +19,12 @@
      commands (/help) build ready-made prompts from that data.
    • Waiting list: when the server answers "queued", the question stays on
      screen with the person's place in line and is sent again every few
-     seconds (each try keeps their place) until it's answered or they leave. */
+     seconds (each try keeps their place) until it's answered or they leave.
+   • Terms and the off-topic rule (checked on the server): everyone but the
+     admin accepts the AI Terms (terms/) once per version. Off-topic questions
+     get a warning; the third within 30 days pauses access for 7 days.
+   • With "Use my app data" off the server is told so, and the assistant
+     explains why it can't see the person's data instead of just refusing. */
 (function () {
   "use strict";
   window.SS = window.SS || {};
@@ -137,7 +142,8 @@
   function helpText() {
     return "Commands (they use this device's SalaamStreet data):\n" + COMMANDS.map(function (c) {
       return "/" + c.name + (c.args ? " " + c.args : "") + " — " + c.hint;
-    }).join("\n") + "\n\nI only answer Islamic questions. Turn off “Use my app data” to stop sending your data with messages.";
+    }).join("\n") + "\n\nI only answer Islamic questions and questions about SalaamStreet. Off-topic questions get a warning, and the " +
+      "third within 30 days pauses SalaamStreet AI for you for 7 days. Turn off “Use my app data” to stop sending your data with messages.";
   }
   /** "/cmd args" → Promise<{ prompt, data? } | { local }>; plain text → { prompt: text }. */
   function expand(text) {
@@ -193,9 +199,33 @@
     return n < 0.01 ? "$" + Number(n).toFixed(4) : "$" + Number(n).toFixed(2);
   }
   function int(n) { return n == null ? "—" : Number(n).toLocaleString("en-US"); }
-  /** Escaped text with **bold** and `code`; line breaks are kept by CSS. */
+  /** One line: escaped, with **bold**, *italic* and `code`. */
+  function inline(s) {
+    return esc(s).replace(/`([^`\n]+)`/g, "<code>$1</code>").replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>")
+      .replace(/(^|[\s(])\*([^*\s][^*\n]*?)\*(?=[\s.,;:!?)]|$)/g, "$1<em>$2</em>");
+  }
+  /** A reply as safe HTML: paragraphs (line breaks kept by CSS), "- " and "1. " lists, and "## " headings. */
   function rich(s) {
-    return esc(s).replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>").replace(/`([^`\n]+)`/g, "<code>$1</code>");
+    var out = "", prev = "", gap = false, list = "";
+    function block(h) { if (list) { out += "</" + list + ">"; list = ""; } out += h; prev = "block"; gap = false; }
+    String(s || "").replace(/\r/g, "").split("\n").forEach(function (line) {
+      var m;
+      if ((m = line.match(/^\s*[-*•]\s+(.*)$/)) || (m = line.match(/^\s*(\d{1,3})[.)]\s+(.*)$/))) {
+        var kind = m.length > 2 ? "ol" : "ul";
+        if (list !== kind) { block(""); out += "<" + kind + ">"; list = kind; }
+        out += (kind === "ol" ? '<li value="' + (+m[1]) + '">' + inline(m[2]) : "<li>" + inline(m[1])) + "</li>";
+        prev = "block"; gap = false;
+        return;
+      }
+      if ((m = line.match(/^\s*#{1,4}\s+(.*)$/))) { block('<strong class="lab-h">' + inline(m[1].replace(/\*\*/g, "")) + "</strong>"); return; }
+      if (!line.trim()) { gap = prev === "text"; return; }
+      if (list) block("");
+      if (prev === "text") out += gap ? "\n\n" : "\n";
+      out += inline(line);
+      prev = "text"; gap = false;
+    });
+    if (list) out += "</" + list + ">";
+    return out;
   }
   function timeUtc(iso) {
     if (!iso) return "midnight UTC";
@@ -208,7 +238,10 @@
       '<div class="card-title"><h2 id="lab-chat-h">Conversation</h2><div class="lab-acts">' +
         '<button class="btn btn-outline btn-sm" id="lab-new" type="button">' + icon("plus") + '<span>New conversation</span></button>' +
         '<button class="btn btn-ghost btn-sm" id="lab-clear" type="button">' + icon("trash") + '<span>Clear</span></button></div></div>' +
-      (lab() ? "" : '<p class="muted lab-small ai-quota" id="ai-quota" role="status"></p>') +
+      (lab() ? "" : '<p class="muted lab-small ai-quota" id="ai-quota" role="status"></p>' +
+        '<div class="ai-rule" id="ai-rule" role="note">' + icon("info") + '<p><b>Islamic and SalaamStreet questions only.</b> ' +
+        'Off-topic questions get a warning. <b>The third one within 30 days pauses SalaamStreet AI for you for 7 days.</b> ' +
+        '<span id="ai-strikes"></span></p></div>') +
       '<div class="lab-log" id="lab-log" role="log" aria-live="polite" aria-label="Messages"></div>' +
       '<p class="lab-err" id="lab-err" role="alert" hidden></p>' +
       '<form class="lab-form" id="lab-form">' +
@@ -220,7 +253,8 @@
         '<div class="row-between lab-form-foot"><span class="muted lab-count" id="lab-count"></span>' +
         '<button class="btn" id="lab-send" type="submit">' + icon("next") + '<span>Send</span></button></div>' +
         '<label class="lab-data muted"><input type="checkbox" id="lab-usedata" checked /> Use my app data (bookmarks, progress, prayers, dhikr) to personalise answers</label>' +
-        '<p class="muted lab-hint">Enter sends · Shift+Enter adds a line · This conversation is kept on this page only.</p>' +
+        '<p class="muted lab-hint">Enter sends · Shift+Enter adds a line · This conversation is kept on this page only.' +
+          (lab() ? "" : ' · <a href="terms/" target="_blank" rel="noopener">Terms of Use &amp; Privacy</a>') + '</p>' +
       '</form>' +
       (lab() ? '<p class="muted lab-session" id="lab-session"></p>' : "") +
     '</section>';
@@ -247,7 +281,9 @@
       '<div id="lab-app" class="stack" hidden>' + chatCard() +
         '<p class="muted lab-small">Beta: free for everyone with an account, with a daily allowance. When lots of people are asking at once you’ll wait in line for a moment. ' +
         'Privacy: your questions (and, with “Use my app data” on, a short summary of your bookmarks and progress) are sent to Google’s Gemini to be answered. ' +
-        'SalaamStreet doesn’t keep your conversations — they’re gone when you leave this page. Not a mufti: for rulings on your own situation, ask a qualified scholar.</p>' +
+        'SalaamStreet doesn’t keep your conversations — they’re gone when you leave this page. Not a mufti: for rulings on your own situation, ask a qualified scholar. ' +
+        'Not medical, legal, financial or emergency advice — in an emergency, call your local emergency number (911 in the US). ' +
+        'By using SalaamStreet AI you agree to the <a href="terms/" target="_blank" rel="noopener">Terms of Use</a>.</p>' +
       '</div>';
   }
   function labShell() {
@@ -298,7 +334,7 @@
     $("lab-input").addEventListener("keydown", function (e) {
       if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); }
     });
-    $("lab-input").addEventListener("input", count);
+    $("lab-input").addEventListener("input", function () { count(); grow(); });
     $("lab-usedata").onchange = function () { st.useData = this.checked; };
     $("lab-cmds").onclick = function (e) {
       var b = e.target.closest("[data-cmd]");
@@ -316,6 +352,8 @@
     $("lab-clear").onclick = function () { if (!st.busy) { reset(); $("lab-input").value = ""; count(); } };
     $("lab-log").addEventListener("click", function (e) {
       if (e.target.closest("[data-leave]")) { leaveLine(true); return; }
+      var ask = e.target.closest("[data-ask]");
+      if (ask) { $("lab-input").value = ask.getAttribute("data-ask"); count(); send(); return; }
       var b = e.target.closest("[data-copy]");
       if (b) SS.ui.copyText(st.msgs[+b.getAttribute("data-copy")].text);
     });
@@ -356,6 +394,13 @@
     $("lab-count").textContent = max ? n.toLocaleString("en-US") + " / " + max.toLocaleString("en-US") : "";
     $("lab-count").classList.toggle("over", !!max && n > max);
   }
+  /** The message box grows with what's typed (up to the CSS max). */
+  function grow() {
+    var el = $("lab-input");
+    if (!el) return;
+    el.style.height = "auto";
+    if (el.value) el.style.height = el.scrollHeight + 2 + "px";
+  }
   function showErr(msg) {
     var el = $("lab-err");
     el.hidden = !msg;
@@ -373,10 +418,45 @@
       : '<button class="btn" id="lab-signin" type="button">' + icon("user") + "<span>Sign in or create an account</span></button>";
     if (kind === "denied") html += '<button class="btn btn-outline" id="lab-switch" type="button">' + icon("logout") + "<span>Use another account</span></button>";
     if (kind === "retry") html += '<button class="btn btn-outline" id="lab-retry" type="button">' + icon("refresh") + "<span>Try again</span></button>";
+    if (kind === "terms") html = termsCard();
     g.innerHTML = html + "</div>";
+    if ($("ai-terms-ok")) {
+      $("ai-terms-ok").onchange = function () { $("ai-terms-go").disabled = !this.checked; };
+      $("ai-terms-go").onclick = acceptTerms;
+    }
     if ($("lab-signin")) $("lab-signin").onclick = function () { SS.account.openSignIn(); };
     if ($("lab-switch")) $("lab-switch").onclick = function () { Promise.resolve(SS.account.signOut()).then(function () { gate("signin", "Sign in with the admin Google account."); waitForSignIn(); }); };
     if ($("lab-retry")) $("lab-retry").onclick = load;
+  }
+  /** The AI Terms, accepted once per version before the first question (recorded on the server). */
+  function termsCard() {
+    var lim = (st.me && st.me.strike_limit) || 3, days = (st.me && st.me.ban_days) || 7;
+    return '<div class="card lab-gate ai-terms"><h2>Before you start</h2>' +
+      '<p>SalaamStreet AI is an experimental beta. Please read and agree to these rules:</p><ul>' +
+      '<li><b>Islamic and SalaamStreet questions only.</b> It is not a general chatbot.</li>' +
+      '<li class="ai-terms-warn"><b>Off-topic questions are against the rules.</b> Each one gets a warning. ' +
+        'The ' + (lim === 3 ? "third" : lim + "th") + " off-topic question within 30 days <b>pauses SalaamStreet AI for you for " + days + " days</b>. " +
+        "Trying to trick it into breaking its rules counts too.</li>" +
+      "<li><b>Answers can be wrong.</b> AI makes mistakes, including about the Qur’an and hadith. Check anything important with a qualified scholar or a trusted source. It is not a mufti and doesn’t give fatwas.</li>" +
+      "<li><b>Not professional or emergency help.</b> It isn’t medical, mental-health, legal or financial advice. If you or someone else is in danger, call your local emergency number (911 in the US) or a crisis line (988 in the US).</li>" +
+      "<li><b>Your privacy.</b> Your questions (and, if you allow it, a short summary of your app data) are sent to Google’s Gemini to be answered. SalaamStreet doesn’t keep your conversations. Don’t share personal details like your address, phone number or passwords.</li>" +
+      "<li><b>Age.</b> You must be 13 or older, or have a parent’s or guardian’s permission.</li></ul>" +
+      '<p><a href="terms/" target="_blank" rel="noopener">Read the full Terms of Use &amp; Privacy</a></p>' +
+      '<label class="lab-data"><input type="checkbox" id="ai-terms-ok" /> I have read and agree to the SalaamStreet AI rules and the Terms of Use, and I am 13 or older or have a parent’s or guardian’s permission.</label>' +
+      '<p class="lab-err" id="ai-terms-err" role="alert" hidden></p>' +
+      '<button class="btn" id="ai-terms-go" type="button" disabled>' + icon("check") + "<span>Agree and continue</span></button>";
+  }
+  function acceptTerms() {
+    var btn = $("ai-terms-go"), err = $("ai-terms-err");
+    if (!$("ai-terms-ok").checked) return;
+    btn.disabled = true;
+    api("accept_terms", { version: st.me && st.me.terms_version }).then(function (r) {
+      if (r.ok) { loadMe().then(function () { var i = $("lab-input"); if (i) i.focus(); }); return; }
+      btn.disabled = false;
+      err.hidden = false;
+      err.textContent = r.message || "Couldn't save that. Try again.";
+      if (r.error === "bad_request" && r.terms_version) loadMe();
+    });
   }
   function waitForSignIn() {
     clearInterval(st.waitTimer);
@@ -391,7 +471,11 @@
   /** #/ai: the person's allowance today and whether the beta is open. */
   function loadMe() {
     return api("me").then(function (r) {
-      if (r.ok) { st.me = r; gate("ok"); drawMe(); count(); return r; }
+      if (r.ok) {
+        st.me = r;
+        if (!r.admin && r.terms_accepted === false) { gate("terms"); return r; }
+        gate("ok"); drawMe(); count(); return r;
+      }
       if (r.error === "signed_out" || r.error === "invalid_session") {
         gate("signin", "Sign in to use SalaamStreet AI. It\u2019s free during the beta \u2014 you just need a SalaamStreet account.");
         waitForSignIn();
@@ -404,10 +488,21 @@
     var m = st.me, q = $("ai-quota");
     var open = m.enabled && m.beta_open, left = m.remaining_today;
     q.textContent = m.admin ? "Admin: no daily allowance." : int(left) + " of " + int(m.user_limit) + " questions left today \u00b7 more at " + timeUtc(m.resets_at) + ".";
-    $("lab-send").disabled = st.busy || !open || (!m.admin && left <= 0);
-    if (!m.enabled) showErr("SalaamStreet AI is switched off for now. Please try again later.");
+    var banned = !m.admin && m.banned_until && new Date(m.banned_until) > new Date();
+    $("lab-send").disabled = st.busy || !open || !!banned || (!m.admin && left <= 0);
+    var strikes = !m.admin && m.strikes ? m.strikes : 0;
+    $("ai-rule").classList.toggle("on", !!strikes || !!banned);
+    $("ai-strikes").textContent = banned ? "" : strikes ? "You have " + strikes + " of " + (m.strike_limit || 3) + " warnings." : "";
+    if (banned) showErr(banMessage(m.banned_until));
+    else if (!m.enabled) showErr("SalaamStreet AI is switched off for now. Please try again later.");
     else if (!m.beta_open) showErr("The SalaamStreet AI beta is closed for now. Please check back soon.");
     else if (!m.admin && left <= 0) showErr("You've asked all of today's questions. More at " + timeUtc(m.resets_at) + ".");
+  }
+  function banMessage(until) {
+    var when = "";
+    try { when = new Date(until).toLocaleString([], { weekday: "long", month: "long", day: "numeric", hour: "numeric", minute: "2-digit" }); } catch (e) { when = ""; }
+    return "Your access to SalaamStreet AI is paused because you asked " + ((st.me && st.me.strike_limit) || 3) +
+      " off-topic questions. SalaamStreet AI is only for Islamic questions and help with the app. You can use it again " + (when ? "on " + when : "in 7 days") + ".";
   }
   function loadStatus() {
     return api("status").then(function (r) {
@@ -437,7 +532,9 @@
       stat("If on a paid plan: today", money(u.today_cost_usd)) +
       stat("If on a paid plan: 7 days", money(u.week_cost_usd) + " · " + int(u.week_requests) + " req") +
       stat("People today", int(u.people_today)) +
-      stat("Refused today", int(u.refused_today));
+      stat("Refused today", int(u.refused_today)) +
+      stat("Off-topic today", int(u.off_topic_today)) +
+      stat("Paused (3 strikes)", int(u.banned_now));
     var lim = $("lab-stats");
     lim.setAttribute("title", "Limits reset at " + timeUtc(u.resets_at));
     $("lab-send").disabled = st.busy || !on || !s.gemini_key_set;
@@ -509,15 +606,20 @@
   function drawLog() {
     var log = $("lab-log");
     if (!st.msgs.length && !st.busy) {
-      log.innerHTML = '<div class="lab-empty muted">' + icon("sparkle") + "<p>Ask an Islamic question — tafsir, hadith, fiqh opinions, seerah, duas — or try a command like /bookmarks, /ayah 2:255 or /progress. Type /help for them all.</p></div>";
+      log.innerHTML = '<div class="lab-empty muted">' + icon("sparkle") + "<p>Ask an Islamic question — tafsir, hadith, fiqh opinions, seerah, duas — or try a command like /bookmarks, /ayah 2:255 or /progress. Type /help for them all.</p>" +
+        '<div class="lab-suggest" role="group" aria-label="Try asking">' + SUGGESTIONS.map(function (q) {
+          return '<button class="chip" type="button" data-ask="' + esc(q) + '">' + esc(q) + "</button>";
+        }).join("") + "</div></div>";
       return;
     }
     log.innerHTML = st.msgs.map(function (m, i) {
       if (m.role === "user") return '<div class="lab-msg me"><div class="lab-bubble">' + esc(m.shown || m.text) + "</div></div>";
+      if (m.warn) return '<div class="lab-msg ai lab-warn"><div class="lab-bubble" role="alert">' + icon("info") + "<p>" + esc(m.text) + "</p></div></div>";
       if (m.local) return '<div class="lab-msg ai lab-local"><div class="lab-bubble">' + rich(m.text) + "</div></div>";
       var meta = m.meta || {};
       var bits = !lab() ? [] : [meta.model, meta.usage && meta.usage.total != null ? int(meta.usage.total) + " tokens" : "tokens not reported",
-        meta.cost_usd != null ? "~" + money(meta.cost_usd) + " if paid" : "", meta.latency_ms ? (meta.latency_ms / 1000).toFixed(1) + " s" : ""].filter(Boolean);
+        meta.cost_usd != null ? "~" + money(meta.cost_usd) + " if paid" : "", meta.latency_ms ? (meta.latency_ms / 1000).toFixed(1) + " s" : "",
+        meta.off_topic ? "flagged off-topic (no strike for the admin)" : ""].filter(Boolean);
       return '<div class="lab-msg ai"><div class="lab-bubble">' + rich(m.text) +
         (meta.truncated ? '<p class="lab-trunc">Cut short: the reply reached the max output tokens.</p>' : "") + "</div>" +
         '<div class="lab-meta"><span>' + esc(bits.join(" · ")) + '</span><button class="btn btn-ghost btn-sm" type="button" data-copy="' + i + '">' + icon("copy") + "<span>Copy</span></button></div></div>";
@@ -525,6 +627,7 @@
       : st.busy ? '<div class="lab-msg ai"><div class="lab-bubble lab-typing" aria-label="' + (lab() ? "Gemini" : "SalaamStreet AI") + ' is answering"><span></span><span></span><span></span></div></div>' : "");
     log.scrollTop = log.scrollHeight;
   }
+  var SUGGESTIONS = ["How do I pray Fajr on time?", "What does Ayat al-Kursi mean?", "Duas for when I feel anxious", "Tell me a story from the seerah"];
   /** Where the person is in line. Their question is sent again every few seconds. */
   function waitCard(q) {
     var secs = Math.max(5, q.wait_seconds || 0);
@@ -564,7 +667,7 @@
     var max = maxChars();
     if (max && text.length > max) { showErr("That message is " + text.length + " characters; the limit is " + max + "."); return; }
     showErr("");
-    input.value = ""; count();
+    input.value = ""; count(); grow();
     st.busy = true;
     $("lab-send").disabled = true;
     expand(text).then(function (x) {
@@ -576,9 +679,12 @@
         return;
       }
       if (x.data && !st.useData) {
+        // Explain why instead of just refusing: the command needs data the person chose not to share.
+        st.msgs.push({ role: "user", text: text, local: true }, { role: "model", local: true,
+          text: "I can’t do " + text.split(/\s/)[0] + " right now because “Use my app data” is turned off, so your SalaamStreet data " +
+            "(bookmarks, Qur’an progress, prayers, dhikr) isn’t shared with me. Tick “Use my app data” under the message box and send it again." });
         st.busy = false; $("lab-send").disabled = false;
-        input.value = text; count();
-        showErr("This command needs your app data. Turn on “Use my app data” first.");
+        drawLog();
         return;
       }
       st.msgs.push({ role: "user", text: x.prompt, shown: text });
@@ -588,6 +694,7 @@
   }
   function ask(input) {
     var extra = { messages: st.msgs.filter(function (m) { return !m.local; }).map(function (m) { return { role: m.role, text: m.text }; }) };
+    extra.app_data = st.useData; // off: the server tells the assistant, so it can say why it can't see their data
     if (st.useData) { try { extra.context = appData(); } catch (_) { /* send without it */ } }
     var id = ++st.req;
     api("chat", extra).then(function (r) {
@@ -608,6 +715,9 @@
         st.session.tokens += (r.usage && r.usage.total) || 0;
         st.session.cost += r.cost_usd || 0;
         if (r.dropped_turns) showErr("The oldest " + r.dropped_turns + " messages were left out to stay within the size limit.");
+        if (r.warning) st.msgs.push({ role: "model", local: true, warn: true, text: r.banned_until // the banner below says until when, in local time
+          ? "That was your " + ((r.strike_limit === 3) ? "third" : r.strike_limit + "th") + " off-topic question. Your access to SalaamStreet AI is now paused for 7 days." : r.warning });
+        if (st.me && r.strikes != null) { st.me.strikes = r.banned_until ? 0 : r.strikes; st.me.banned_until = r.banned_until || null; }
       } else {
         // Put the question back so it can be sent again.
         var mine = st.msgs.pop();
@@ -615,6 +725,8 @@
         showErr((r.message || "The request failed.") + (r.provider ? " Google said: " + r.provider : ""));
         if (r.error === "signed_out" || r.error === "invalid_session" || r.error === "forbidden") load();
         if (r.error === "user_limit" && st.me) st.me.remaining_today = 0;
+        if (r.error === "banned" && st.me) st.me.banned_until = r.banned_until;
+        if (r.error === "terms") load();
       }
       drawLog(); drawSession();
       if (r.ok && st.me && r.user_remaining != null) st.me.remaining_today = r.user_remaining;

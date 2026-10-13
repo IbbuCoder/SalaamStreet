@@ -39,7 +39,7 @@ function write(rel, html) {
 }
 
 /* Section names for breadcrumbs ("SalaamStreet › Prayer times › Chicago" in Google). */
-const SECTIONS = { facts: "At a glance", surah: "Qur'an", "prayer-times": "Prayer times", duas: "Duas", "names-of-allah": "99 Names of Allah", qibla: "Qibla direction", about: "About", widget: "Widget" };
+const SECTIONS = { facts: "At a glance", surah: "Qur'an", "prayer-times": "Prayer times", duas: "Duas", "names-of-allah": "99 Names of Allah", qibla: "Qibla direction", about: "About", terms: "Terms of Use", widget: "Widget" };
 function structuredData(rel, canonical, h1, description, jsonld) {
   const parts = rel.split("/");
   const crumbs = [{ name: "SalaamStreet", url: SITE + "/" }];
@@ -118,7 +118,7 @@ ${body}
   </main>
   <footer class="site-foot">
     <p>SalaamStreet — free prayer times, Qibla, Qur'an, hadith, duas and more. No ads, no account needed; your data stays on your device unless you choose to sync it.</p>
-    <p><a href="${up}#/home">Open SalaamStreet</a> · <a href="${up}widget/">Prayer times widget for mosques</a></p>
+    <p><a href="${up}#/home">Open SalaamStreet</a> · <a href="${up}widget/">Prayer times widget for mosques</a> · <a href="${up}terms/">Terms of Use &amp; Privacy</a></p>
   </footer>
 </body>
 </html>
@@ -365,6 +365,45 @@ write("qibla", page({
   }));
 }
 
+/* ── Terms of Use & Privacy ─────────────────────────────────────────
+   Plain-English terms for the app and SalaamStreet AI. TERMS_UPDATED must
+   match TERMS_VERSION in backend/functions/ai-lab/core.js: when the AI rules
+   change, bump both and everyone is asked to accept them again. */
+{
+  const TERMS_UPDATED = "2026-10-13";
+  const sec = (id, h, html) => `      <section class="card legal mt-2" id="${id}"><h2>${h}</h2>${html}</section>`;
+  write("terms", page({
+    rel: "terms",
+    title: "Terms of Use & Privacy | SalaamStreet",
+    description: "The rules for using SalaamStreet and SalaamStreet AI, what we do with your data, and the limits of what the app and its AI can promise.",
+    h1: "Terms of Use & Privacy",
+    lead: `Last updated ${esc(TERMS_UPDATED)}. Please read these carefully — by using SalaamStreet you agree to them.`,
+    body: [
+      sec("agreement", "1. Agreeing to these terms", `<p>These terms are an agreement between you and SalaamStreet (“SalaamStreet”, “we”, “us”) about your use of the SalaamStreet website and app at salaamstreet.com, including SalaamStreet AI (together, the “Service”). If you don't agree, please don't use the Service. If you are under 18, please read these terms with a parent or guardian.</p>`),
+      sec("age", "2. Who can use SalaamStreet", `<ul><li>Anyone can use the free features without an account.</li><li>To create an account or use SalaamStreet AI you must be at least 13 years old, or have permission from a parent or guardian who agrees to these terms for you and supervises your use.</li><li>Kids Mode is meant to be set up and supervised by a parent or guardian.</li><li>We don't knowingly collect personal information from children under 13 without a parent's or guardian's permission. If you believe a child has given us information without permission, contact us and we will delete it.</li></ul>`),
+      sec("religious", "3. Religious content is for learning, not rulings", `<ul><li>SalaamStreet shows Qur'an text, translations, tafsir, hadith, duas and other Islamic content from the sources named in the app. Translations and explanations are human works that try to convey meaning; they are not the Qur'an itself.</li><li>Nothing in the Service is a fatwa or a ruling for your personal situation. Scholars and schools of thought differ on many questions. For rulings, please ask a qualified, trusted scholar or your local imam.</li><li>We work hard to be accurate, but mistakes can happen. If you find one, please tell us so we can fix it.</li></ul>`),
+      sec("times", "4. Prayer times, Qibla and dates are estimates", `<ul><li>Prayer times are calculated from your location and the method you choose. Different methods and local practice give different times. Always confirm times with your local mosque, especially for Fajr, Maghrib, the start and end of fasting, and Jumu'ah.</li><li>The Qibla direction depends on your device's location and compass, which can be wrong near metal, electronics or magnets. Check it against a trusted local reference.</li><li>Hijri dates are calculated and may differ by a day or more from local moon sighting.</li><li>Reminders and notifications depend on your device, browser and network and may arrive late or not at all. Don't rely on them alone.</li><li>We are not responsible for a missed, early or late prayer, fast or other act of worship caused by relying on these estimates.</li></ul>`),
+      sec("ai", "5. SalaamStreet AI (Beta)", `<p>SalaamStreet AI is an experimental, free beta. Using it means you agree to the rules below as well as the rest of these terms. You'll be asked to confirm this in the app before your first question.</p>
+        <h3>What it's for</h3><p><b>SalaamStreet AI is only for questions about Islam and about using SalaamStreet.</b> It is not a general-purpose chatbot.</p>
+        <h3 class="legal-warn">Off-topic questions: warnings, then a 7-day pause</h3>
+        <p class="legal-warn"><b>Asking SalaamStreet AI about anything that isn't Islamic or about the app is against these terms.</b> Each off-topic question gets a warning. <b>The third off-topic question within 30 days automatically pauses your access to SalaamStreet AI for 7 days.</b> Trying to get around its rules (for example by telling it to ignore its instructions, role-play or “just test”) counts as off-topic. Repeated or serious misuse can lead to losing access to SalaamStreet AI, or to your account, permanently.</p>
+        <h3>You must not use it to</h3><ul><li>ask for, create or spread anything hateful, violent, sexual, harassing, dangerous or illegal — including anything framed as religious;</li><li>attack, mock or spread hatred against any person, group, school of thought or religion;</li><li>share other people's personal information, or your own sensitive details (address, phone number, passwords, financial or health records);</li><li>cheat on schoolwork by handing in its answers as your own;</li><li>overload, scrape, automate, reverse-engineer or attack the Service, or get around its limits.</li></ul>
+        <h3>AI can be wrong</h3><p>Answers are generated by an AI model (Google's Gemini) and <b>can be incorrect, incomplete or out of date — including about the Qur'an, hadith and Islamic rulings.</b> It may get quotations or references wrong. It is not a scholar, mufti or imam. Check anything important against trusted sources and qualified scholars before relying on it. You are responsible for how you use its answers.</p>
+        <h3>Not professional or emergency help</h3><p>SalaamStreet AI does not give medical, mental-health, legal, financial or other professional advice, and it can't help in an emergency. <b>If you or someone else is in danger, call your local emergency number (911 in the US) right away.</b> In the US you can call or text 988 for the Suicide &amp; Crisis Lifeline. Please also reach out to a trusted adult, imam or counsellor.</p>
+        <h3>Limits and changes</h3><p>Each person has a daily allowance, and when it's busy you may wait in line. We can change the allowance, features or rules, pause SalaamStreet AI, or end the beta at any time, for anyone, without notice.</p>`),
+      sec("conduct", "6. Your account and what you post", `<ul><li>Keep your sign-in secure; you're responsible for what happens under your account.</li><li>If you post anything (for example in an MSA space), you are responsible for it. It must follow these terms and be respectful. You keep ownership of it, and you let us store and show it to the people it's meant for so the feature works.</li><li>We may remove content, or suspend or close accounts, that break these terms or put others at risk.</li><li>You can delete your account at any time from the Account page.</li></ul>`),
+      sec("privacy", "7. Privacy", `<ul><li><b>No ads, no tracking, and we never sell your data.</b></li><li><b>As a guest</b>, your bookmarks, progress, settings and logs stay on your device.</li><li><b>With an account</b>, we store your email address (or phone number) and sign-in method, and the items you choose to sync. Your location is never synced.</li><li><b>Closed-app reminders</b>, if you turn them on, store your device's push address, your location rounded to about 1 km, your time zone and reminder settings so reminders can be sent.</li><li><b>SalaamStreet AI:</b> your questions, the conversation so far and — only if “Use my app data” is on — a short summary of your SalaamStreet data are sent to Google's Gemini API to be answered, under Google's terms for that service. <b>SalaamStreet doesn't store your conversations.</b> We do store, for each request, counts, token use, estimated cost and errors; your off-topic warnings and any pause; and when you accepted these terms. Refused requests are logged (who and why, never what you wrote).</li><li>We use trusted providers to run the Service, including Supabase (accounts and database), Google (Gemini AI and Google sign-in), Apple (sign-in), AlQuran Cloud and AlAdhan (Qur'an text and prayer times), and Google Fonts. They receive only what they need.</li><li>You can delete your synced data and your account at any time from the Account page. Data you keep only on your device is removed when you clear the site's data.</li></ul>`),
+      sec("ip", "8. Content and ownership", `<p>Qur'an text, translations, tafsir and hadith belong to their sources and are shown under their terms. The SalaamStreet name, logo, design and code belong to SalaamStreet. Please don't copy the Service or present it as your own.</p>`),
+      sec("warranty", "9. No warranty", `<p>The Service is provided free, <b>“as is” and “as available”</b>, without warranties of any kind, express or implied, including accuracy, reliability, fitness for a particular purpose, availability or non-infringement. We don't promise the Service will always work, be error-free or keep your data forever — please keep your own copies of anything important.</p>`),
+      sec("liability", "10. Limitation of liability", `<p>To the fullest extent the law allows, SalaamStreet and the people who build and run it will not be liable for any indirect, incidental, special, consequential or punitive damages, or for any loss of data, worship, opportunity or goodwill, arising from your use of (or inability to use) the Service — including relying on prayer times, Qibla directions, dates, reminders, religious content or AI answers. Our total liability for any claim relating to the Service is limited to the amount you paid us to use it in the 12 months before the claim, which for the free Service is zero. Some places don't allow some of these limits, so they apply only as far as your local law permits.</p>`),
+      sec("indemnity", "11. Your responsibility", `<p>If you break these terms or the law while using the Service, you agree to be responsible for the results and to cover reasonable costs that SalaamStreet faces because of it, as far as the law allows.</p>`),
+      sec("changes", "12. Changes and ending", `<p>We may update these terms. The date at the top shows the latest version; for important changes to the SalaamStreet AI rules, the app will ask you to accept them again. Continuing to use the Service after a change means you accept it. You can stop using the Service at any time, and we may suspend or end access for anyone who breaks these terms.</p>`),
+      sec("contact", "13. Contact", `<p>Questions, corrections or requests about these terms or your data: please contact us through <a href="https://github.com/IbbuCoder/SalaamStreet/issues">SalaamStreet's issue tracker</a>. If any part of these terms can't be enforced, the rest still applies.</p>`),
+      `      <p class="mt-2"><a class="btn" href="../#/home">Open SalaamStreet</a> <a class="btn btn-outline" href="../about/">About SalaamStreet</a></p>`,
+    ].join("\n"),
+  }));
+}
+
 /* ── "SalaamStreet at a glance": facts + FAQ for people and AI search ──
    One set of facts feeds the visible /facts/ page, its FAQ structured data
    and /llms.txt, so what search engines and AI assistants read always
@@ -382,9 +421,10 @@ const FACTS = {
     "Islamic (Hijri) calendar, the 99 Names of Allah, a mosque finder and Learn to Read Arabic lessons",
     "Optional free account to sync bookmarks, streaks and settings across devices",
     "A free prayer-times widget mosques can put on their own website",
+    "SalaamStreet AI (Beta): an Islamic assistant for people with a free account, with a daily allowance and a waiting line when it's busy",
   ],
   privacy: "Privacy first: no ads, no tracking and no account required. As a guest, everything stays on the device. Signing in is optional and only syncs what the person chooses; their location is never synced.",
-  sources: "Qur'an text from Tanzil (Uthmani) via AlQuran Cloud; English translation by Saheeh International; tafsir from Tafsir Ibn Kathir; prayer times calculated by the AlAdhan service. Nothing religious is generated by AI.",
+  sources: "Qur'an text from Tanzil (Uthmani) via AlQuran Cloud; English translation by Saheeh International; tafsir from Tafsir Ibn Kathir; prayer times calculated by the AlAdhan service. The Qur'an, hadith and duas in the app are never generated by AI; the optional SalaamStreet AI (Beta) assistant is clearly labelled as AI, gives surah and ayah numbers so answers can be checked, and refers rulings to scholars.",
   languages: "English and Arabic, plus Urdu, Bengali, Indonesian, Turkish and French (drafts pending native-speaker review), with full right-to-left layout.",
   price: "Free. Everything people need stays free forever; any future paid extras would only cover things that genuinely cost money to provide.",
 };

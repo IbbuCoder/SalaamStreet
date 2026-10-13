@@ -1570,6 +1570,8 @@ grant execute on function public.msa_student_add(text, text), public.msa_student
 --    Never the conversation itself.
 --  • ai_security_log: refused requests (who and why, never tokens or text).
 --  • ai_queue: the waiting list — who's waiting for the AI while it's busy.
+--  • ai_members: per person — which version of the AI Terms they accepted
+--    and when, their off-topic strikes, and any ban (3 strikes → 7 days).
 --  • ai_reserve(): the switches, the project's daily and per-minute limits,
 --    each person's daily allowance and the waiting list, checked and counted
 --    in one step so two requests at once can't both slip past a limit.
@@ -1732,7 +1734,25 @@ begin
 end;
 $$;
 
-/** One person's beta status: their allowance today and whether the beta is open. */
+/* The AI Terms and the off-topic rule. One row per person who has used
+   SalaamStreet AI: the Terms version they accepted (and when — the record
+   that they agreed), and their off-topic strikes. The third strike within
+   30 days pauses their access for 7 days and starts the count again.
+   Never the conversation itself. */
+create table if not exists public.ai_members (
+    user_id           uuid primary key,
+    terms_version     text check (terms_version is null or char_length(terms_version) <= 20),
+    terms_accepted_at timestamptz,
+    strikes           integer not null default 0 check (strikes between 0 and 10),
+    last_strike_at    timestamptz,
+    banned_until      timestamptz,
+    bans              integer not null default 0 check (bans >= 0)
+);
+alter table public.ai_members enable row level security;
+revoke all on public.ai_members from anon, authenticated;
+
+/** One person's beta status: their allowance today, whether the beta is open,
+    which Terms they accepted, their strikes and any ban. */
 create or replace function public.ai_user_status(p_user uuid)
 returns jsonb language sql stable security definer set search_path = public as $$
     select jsonb_build_object(
@@ -1741,8 +1761,47 @@ returns jsonb language sql stable security definer set search_path = public as $
         'used_today', (select count(*) from public.ai_usage where user_id = p_user and kind = 'chat' and status <> 'error'
             and at >= date_trunc('day', now() at time zone 'UTC') at time zone 'UTC'),
         'waiting', (select count(*) from public.ai_queue where seen_at >= now() - interval '30 seconds'),
-        'resets_at', date_trunc('day', now() at time zone 'UTC') at time zone 'UTC' + interval '1 day')
-    from public.ai_settings s where s.id;
+        'resets_at', date_trunc('day', now() at time zone 'UTC') at time zone 'UTC' + interval '1 day',
+        'terms_version', m.terms_version,
+        'strikes', case when m.last_strike_at > now() - interval '30 days' then m.strikes else 0 end,
+        'banned_until', case when m.banned_until > now() then m.banned_until end)
+    from public.ai_settings s left join public.ai_members m on m.user_id = p_user where s.id;
+$$;
+
+/** Record that the person accepted this version of the AI Terms. */
+create or replace function public.ai_accept_terms(p_user uuid, p_version text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+    if p_user is null or p_version is null or char_length(p_version) not between 1 and 20 then
+        raise exception 'bad request' using errcode = '22023';
+    end if;
+    insert into public.ai_members (user_id, terms_version, terms_accepted_at) values (p_user, p_version, now())
+        on conflict (user_id) do update set terms_version = excluded.terms_version, terms_accepted_at = excluded.terms_accepted_at;
+    return jsonb_build_object('ok', true, 'terms_version', p_version);
+end;
+$$;
+
+/** One off-topic request. Strikes older than 30 days are forgotten; the third
+    one pauses SalaamStreet AI for this person for 7 days. */
+create or replace function public.ai_strike(p_user uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare m public.ai_members; n integer;
+begin
+    if p_user is null then raise exception 'bad request' using errcode = '22023'; end if;
+    insert into public.ai_members (user_id) values (p_user) on conflict (user_id) do nothing;
+    select * into m from public.ai_members where user_id = p_user for update;
+    n := case when m.last_strike_at > now() - interval '30 days' then m.strikes else 0 end + 1;
+    if n >= 3 then
+        update public.ai_members set strikes = 0, last_strike_at = now(), banned_until = now() + interval '7 days', bans = bans + 1
+            where user_id = p_user returning * into m;
+        delete from public.ai_queue where user_id = p_user;
+        insert into public.ai_security_log (user_id, event, detail) values (p_user, 'banned', 'third off-topic request: 7 days');
+        return jsonb_build_object('strikes', 3, 'limit', 3, 'banned_until', m.banned_until);
+    end if;
+    update public.ai_members set strikes = n, last_strike_at = now() where user_id = p_user;
+    insert into public.ai_security_log (user_id, event, detail) values (p_user, 'off_topic', 'strike ' || n || ' of 3');
+    return jsonb_build_object('strikes', n, 'limit', 3, 'banned_until', null);
+end;
 $$;
 
 /** Leave the waiting list (the person cancelled or left the page). */
@@ -1765,6 +1824,8 @@ returns jsonb language sql stable security definer set search_path = public as $
         'refused_today', (select count(*) from public.ai_security_log, day where at >= day.start),
         'people_today', (select count(distinct user_id) from public.ai_usage, day where kind = 'chat' and at >= day.start),
         'waiting_now', (select count(*) from public.ai_queue where seen_at >= now() - interval '30 seconds'),
+        'off_topic_today', (select count(*) from public.ai_security_log, day where event in ('off_topic', 'banned') and at >= day.start),
+        'banned_now', (select count(*) from public.ai_members where banned_until > now()),
         'resets_at', (select day.start + interval '1 day' from day));
 $$;
 
@@ -1789,13 +1850,13 @@ end;
 $$;
 
 revoke all on function public.ai_reserve(uuid, text, boolean), public.ai_enqueue(uuid), public.ai_user_status(uuid), public.ai_dequeue(uuid),
-    public.ai_usage_summary(), public.admin_stats() from public, anon, authenticated;
+    public.ai_accept_terms(uuid, text), public.ai_strike(uuid), public.ai_usage_summary(), public.admin_stats() from public, anon, authenticated;
 do $$
 begin
     if exists (select 1 from pg_roles where rolname = 'service_role') then
-        grant select, insert, update, delete on public.ai_settings, public.ai_usage, public.ai_security_log, public.ai_queue to service_role;
+        grant select, insert, update, delete on public.ai_settings, public.ai_usage, public.ai_security_log, public.ai_queue, public.ai_members to service_role;
         grant execute on function public.ai_reserve(uuid, text, boolean), public.ai_enqueue(uuid), public.ai_user_status(uuid), public.ai_dequeue(uuid),
-            public.ai_usage_summary(), public.admin_stats() to service_role;
+            public.ai_accept_terms(uuid, text), public.ai_strike(uuid), public.ai_usage_summary(), public.admin_stats() to service_role;
     end if;
 end;
 $$;

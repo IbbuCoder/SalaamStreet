@@ -234,6 +234,8 @@ Or directly in SQL: `update public.ai_settings set enabled = false;`
 - Messages are sent to Google to be answered. What Google keeps depends on your
   API plan and Google's terms; this app doesn't claim Google stores nothing.
 - No API keys or session tokens are logged. Server logs only record error codes.
+- Per person (`ai_members`): which Terms version they accepted and when,
+  their off-topic strike count and any pause. Never their messages.
 
 ## Islamic questions only
 
@@ -245,6 +247,52 @@ with instructions, not by retraining Gemini. That's the practical way to set
 the scope, but it isn't watertight, so a determined user can sometimes get
 around it. To change the scope, edit the list in `SYSTEM_PROMPT` and redeploy
 `ai-lab`.
+
+## Terms of Use and the off-topic rule (3 strikes → 7 days)
+
+**Upgrading:** run the whole updated `supabase-schema.sql` again (it adds the
+`ai_members` table and the `ai_accept_terms` / `ai_strike` functions), then
+deploy `ai-lab` — the "Deploy Supabase" GitHub Action does both. Until you
+do, the new page can't start a chat.
+
+- **Terms:** before their first question, everyone but the admin sees the
+  rules (Islamic and app questions only, the off-topic penalty, AI can be
+  wrong, not professional or emergency help, privacy, age 13+ or a parent's
+  permission) and must tick a box and press "Agree and continue". The server
+  records the Terms version and the time (`ai_members.terms_version`,
+  `terms_accepted_at`) and refuses chats (`terms`) until then. The full text
+  is the public page `terms/` (built by `tools/build-pages.js`). When the
+  rules change, bump `TERMS_VERSION` in `core.js` and `TERMS_UPDATED` in
+  `tools/build-pages.js` together: everyone is asked to accept again.
+- **Off-topic rule:** the model starts an off-topic refusal with
+  `[[OFF_TOPIC]]`; the server removes it (the person never sees it) and calls
+  `ai_strike()`. Strikes 1 and 2 come back with a stern warning shown in the
+  chat. The **third within 30 days pauses SalaamStreet AI for that person for
+  7 days** (`banned_until`) and resets the count; strikes older than 30 days
+  are forgotten. A paused person is refused (`banned`) before Gemini or the
+  limits are touched. The admin is never struck; the Lab shows "flagged
+  off-topic" on such replies so you can check the detection.
+- The model is told never to flag greetings, app questions, unclear
+  questions or safety concerns, and that "when in doubt, it is in scope".
+  Like the scope itself this is an AI judgement, so it can be wrong.
+- The Lab's Status card shows "Off-topic today" and "Paused (3 strikes)".
+  Each strike and pause is in `ai_security_log` (`off_topic`, `banned`,
+  `banned_try`) — who and when, never what they wrote.
+- **Lifting a pause early** (SQL editor), e.g. after a mistaken flag:
+
+  ```sql
+  update public.ai_members set banned_until = null, strikes = 0
+  where user_id = (select id from auth.users where email = 'person@example.com');
+  ```
+
+## "Use my app data" off
+
+The page always tells the server whether "Use my app data" is on
+(`app_data`). When it's off, the model gets `DATA_OFF_PROMPT` instead of the
+data, so if someone asks about their bookmarks or progress it explains that
+the setting is off and how to turn it on, rather than just saying it can't.
+Commands that need the data (`/bookmarks`, `/progress`, `/plan`, `/dua`)
+explain the same thing on the page without sending anything.
 
 ## App data and commands
 

@@ -2069,3 +2069,30 @@ html[data-theme="dark"] .msa-flag-note{color:#fcd34d}
 .lab-set-foot{display:flex;flex-wrap:wrap;align-items:center;gap:10px;grid-column:1/-1}
 .lab-gate{display:grid;gap:12px;justify-items:start}
 .lab-gate p{margin:0}
+.ai-rule{display:flex;gap:10px;align-items:flex-start;margin:0 0 10px;padding:10px 12px;border-radius:var(--radius-xs);background:var(--surface-2);border-inline-start:4px solid var(--gold);font-size:.85rem}
+.ai-rule .ic{inline-size:18px;block-size:18px;flex-shrink:0;margin-block-start:2px;color:var(--gold)}
+.ai-rule p{margin:0}
+.ai-rule.on{background:var(--danger-soft);border-inline-start-color:var(--danger)}
+.ai-rule.on .ic,.ai-rule #ai-strikes{color:var(--danger);font-weight:700}
+.ai-terms h2{font-size:1.15rem;margin:0}
+.ai-terms ul{margin:0;padding-inline-start:1.2em;display:grid;gap:8px;font-size:.92rem}
+.ai-terms-warn{color:var(--danger)}
+.ai-terms .lab-data{align-items:flex-start;font-size:.9rem;color:var(--text)}
+.ai-terms .lab-data input{margin-block-start:4px;flex-shrink:0}
+.lab-warn .lab-bubble{display:flex;gap:8px;align-items:flex-start;white-space:normal;background:var(--danger-soft)!important;color:var(--danger)!important;border:1px solid var(--danger);font-weight:600}
+.lab-warn .lab-bubble .ic{inline-size:18px;block-size:18px;flex-shrink:0;margin-block-start:3px}
+.lab-warn .lab-bubble p{margin:0}
+.lab-bubble ul,.lab-bubble ol{margin:.35em 0;padding-inline-start:1.4em;white-space:normal}
+.lab-bubble li+li{margin-block-start:.25em}
+.lab-bubble .lab-h{display:block;margin:.5em 0 .2em;font-size:1.02em}
+.lab-bubble .lab-h:first-child{margin-block-start:0}
+.lab-suggest{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin-block-start:6px}
+.lab-suggest .chip{white-space:normal;text-align:center}
+/* Terms of Use & Privacy (terms/) */
+.legal h2{font-size:1.1rem;margin:0 0 8px}
+.legal h3{font-size:.98rem;margin:14px 0 4px}
+.legal p,.legal li{line-height:1.6}
+.legal p{margin:0 0 8px}
+.legal ul{margin:0;padding-inline-start:1.2em;display:grid;gap:6px}
+.legal .legal-warn{color:var(--danger)}
+p.legal-warn{background:var(--danger-soft);border-inline-start:4px solid var(--danger);border-radius:var(--radius-xs);padding:10px 12px}

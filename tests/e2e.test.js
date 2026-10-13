@@ -2114,12 +2114,13 @@ test("ai lab + SalaamStreet AI beta: the admin's Lab, everyone else's #/ai with 
   assert.equal(bmCall.body.contents.length, 5, "local /help turns aren't sent");
   assert.match(bmCall.body.systemInstruction.parts[1].text, /"ref":"Al-Baqarah 2:255","note":"Ayat al-Kursi","folder":"Protection"/);
   assert.equal(await A.page.$$eval(".lab-msg.me .lab-bubble", (b) => b[b.length - 1].textContent), "/bookmarks");
-  // With app data off, data commands ask for it first and nothing is sent.
+  // With app data off, data commands explain why they can't run, and nothing is sent.
   await A.page.uncheck("#lab-usedata");
   await A.page.fill("#lab-input", "/progress");
   await A.page.press("#lab-input", "Enter");
-  await A.page.waitForFunction(() => /needs your app data/.test(document.getElementById("lab-err").textContent));
-  assert.equal(await A.page.inputValue("#lab-input"), "/progress");
+  await A.page.waitForFunction(() => /I can.t do \/progress right now because .Use my app data. is turned off/.test(
+    [...document.querySelectorAll(".lab-local .lab-bubble")].pop().textContent));
+  assert.equal(g.calls.filter((c) => /generateContent/.test(c.url)).length, 3, "nothing sent");
   await A.page.check("#lab-usedata");
   await A.page.fill("#lab-input", "");
   await pg.query("update public.ai_usage set at = at - interval '2 minutes'");
@@ -2135,7 +2136,7 @@ test("ai lab + SalaamStreet AI beta: the admin's Lab, everyone else's #/ai with 
   await A.page.waitForSelector("#lab-err:not([hidden])");
   assert.match(await A.page.textContent("#lab-err"), /quota/i);
   assert.equal(await A.page.inputValue("#lab-input"), "Explain tafsir of Al-Fatiha");
-  assert.equal(await A.page.$$eval(".lab-msg.me", (m) => m.length), 4);
+  assert.equal(await A.page.$$eval(".lab-msg.me", (m) => m.length), 5, "including the /progress that explained itself");
   await pg.query("update public.ai_usage set at = at - interval '2 minutes'"); // past the per-minute limit
 
   // The server can't be reached.
@@ -2198,7 +2199,18 @@ test("ai lab + SalaamStreet AI beta: the admin's Lab, everyone else's #/ai with 
   await pg.query("update public.ai_usage set at = at - interval '2 minutes'");
   await pg.query("update public.ai_settings set user_daily_limit = 5, minute_limit = 1");
   await B.page.evaluate(() => { location.hash = "#/ai"; });
+  // First the AI Terms: the rules (with the off-topic warning) must be accepted before asking anything.
+  await B.page.waitForSelector("#ai-terms-go");
+  assert.equal(await B.page.isHidden("#lab-app"), true);
+  assert.match(await B.page.textContent(".ai-terms"), /third off-topic question within 30 days pauses SalaamStreet AI for you for 7 days/);
+  assert.equal(await B.page.isDisabled("#ai-terms-go"), true, "can't continue without ticking the box");
+  assert.equal(await B.page.getAttribute('.ai-terms a[href="terms/"]', "target"), "_blank");
+  await shot(B.page, "ai-terms-390");
+  await B.page.check("#ai-terms-ok");
+  await B.page.click("#ai-terms-go");
   await B.page.waitForSelector("#lab-app:not([hidden]) #ai-quota");
+  assert.equal((await pg.query("select count(*)::int as n from public.ai_members where terms_accepted_at is not null")).rows[0].n, 1, "acceptance recorded");
+  assert.match(await B.page.textContent("#ai-rule"), /Islamic and SalaamStreet questions only.*pauses SalaamStreet AI for you for 7 days/);
   assert.equal(await B.page.title(), "SalaamStreet AI — SalaamStreet");
   assert.match(await B.page.textContent("#lab-h"), /SalaamStreet AI\s*Beta/);
   assert.match(await B.page.textContent("#ai-quota"), /5 of 5 questions left today/);
@@ -2231,6 +2243,32 @@ test("ai lab + SalaamStreet AI beta: the admin's Lab, everyone else's #/ai with 
   assert.equal(await B.page.$$eval(".lab-msg.me", (m) => m.length), 2, "the question is shown once");
   assert.equal((await pg.query("select count(*)::int as n from public.ai_queue")).rows[0].n, 0);
   await B.page.waitForFunction(() => /3 of 5 questions left/.test(document.getElementById("ai-quota").textContent));
+
+  // Off-topic: the reply comes with a stern warning, and the notice shows the count.
+  await pg.query("update public.ai_usage set at = at - interval '2 minutes'");
+  await B.page.fill("#lab-input", "Who won the football last night?");
+  await B.page.press("#lab-input", "Enter");
+  await B.page.waitForSelector(".lab-warn");
+  assert.match(await B.page.textContent(".lab-warn"), /Warning 1 of 3: .*2 more and your access will be paused for 7 days/);
+  assert.doesNotMatch(await B.page.textContent("#lab-log"), /OFF_TOPIC/);
+  await B.page.waitForFunction(() => /You have 1 of 3 warnings/.test(document.getElementById("ai-rule").textContent));
+  assert.equal(await B.page.$$eval("#ai-rule.on", (e) => e.length), 1);
+
+  // App data off: the server is told, so the assistant can explain why it can't see their data.
+  await pg.query("update public.ai_usage set at = at - interval '2 minutes'");
+  await B.page.uncheck("#lab-usedata");
+  await B.page.fill("#lab-input", "What have I bookmarked?");
+  await B.page.press("#lab-input", "Enter");
+  await B.page.waitForFunction(() => document.querySelectorAll(".lab-msg.ai:not(.lab-wait):not(.lab-warn) .lab-bubble:not(.lab-typing)").length === 4);
+  assert.match(g.calls[g.calls.length - 1].body.systemInstruction.parts[1].text, /switched OFF "Use my app data"/);
+
+  // A third strike pauses access: the page says until when, and sending is off.
+  await pg.query("update public.ai_members set strikes = 2, last_strike_at = now()");
+  await pg.query("update public.ai_usage set at = at - interval '2 minutes'");
+  await B.page.fill("#lab-input", "football again");
+  await B.page.press("#lab-input", "Enter");
+  await B.page.waitForFunction(() => /Your access to SalaamStreet AI is paused because you asked 3 off-topic questions/.test(document.getElementById("lab-err").textContent));
+  assert.equal(await B.page.isDisabled("#lab-send"), true);
   assert.equal(await B.page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true, "fits a phone");
   await shot(B.page, "ai-beta-390");
   assert.deepEqual(B.page.errors, []);
