@@ -338,7 +338,8 @@ export function createHandler(deps) {
       throw bannedError(u.banned_until);
     }
     if (u.terms_version !== TERMS_VERSION) {
-      throw new LabError(403, "terms", "Please read and accept the SalaamStreet AI Terms of Use first.", { terms_version: TERMS_VERSION });
+      // An older copy of the page (opened before the Terms existed) can't show them: tell people to reload.
+      throw new LabError(403, "terms", "SalaamStreet AI has new Terms of Use. Please reload this page to read and accept them, then ask again.", { terms_version: TERMS_VERSION });
     }
   }
 
@@ -349,7 +350,8 @@ export function createHandler(deps) {
   }
 
   async function callGoogle(url, init, key) {
-    const ms = Math.max(1000, Number(env("AI_TIMEOUT_MS")) || 45000);
+    // Per attempt. A chat retries once, so keep each short: a stuck request shouldn't hold someone for long.
+    const ms = Math.max(1000, Number(env("AI_TIMEOUT_MS")) || 25000);
     const ctl = new AbortController();
     const timer = setTimeout(() => ctl.abort(), ms);
     let res, data = null;
@@ -417,9 +419,23 @@ export function createHandler(deps) {
       contents: fit.messages.map((m) => ({ role: m.role, parts: [{ text: m.text }] })),
       generationConfig: { maxOutputTokens: r.max_output_tokens },
     };
+    const ask = (model) => callGoogle(`${base}/v1beta/models/${encodeURIComponent(model)}:generateContent`,
+      { method: "POST", body: JSON.stringify(req) }, key);
+    let model = r.model;
     try {
-      const { data, latency } = await callGoogle(`${base}/v1beta/models/${encodeURIComponent(r.model)}:generateContent`,
-        { method: "POST", body: JSON.stringify(req) }, key);
+      let reply;
+      try {
+        reply = await ask(model);
+      } catch (e) {
+        // Google's own hiccups (overloaded, 5xx, a dropped connection, too slow) usually pass in a moment:
+        // try once more, on the fallback model if one is set (AI_FALLBACK_MODEL).
+        if (!isTransient(e)) throw e;
+        await new Promise((ok) => setTimeout(ok, Math.max(0, Number(env("AI_RETRY_PAUSE_MS")) || 800)));
+        const fb = env("AI_FALLBACK_MODEL").trim();
+        if (fb && MODEL_RE.test(fb)) model = fb;
+        reply = await ask(model);
+      }
+      const { data, latency } = reply;
       const um = data.usageMetadata || null;
       const usage = um ? { prompt: num(um.promptTokenCount), output: num(um.candidatesTokenCount) || 0,
         thoughts: num(um.thoughtsTokenCount) || 0, total: num(um.totalTokenCount) } : null;
@@ -455,7 +471,7 @@ export function createHandler(deps) {
           `and your access will be paused for ${BAN_DAYS} days.`;
       return { ok: true, text, off_topic: offTopic, warning,
         strikes: strike ? strike.strikes : null, strike_limit: STRIKE_LIMIT, banned_until: strike ? strike.banned_until || null : null,
-        model: r.model, model_version: data.modelVersion || null, finish_reason: finish,
+        model, model_version: data.modelVersion || null, finish_reason: finish,
         truncated: finish === "MAX_TOKENS", usage, cost_usd: cost, latency_ms: latency, dropped_turns: fit.dropped,
         used_today: r.used, daily_limit: r.limit, remaining_today: Math.max(0, r.limit - r.used),
         user_used: who.admin ? null : r.user_used, user_limit: who.admin ? null : r.user_limit,
@@ -465,8 +481,18 @@ export function createHandler(deps) {
       await store.finish(r.id, { status: "error", error: (e && e.code) || "error" }).catch(() => {});
       // Google itself is too busy: everyone but the admin keeps a fair place in line.
       if (e instanceof LabError && e.code === "provider_quota" && !who.admin) throw queued(await store.enqueue(who.user.id));
+      // Still failing after the retry: everyone but the admin gets a plain message, not Google's technical one.
+      if (isTransient(e) && !who.admin) {
+        throw new LabError(503, "unavailable", "SalaamStreet AI couldn't get an answer just now — Google's AI service is busy or having a problem. " +
+          "This usually passes quickly. Your question is still in the box: tap “Try again” in a moment.");
+      }
       throw e;
     }
+  }
+
+  /** Errors worth one retry: on Google's side, not caused by the request. */
+  function isTransient(e) {
+    return e instanceof LabError && ["provider_error", "network", "timeout"].indexOf(e.code) > -1;
   }
 
   return async function handle(req) {

@@ -179,15 +179,17 @@
           try { j = JSON.parse(txt); } catch (e) { j = null; }
           if (!j || typeof j.ok !== "boolean") {
             return { ok: false, http: r.status, error: r.status === 404 ? "not_deployed" : "bad_response",
-              message: r.status === 404 ? "The ai-lab function isn't deployed yet (see backend/README-ai.md)."
-                : "The server sent an unexpected reply (HTTP " + r.status + ")." };
+              message: r.status === 404 ? (lab() ? "The ai-lab function isn't deployed yet (see backend/README-ai.md)." : "SalaamStreet AI isn't available right now. Please try again later.")
+                : lab() ? "The server sent an unexpected reply (HTTP " + r.status + ")." : "SalaamStreet AI had a problem answering. Please try again." };
           }
           j.http = r.status;
           return j;
         });
       }, function () {
         return { ok: false, error: "unreachable", http: 0,
-          message: navigator.onLine === false ? "You're offline." : "Couldn't reach the AI server. If the ai-lab function isn't deployed yet, see backend/README-ai.md." };
+          message: navigator.onLine === false ? "You're offline. Check your connection, then try again."
+            : lab() ? "Couldn't reach the AI server. If the ai-lab function isn't deployed yet, see backend/README-ai.md."
+            : "Couldn't reach SalaamStreet AI. Check your connection and try again." };
       });
     });
   }
@@ -243,7 +245,8 @@
         'Off-topic questions get a warning. <b>The third one within 30 days pauses SalaamStreet AI for you for 7 days.</b> ' +
         '<span id="ai-strikes"></span></p></div>') +
       '<div class="lab-log" id="lab-log" role="log" aria-live="polite" aria-label="Messages"></div>' +
-      '<p class="lab-err" id="lab-err" role="alert" hidden></p>' +
+      '<div class="lab-err-row"><p class="lab-err" id="lab-err" role="alert" hidden></p>' +
+        '<button class="btn btn-sm" id="lab-again" type="button" hidden>' + icon("refresh") + "<span>Try again</span></button></div>" +
       '<form class="lab-form" id="lab-form">' +
         '<label class="visually-hidden" for="lab-input">Message</label>' +
         '<div class="lab-cmds" id="lab-cmds" role="group" aria-label="Commands">' + COMMANDS.map(function (c) {
@@ -335,6 +338,7 @@
       if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); }
     });
     $("lab-input").addEventListener("input", function () { count(); grow(); });
+    $("lab-again").onclick = function () { showErr(""); send(); };
     $("lab-usedata").onchange = function () { st.useData = this.checked; };
     $("lab-cmds").onclick = function (e) {
       var b = e.target.closest("[data-cmd]");
@@ -352,6 +356,7 @@
     $("lab-clear").onclick = function () { if (!st.busy) { reset(); $("lab-input").value = ""; count(); } };
     $("lab-log").addEventListener("click", function (e) {
       if (e.target.closest("[data-leave]")) { leaveLine(true); return; }
+      if (e.target.closest("[data-stop]")) { stop(); return; }
       var ask = e.target.closest("[data-ask]");
       if (ask) { $("lab-input").value = ask.getAttribute("data-ask"); count(); send(); return; }
       var b = e.target.closest("[data-copy]");
@@ -382,6 +387,7 @@
   }
 
   function reset() {
+    clearTimeout(st.slowTimer);
     st.msgs = [];
     st.session = { tokens: 0, cost: 0, requests: 0 };
     showErr("");
@@ -401,10 +407,12 @@
     el.style.height = "auto";
     if (el.value) el.style.height = el.scrollHeight + 2 + "px";
   }
-  function showErr(msg) {
+  /** retry: show "Try again", which sends what's in the box again. */
+  function showErr(msg, retry) {
     var el = $("lab-err");
     el.hidden = !msg;
     el.textContent = msg || "";
+    $("lab-again").hidden = !(msg && retry);
   }
 
   /* ── Gate (sign-in / not allowed / not set up) ────────────────── */
@@ -624,10 +632,37 @@
         (meta.truncated ? '<p class="lab-trunc">Cut short: the reply reached the max output tokens.</p>' : "") + "</div>" +
         '<div class="lab-meta"><span>' + esc(bits.join(" · ")) + '</span><button class="btn btn-ghost btn-sm" type="button" data-copy="' + i + '">' + icon("copy") + "<span>Copy</span></button></div></div>";
     }).join("") + (st.queue ? waitCard(st.queue)
-      : st.busy ? '<div class="lab-msg ai"><div class="lab-bubble lab-typing" aria-label="' + (lab() ? "Gemini" : "SalaamStreet AI") + ' is answering"><span></span><span></span><span></span></div></div>' : "");
+      : st.busy ? '<div class="lab-msg ai lab-pending"><div class="lab-bubble lab-typing" aria-label="' + (lab() ? "Gemini" : "SalaamStreet AI") + ' is answering"><span></span><span></span><span></span></div>' +
+        '<div class="lab-meta"><span class="lab-slow" id="lab-slow" aria-live="polite"></span><button class="btn btn-ghost btn-sm" type="button" data-stop>' + icon("x") + "<span>Stop</span></button></div></div>" : "");
     log.scrollTop = log.scrollHeight;
   }
   var SUGGESTIONS = ["How do I pray Fajr on time?", "What does Ayat al-Kursi mean?", "Duas for when I feel anxious", "Tell me a story from the seerah"];
+  /** Stop waiting for an answer: the question goes back in the box (a late reply is ignored). */
+  function stop() {
+    if (!st.busy || st.queue) return;
+    st.req++;
+    st.busy = false;
+    clearTimeout(st.slowTimer);
+    var mine = st.msgs.pop(), input = $("lab-input");
+    if (mine && !input.value) { input.value = mine.shown || mine.text; count(); grow(); }
+    drawLog();
+    if (st.me) drawMe(); else if (st.status) drawStatus(); else $("lab-send").disabled = false;
+    input.focus();
+  }
+  /** Long waits get a word of reassurance, so a slow answer doesn't look broken. */
+  function slowNotes() {
+    clearTimeout(st.slowTimer);
+    var started = Date.now();
+    (function tick() {
+      st.slowTimer = setTimeout(function () {
+        var el = $("lab-slow");
+        if (!el || !st.busy || st.queue) return;
+        var secs = (Date.now() - started) / 1000;
+        el.textContent = secs > 25 ? "Taking longer than usual — retrying with Google…" : "Still thinking…";
+        tick();
+      }, 8000);
+    })();
+  }
   /** Where the person is in line. Their question is sent again every few seconds. */
   function waitCard(q) {
     var secs = Math.max(5, q.wait_seconds || 0);
@@ -697,8 +732,10 @@
     extra.app_data = st.useData; // off: the server tells the assistant, so it can say why it can't see their data
     if (st.useData) { try { extra.context = appData(); } catch (_) { /* send without it */ } }
     var id = ++st.req;
+    slowNotes();
     api("chat", extra).then(function (r) {
-      if (id !== st.req) return; // they left the line or the page meanwhile
+      if (id !== st.req) return; // they stopped, left the line or left the page meanwhile
+      clearTimeout(st.slowTimer);
       if (!r.ok && r.error === "queued") {
         // Busy: wait in line, checking in (and keeping our place) every few seconds.
         st.queue = { position: r.position, waiting: r.waiting, wait_seconds: r.wait_seconds };
@@ -722,7 +759,8 @@
         // Put the question back so it can be sent again.
         var mine = st.msgs.pop();
         if (!input.value) { input.value = mine.shown || mine.text; count(); }
-        showErr((r.message || "The request failed.") + (r.provider ? " Google said: " + r.provider : ""));
+        var again = ["unavailable", "provider_error", "network", "timeout", "unreachable", "bad_response", "slow_down", "rate_limit", "server_error"].indexOf(r.error) > -1;
+        showErr((r.message || "The request failed.") + (r.provider && lab() ? " Google said: " + r.provider : ""), again);
         if (r.error === "signed_out" || r.error === "invalid_session" || r.error === "forbidden") load();
         if (r.error === "user_limit" && st.me) st.me.remaining_today = 0;
         if (r.error === "banned" && st.me) st.me.banned_until = r.banned_until;

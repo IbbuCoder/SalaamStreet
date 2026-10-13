@@ -441,13 +441,14 @@
      in no menu) share one script, loaded only when one of them opens. Who may
      use them is decided by the server (backend/functions/ai-lab). */
   var aiLoading = null;
+  var AI_REV = "2026-10-13b"; // change whenever js/ai-lab.js changes
   function aiScript(view, params) {
     var run = function () { if (currentView === view && SS.aiPage) SS.aiPage(view, params); };
     if (SS.aiPage) return run();
     if (!aiLoading) {
       aiLoading = new Promise(function (resolve, reject) {
         var s = document.createElement("script");
-        s.src = "js/ai-lab.js";
+        s.src = "js/ai-lab.js?r=" + AI_REV; // a new revision is never served from an old cached copy
         s.onload = resolve;
         s.onerror = reject;
         document.head.appendChild(s);
