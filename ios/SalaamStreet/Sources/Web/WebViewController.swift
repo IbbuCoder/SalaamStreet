@@ -150,22 +150,22 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
 
     func webView(_ webView: WKWebView, runJavaScriptAlertPanelWithMessage message: String, initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping () -> Void) {
         let a = UIAlertController(title: nil, message: message, preferredStyle: .alert)
-        a.addAction(UIAlertAction(title: NSLocalizedString("OK", comment: ""), style: .default) { _ in completionHandler() })
+        a.addAction(UIAlertAction(title: Self.word("ok"), style: .default) { _ in completionHandler() })
         presentAlert(a) { completionHandler() }
     }
 
     func webView(_ webView: WKWebView, runJavaScriptConfirmPanelWithMessage message: String, initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping (Bool) -> Void) {
         let a = UIAlertController(title: nil, message: message, preferredStyle: .alert)
-        a.addAction(UIAlertAction(title: NSLocalizedString("Cancel", comment: ""), style: .cancel) { _ in completionHandler(false) })
-        a.addAction(UIAlertAction(title: NSLocalizedString("OK", comment: ""), style: .default) { _ in completionHandler(true) })
+        a.addAction(UIAlertAction(title: Self.word("cancel"), style: .cancel) { _ in completionHandler(false) })
+        a.addAction(UIAlertAction(title: Self.word("ok"), style: .default) { _ in completionHandler(true) })
         presentAlert(a) { completionHandler(false) }
     }
 
     func webView(_ webView: WKWebView, runJavaScriptTextInputPanelWithPrompt prompt: String, defaultText: String?, initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping (String?) -> Void) {
         let a = UIAlertController(title: nil, message: prompt, preferredStyle: .alert)
         a.addTextField { $0.text = defaultText }
-        a.addAction(UIAlertAction(title: NSLocalizedString("Cancel", comment: ""), style: .cancel) { _ in completionHandler(nil) })
-        a.addAction(UIAlertAction(title: NSLocalizedString("OK", comment: ""), style: .default) { _ in completionHandler(a.textFields?.first?.text) })
+        a.addAction(UIAlertAction(title: Self.word("cancel"), style: .cancel) { _ in completionHandler(nil) })
+        a.addAction(UIAlertAction(title: Self.word("ok"), style: .default) { _ in completionHandler(a.textFields?.first?.text) })
         presentAlert(a) { completionHandler(nil) }
     }
 
@@ -196,6 +196,17 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
     }
 
     // MARK: Helpers
+
+    /// OK / Cancel in the website's language (its 7 languages).
+    static func word(_ key: String) -> String {
+        let words: [String: [String: String]] = [
+            "en": ["ok": "OK", "cancel": "Cancel"], "ar": ["ok": "حسناً", "cancel": "إلغاء"], "ur": ["ok": "ٹھیک ہے", "cancel": "منسوخ"],
+            "bn": ["ok": "ঠিক আছে", "cancel": "বাতিল"], "id": ["ok": "OK", "cancel": "Batal"], "tr": ["ok": "Tamam", "cancel": "Vazgeç"],
+            "fr": ["ok": "OK", "cancel": "Annuler"],
+        ]
+        let lang = SharedStore.loadSnapshot()?.locale ?? "en"
+        return words[lang]?[key] ?? words["en"]![key]!
+    }
 
     func openInSafari(_ url: URL) {
         guard url.scheme == "http" || url.scheme == "https" else { return }
