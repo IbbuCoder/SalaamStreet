@@ -120,7 +120,7 @@
     return '[data-act="' + b.getAttribute("data-act") + '"]' + (b.getAttribute("data-arg") != null ? '[data-arg="' + b.getAttribute("data-arg") + '"]' : "");
   }
 
-  /* ── Settings → Offline Qur'an ──────────────────────────────── */
+  /* ── Offline page parts: Qur'an text, recitation, tafsir, storage ── */
   var audioReciter = null;
   function textComplete(ed) { return off().packCount("text:" + ed) >= 114; }
   function baseComplete() { return off().BASE_EDITIONS.every(textComplete); }
@@ -458,7 +458,7 @@
         '<span class="w-title">' + esc(t("off.qReady")) + '</span><span class="w-sub">' + esc(t("off.qManage")) + "</span></span>" + chev;
     }
     return open + icon("download") + '</span><span class="w-body">' +
-      '<span class="w-title">' + esc(where === "settings" ? t("off.title") : t("off.qTitle")) + '</span><span class="w-sub wrap-text">' +
+      '<span class="w-title">' + esc(where === "settings" ? t("offp.title") : t("off.qTitle")) + '</span><span class="w-sub wrap-text">' +
       esc(where === "settings" ? t("off.stSub") : f("off.qSub", { size: approx(off().estimate.text(SS.translation().id)) })) + "</span></span>" + chev;
   }
   function setHtml(el, html) {
@@ -779,6 +779,8 @@
     viewer.wire();
     window.addEventListener("online", renderSoon);
     window.addEventListener("offline", renderSoon);
+    // First visit: the status line changes once the service worker has saved the app.
+    if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("controllerchange", renderSoon);
     document.addEventListener("ss:offline", function () {
       announce();
       render();

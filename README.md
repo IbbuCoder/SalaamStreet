@@ -14,6 +14,8 @@ Current version: **3.0.0-beta — SalaamStreet AI (Beta)** (see `SS.VERSION` / `
 
 ## Features
 
+- **Native iOS app (3.0.0 Beta)** — a SwiftUI app in [`ios/`](ios/README.md) with the same content and prayer calculations as the website: a prayer countdown on the Lock Screen and in the Dynamic Island (Live Activity), Qur'an recitation with background audio and Lock Screen controls, reminders with an "I prayed" action, Qibla compass, tracker, duas, dhikr, hadith, mosque finder and offline downloads
+- **Offline page (3.0)** — `#/offline` on the website and Offline in the iOS app: download the Qur'an text and translations, recitation, Tafsir Ibn Kathir and hadith collections; see what's built in and what needs a connection; manage storage. Details: [`docs/07-offline.md`](docs/07-offline.md)
 - **SalaamStreet AI (3.0 Beta)** — an Islamic assistant for everyone with a free account, at `#/ai` (SalaamStreet AI in the menus). It only answers Islamic questions, never invents verses or hadith, and refers rulings to scholars. Commands (`/bookmarks`, `/ayah 2:255`, `/progress`, `/plan`, `/dua`, `/quiz`, `/reflect`) use your own app data when you allow it. Each person has a daily allowance; when it's busy, people wait in a fair line and their question is sent automatically. Conversations aren't stored. Setup and limits: [`backend/README-ai.md`](backend/README-ai.md)
 - **NVHS MSA (2.11)** — the Neuqua Valley High School Muslim Student Association's announcements, with pictures, for everyone (no account needed to read); important ones also show as one slim, hideable card on Home. Only the MSA's own accounts can post, edit, pin and delete, checked by the database on every write. **Members (2.11.6):** students join with their name and the 6-digit meeting code (changes every 10 minutes, shown only to the MSA's approver), or by asking; the approver checks requests against a roster kept only in the database; a name that already belongs to a member is flagged for an in-person check; posters can mark announcements members-only. **2.11.7:** students on the roster who sign in with their school email (emailed code, not Google) are accepted automatically. **2.11.8:** one list of MSA admins — only they post, and they manage members; admins add students (with the email they sign in with) and other admins on the Manage page, which also has “approve all on the list”, who joined this week and a CSV download. Setup: [`backend/README-backend.md`](backend/README-backend.md#31--nvhs-msa-announcements)
 - **Modes (2.10, redesigned in 2.11.5)** — each mode answers one question right inside Home's prayer card; switch with one tap from the mode badge in the top bar, or from Modes in the sidebar or More menu. Your mode syncs when you're signed in. Details: [`docs/06-modes.md`](docs/06-modes.md)
@@ -29,7 +31,7 @@ Current version: **3.0.0-beta — SalaamStreet AI (Beta)** (see `SS.VERSION` / `
 - **Qur'an reader** — all 114 surahs in Uthmani script with Saheeh International translation, optional transliteration, adjustable Arabic text size, bookmarks, resume where you left off, copy an ayah
 - **Recitation** — 4 reciters, per-ayah or continuous playback, speed and repeat controls, lock-screen/media-key controls
 - **Tafsir** — Ibn Kathir (English) for any ayah, with previous/next ayah, in a bottom sheet on phones
-- **Offline Qur'an** — download the whole Qur'an once (Arabic, your translation and transliteration; more translations optional), plus recitation per surah or all of it, and Tafsir Ibn Kathir; resumable downloads with pause/cancel, stored only on your device. An optional Qur'an PDF (when the site provides one) can be saved to the device and read offline in the built-in viewer
+- **Offline Qur'an** — on the Offline page: download the whole Qur'an once (Arabic, your translation and transliteration; more translations optional), plus recitation per surah or all of it, and Tafsir Ibn Kathir; resumable downloads with pause/cancel, stored only on your device. An optional Qur'an PDF (when the site provides one) can be saved to the device and read offline in the built-in viewer
 - **Hadith library** — 10 collections: the 40 Hadith of an-Nawawi, Qudsi and Shah Waliullah in full; the Six Books (Bukhari, Muslim, Abu Dawud, Tirmidhi, Nasa'i, Ibn Majah) and the Muwatta of Imam Malik to browse by number or jump to any book; Arabic, English, reference and every scholar's grading (weak grades marked); a Hadith of the day
 - **Knowledge** — the five pillars, the six articles of faith and ihsan with their sources, and short explanations of hadith terms (sahih, hasan, da'if, isnad …)
 - **SalaamStreet Stories** — 17 true stories in four groups (the Prophets, stories from the Qur'an, the Prophet ﷺ and his Companions, stories the Prophet ﷺ told), told only from the Qur'an and authentic hadith: every Qur'an quote is loaded from the app's Qur'an source, every part shows its source, each story ends with its lesson, and Play/Pause recites the story slide by slide; plus a daily "Today" story
@@ -51,7 +53,7 @@ Current version: **3.0.0-beta — SalaamStreet AI (Beta)** (see `SS.VERSION` / `
 - **Learn to read Arabic** — the 28 letters and their shapes, the vowel marks, and a quick quiz
 - **Prayer-times widget for mosques** — a free embed builder at [`/widget/`](https://salaamstreet.com/widget/): pick a location, method and style, copy one line of code
 - **Search-friendly pages** — every surah, the dua library, the 99 Names, a Qibla direction page and prayer times (with the Qibla direction) for 60 major cities have their own indexable page, with structured data, breadcrumbs and a share card, plus `sitemap.xml`
-- **7 interface languages** — English and Arabic, plus draft Urdu, Bengali, Indonesian, Turkish and French (loaded only when chosen; pending native-speaker review) — with full right-to-left layout for Arabic and Urdu · **Light / dark / system theme** · **Installable** (add to home screen) · **Works offline** for anything you've already opened, and for the whole Qur'an once downloaded (Settings → Offline Qur'an)
+- **7 interface languages** — English and Arabic, plus draft Urdu, Bengali, Indonesian, Turkish and French (loaded only when chosen; pending native-speaker review) — with full right-to-left layout for Arabic and Urdu · **Light / dark / system theme** · **Installable** (add to home screen) · **Works offline** for anything you've already opened, and for the whole Qur'an, recitation, tafsir and hadith once downloaded (the Offline page)
 
 ## Principles
 
@@ -86,14 +88,14 @@ Safe-area insets (iPhone notch / home indicator), 16px form inputs (no iOS zoom)
 │   ├── lang/             Draft interface languages (ur, bn, id, tr, fr), loaded on demand
 │   ├── praytimes.js      Prayer times calculated on the device (offline fallback; also used by the reminder server)
 │   ├── core.js           Config, storage (+ sync hooks), API clients with caching, location flow, Qibla bearing
-│   ├── offline.js        Offline Qur'an: IndexedDB text/tafsir, cached audio + PDF, resumable downloads
+│   ├── offline.js        Offline downloads: IndexedDB text/tafsir/hadith, cached audio + PDF, resumable downloads
 │   ├── views.js          One controller per view
 │   ├── features.js       Tracker, reminders, adhkar, Names, mosques, Arabic, plans, share cards
 │   ├── stories.js        The stories (narration + Qur'an/hadith references; Qur'an text loaded from its source)
 │   ├── stories-ui.js     Stories library, tap-through viewer with Play/Pause
 │   ├── daily.js          Did-you-pray, Qur'an goal, adhkar reminders, wake lock, icon badge, Friday summary, sleep timer
 │   ├── push.js           Opt-in reminders when the app is closed (Web Push)
-│   ├── offline-ui.js     Offline Qur'an section in Settings, Qur'an page cards, PDF viewer
+│   ├── offline-ui.js     The Offline page (#/offline), Qur'an page cards, PDF viewer
 │   ├── qibla.js          Qibla compass + camera mode, WMM2025 declination, orientation maths
 │   ├── config.js         Supabase URL + key for optional accounts (empty = guest-only)
 │   ├── sync.js           Cross-device sync engine
@@ -114,6 +116,9 @@ Safe-area insets (iPhone notch / home indicator), 16px form inputs (no iOS zoom)
 ├── tools/build-hadith-books.js Generator for js/hadith-books.js (from hadith-api)
 ├── tools/build-push-messages.js Copies reminder texts + praytimes.js to the reminder server
 ├── backend/              Supabase schema, setup guides, functions/send-reminders (closed-app reminders) and functions/ai-lab (private AI Testing Lab)
+├── ios/                  Native iOS app (SwiftUI, Live Activity, SalaamStreetCore package) — see ios/README.md
+├── tools/build-ios-content.js  Copies the website's content (and prayer-time fixtures) into the iOS app
+├── tools/build-ios-assets.js   Draws the iOS app icon, logo and Now Playing artwork
 ├── tests/                Unit, database (PGlite) and browser (Playwright) tests
 └── docs/                 Product, architecture and design notes
 ```
@@ -151,7 +156,8 @@ npm run lint         # ESLint
 - `tests/praytimes.test.js` — on-device prayer times vs the adhan library (8 cities, 4 seasons, every method)
 - `tests/push.test.js` — the reminder server: what's due when, sent once, in the device's language
 - `tests/ai-lab.test.js` — the private AI Testing Lab's server in a real Postgres: admin-only access checked on every request, limits, emergency switches, Gemini errors, no secrets in the website ([`backend/README-ai.md`](backend/README-ai.md))
-- `tests/offline.test.js` — Offline Qur'an in Chromium with real IndexedDB/Cache API: storage, read-path fallback, resume after a dropped connection or closed tab, quota errors, PDF card hidden while the file is missing
+- `tests/ios-content.test.js` — the iOS app's bundled content and prayer-time fixtures match the website's data; the iOS version is 3.0.0 (1)
+- `tests/offline.test.js` — the Offline page and downloads in Chromium with real IndexedDB/Cache API: storage, read-path fallback, resume after a dropped connection or closed tab, quota errors, PDF card hidden while the file is missing
 - `tests/e2e.test.js` — the app in Chromium: startup theme, Tafsir, Qibla compass/camera, guest mode, every sign-in method driven through the real supabase-js client against a mock Supabase API, and the Offline Qur'an (text, audio across surahs, the PDF viewer offline), and every 2.10 mode: switching and persistence, Travel without location and offline, Hajj & Umrah progress, Mosque and Quiet Mode, suggestions, the full parent/child flow against the real database functions, and layout in light and dark
 
 ## Run locally
@@ -183,7 +189,7 @@ The repo is deployed from the `main` branch root:
 | Google Fonts | Figtree, IBM Plex Sans Arabic, Scheherazade New, Amiri |
 | [Supabase](https://supabase.com) (only when signed in) | Optional accounts and sync (needs your project URL + anon key) |
 
-Responses are cached in localStorage, so surahs you've read and today's prayer times keep working offline. For the whole Qur'an, Settings → Offline Qur'an downloads the text (and optionally recitation and tafsir) into IndexedDB and the Cache API on the device; nothing downloaded is ever synced to an account.
+Responses are cached in localStorage, so surahs you've read and today's prayer times keep working offline. For the whole Qur'an, the Offline page (`#/offline`) downloads the text (and optionally recitation, tafsir and hadith collections) into IndexedDB and the Cache API on the device; nothing downloaded is ever synced to an account.
 
 ## Roadmap
 

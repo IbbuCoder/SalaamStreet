@@ -35,6 +35,8 @@ final class OfflineLibrary: ObservableObject {
     private var stopReason: [String: JobStatus] = [:] // pause or cancel requested
     private var cancelling: Set<String> = []
     private var online = true
+    /// Bumped by removeAll(): a download still finishing must not write anything back (as on the website).
+    private var generation = 0
     private var backgroundTask: UIBackgroundTaskIdentifier = .invalid
 
     init() {
@@ -176,6 +178,7 @@ final class OfflineLibrary: ObservableObject {
 
     /// Remove every download from this device.
     func removeAll() {
+        generation += 1
         runner?.cancel()
         runner = nil
         runningID = nil
@@ -241,9 +244,10 @@ final class OfflineLibrary: ObservableObject {
         beginBackgroundTask()
         runningID = job.id
         setStatus(job.pack, .running, failure: nil)
+        let gen = generation
         runner = Task { [weak self] in
             await self?.run(job)
-            guard let self else { return }
+            guard let self, gen == self.generation else { return } // removeAll() already reset the runner
             self.runner = nil
             self.runningID = nil
             self.kick()
@@ -252,6 +256,7 @@ final class OfflineLibrary: ObservableObject {
 
     private func run(_ job: DownloadJob) async {
         let id = job.pack
+        let gen = generation
         let remaining = manifest.remaining(job)
         progress[job.id] = Progress(done: job.units.count - remaining.count, total: job.units.count,
                                     bytes: job.units.reduce(0) { $0 + (manifest.pack(id)?.units[$1] ?? 0) })
@@ -269,6 +274,7 @@ final class OfflineLibrary: ObservableObject {
                 }
                 for _ in 0..<parallel { launch() }
                 while let result = try await group.next() {
+                    guard gen == generation else { group.cancelAll(); return }
                     let (unit, bytes) = result
                     manifest.record(id, unit: unit, bytes: bytes)
                     save()
@@ -282,6 +288,7 @@ final class OfflineLibrary: ObservableObject {
         }
 
         let key = job.id
+        guard gen == generation else { return } // everything was removed meanwhile
         if cancelling.remove(key) != nil {
             stopReason[key] = nil
             finishCancel(id)
