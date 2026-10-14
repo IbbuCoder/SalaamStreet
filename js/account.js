@@ -272,7 +272,8 @@
   }
 
   /* ═══════════ Auth actions ═══════════ */
-  function returnUrl() { return location.origin + location.pathname; }
+  // The iOS app (SSNative, see ios/) gets sign-in results at salaamstreet://auth-callback.
+  function returnUrl() { return (window.SSNative && window.SSNative.authRedirect) || location.origin + location.pathname; }
   function rememberReturn() {
     try { sessionStorage.setItem(RETURN_KEY, location.hash && location.hash !== "#/" ? location.hash : "#/account"); } catch (e) { /* noop */ }
   }

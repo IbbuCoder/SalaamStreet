@@ -1,0 +1,130 @@
+# Builds the iOS app (the bundled website in a WKWebView + native features)
+# on a macOS runner and runs its unit and UI tests in the iPhone simulator.
+# No signing identity or secrets: simulator builds are signed ad hoc.
+name: iOS
+
+on:
+  push:
+    paths:
+      - "ios/**"
+      - ".github/workflows/ios.yml"
+  pull_request:
+    paths:
+      - "ios/**"
+      - ".github/workflows/ios.yml"
+  workflow_dispatch:
+    inputs:
+      print_thumbnails:
+        description: "Print small JPEG thumbnails of the screenshots into the log (for reviewers who can't download artifacts)"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  SIGN: CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= PROVISIONING_PROFILE_SPECIFIER=
+
+jobs:
+  webapp:
+    name: Bundled website is current (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node tools/build-ios-webapp.js --check
+
+  build:
+    name: Build app + widgets (iOS Simulator)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Xcode version
+        run: xcodebuild -version
+      - name: Build
+        run: |
+          set -o pipefail
+          mkdir -p build
+          xcodebuild build \
+            -project ios/SalaamStreet.xcodeproj -scheme SalaamStreet -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' -derivedDataPath build/DerivedData $SIGN \
+            | tee build/xcodebuild.log | grep -E "error:|warning: .*(deprecated|isolat|Sendable)|BUILD (SUCCEEDED|FAILED)" || true
+          grep -q "BUILD SUCCEEDED" build/xcodebuild.log
+      - name: Show errors
+        if: failure()
+        run: grep -n -B2 -A6 "error:" build/xcodebuild.log | head -300 || true
+      - name: App bundle contents
+        run: |
+          APP=build/DerivedData/Build/Products/Debug-iphonesimulator/SalaamStreet.app
+          du -sh "$APP" "$APP/WebApp" "$APP/PlugIns/"* || true
+          ls "$APP" | head -40
+          test -f "$APP/bridge.js" && test -f "$APP/WebApp/index.html" && test -f "$APP/WebApp/files/quran-english-sher-ali.pdf"
+          codesign -d --entitlements :- "$APP" 2>/dev/null | head -30 || true
+
+  tests:
+    name: ${{ matrix.suite }} tests (${{ matrix.appearance }})
+    runs-on: macos-15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { suite: Unit, appearance: light, only: SalaamStreetTests }
+          - { suite: UI, appearance: light, only: SalaamStreetUITests }
+          - { suite: UI, appearance: dark, only: SalaamStreetUITests }
+    steps:
+      - uses: actions/checkout@v4
+      - name: Boot an iPhone simulator
+        run: |
+          DEVICE=$(xcrun simctl list devices available | grep -oE "iPhone 16 \(([0-9A-F-]+)\)" | head -1 | grep -oE "[0-9A-F-]{36}")
+          echo "DEVICE=$DEVICE" >> "$GITHUB_ENV"
+          xcrun simctl boot "$DEVICE"
+          xcrun simctl ui "$DEVICE" appearance ${{ matrix.appearance }}
+          xcrun simctl status_bar "$DEVICE" override --time "9:41" --batteryState charged --batteryLevel 100 --wifiBars 3 || true
+      - name: Test
+        run: |
+          set -o pipefail
+          mkdir -p build
+          xcodebuild test \
+            -project ios/SalaamStreet.xcodeproj -scheme SalaamStreet \
+            -destination "id=$DEVICE" -only-testing:${{ matrix.only }} \
+            -derivedDataPath build/DerivedData -resultBundlePath build/Results.xcresult $SIGN \
+            | tee build/xcodebuild-test.log | grep -E "error:|WEBAPP-|Test Case .*(passed|failed)|XCTAssert|Executed|TEST (SUCCEEDED|FAILED)" || true
+          grep -q "TEST SUCCEEDED" build/xcodebuild-test.log
+      - name: Show failures
+        if: failure()
+        run: grep -n -B3 -A10 "error:\|failed" build/xcodebuild-test.log | head -300 || true
+      - name: Export screenshots
+        if: always() && matrix.suite == 'UI'
+        run: |
+          mkdir -p build/screenshots
+          xcrun xcresulttool export attachments --path build/Results.xcresult --output-path build/screenshots || true
+          ls build/screenshots | head -80
+      - name: Print thumbnails
+        if: always() && matrix.suite == 'UI' && (github.event_name != 'workflow_dispatch' || inputs.print_thumbnails)
+        run: |
+          mkdir -p build/thumbs
+          python3 - <<'PY'
+          import json, subprocess, base64
+          m = json.load(open("build/screenshots/manifest.json"))
+          for test in m:
+              for a in test.get("attachments", []):
+                  name = a.get("suggestedHumanReadableName", "")
+                  f = a.get("exportedFileName", "")
+                  if not f.endswith(".png"): continue
+                  out = "build/thumbs/" + f.replace(".png", ".jpg")
+                  subprocess.run(["sips", "-Z", "520", "-s", "format", "jpeg", "-s", "formatOptions", "50", "build/screenshots/" + f, "--out", out], check=True, capture_output=True)
+                  print("THUMB", name.split("_0_")[0], base64.b64encode(open(out, "rb").read()).decode())
+          PY
+      - name: Upload screenshots
+        if: always() && matrix.suite == 'UI'
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots-${{ matrix.appearance }}
+          path: build/screenshots
+          if-no-files-found: warn

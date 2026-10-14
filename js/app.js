@@ -295,6 +295,25 @@
       if (audio.paused) { var p = audio.play(); if (p && p.catch) p.catch(function () {}); }
       else audio.pause();
     },
+    /** The ayah playing now and up to `max` that the "ended" handler above
+        would play after it (repeats, story ranges, continuous play), or null.
+        Only read by the iOS app, which keeps reciting while the phone is
+        locked and the page's JavaScript is paused. */
+    plan: function (max) {
+      if (!curMeta) return null;
+      max = max || 300;
+      var next = [], s = curSurah, a = curAyah, meta = curMeta, left = repeatLeft;
+      while (next.length < max) {
+        if (onEnd) { if (playUntil && a < playUntil) a++; else break; }
+        else if (left > 1) left--;
+        else if (singleAyah) break;
+        else if (a < meta.ayahs) { a++; left = REPEATS[repeatIdx]; }
+        else if (SS.store.settings().continuousPlay && s < 114) { s++; a = 1; meta = SS.SURAHS[s - 1]; left = REPEATS[repeatIdx]; }
+        else break;
+        next.push({ surah: s, ayah: a, src: audioSrc(s, a) });
+      }
+      return { reciter: currentReciter(), current: { surah: curSurah, ayah: curAyah, src: audioSrc(curSurah, curAyah) }, next: next };
+    },
   };
 
   function wireAudioBar() {
