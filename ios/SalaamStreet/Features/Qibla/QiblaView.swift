@@ -95,7 +95,9 @@ struct QiblaView: View {
                 .multilineTextAlignment(.center)
                 }
 
-                if !compass.available {
+                if atTheKaaba {
+                    EmptyView()
+                } else if !compass.available {
                     StatusBanner(kind: .info, text: "This device has no compass. Face \(Int(qibla.rounded()))° clockwise from north using a map or the sun.")
                 } else if compass.accuracy < 0 || compass.accuracy > 25 {
                     StatusBanner(kind: .warning, text: "Compass accuracy is low. Move your iPhone in a figure-of-eight, away from metal and magnets.")
