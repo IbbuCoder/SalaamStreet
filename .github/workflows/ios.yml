@@ -98,7 +98,26 @@ jobs:
           grep -q "TEST SUCCEEDED" build/xcodebuild-test.log
       - name: Show failures
         if: failure()
-        run: grep -n -B3 -A10 "error:\|failed" build/xcodebuild-test.log | head -300 || true
+        run: |
+          grep -n -B3 -A10 "error:\|failed" build/xcodebuild-test.log | head -200 || true
+          echo "── crash reports ──"
+          for f in $(ls -t ~/Library/Logs/DiagnosticReports/SalaamStreet* 2>/dev/null | head -2); do
+            echo "== $f"
+            python3 - "$f" <<'PY' || head -c 6000 "$f"
+          import json, sys
+          raw = open(sys.argv[1]).read()
+          body = json.loads(raw[raw.index("\n") + 1:])
+          print("exception:", json.dumps(body.get("exception")), "\ntermination:", json.dumps(body.get("termination")))
+          print("asi:", json.dumps(body.get("asi")))
+          imgs = body.get("usedImages", [])
+          bt = body.get("lastExceptionBacktrace") or next((t["frames"] for t in body.get("threads", []) if t.get("triggered")), [])
+          for fr in bt[:40]:
+              img = imgs[fr["imageIndex"]]["name"] if fr.get("imageIndex") is not None and fr["imageIndex"] < len(imgs) else "?"
+              print(" ", img, fr.get("symbol", ""), fr.get("sourceFile", ""), fr.get("sourceLine", ""))
+          PY
+          done
+          echo "── app log ──"
+          xcrun simctl spawn "$DEVICE" log show --last 15m --style compact --predicate 'process == "SalaamStreet"' 2>/dev/null | grep -i -E "exception|terminat|fatal|assert|crash|\[web " | tail -60 || true
       - name: Export screenshots
         if: always() && matrix.suite == 'UI'
         run: |

@@ -109,12 +109,15 @@ final class Notifications: NSObject, UNUserNotificationCenterDelegate {
     nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
         let info = response.notification.request.content.userInfo
         let action = response.actionIdentifier
+        let key = (info["prayedKey"] as? String).flatMap(PrayerKey.init(rawValue:))
+        let date = info["prayedDate"] as? String
+        let hash = info["hash"] as? String
         await MainActor.run {
-            if action == Self.prayedAction, let k = info["prayedKey"] as? String, let key = PrayerKey(rawValue: k), let date = info["prayedDate"] as? String {
+            if action == Self.prayedAction, let key, let date {
                 // Ticked without opening the app: the website's tracker gets it next time it runs.
                 SharedStore.addPrayed(key: key, date: date)
                 AppRouter.shared.bridge?.deliverPendingPrayed()
-            } else if action == UNNotificationDefaultActionIdentifier, let hash = info["hash"] as? String {
+            } else if action == UNNotificationDefaultActionIdentifier, let hash {
                 AppRouter.shared.open(hash: hash)
             }
         }
