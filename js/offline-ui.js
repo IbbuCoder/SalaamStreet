@@ -1,6 +1,7 @@
 /* SalaamStreet — offline-ui.js (classic script)
-   The interface for the Offline Qur'an (2.6.0; the logic is in js/offline.js):
-   the "Offline Qur'an" section in Settings, the download card and per-surah
+   The interface for offline use (the logic is in js/offline.js): the Offline
+   page (#/offline, 3.0 — downloads by category, what's built in, what needs a
+   connection, storage), its card in Settings, the download card and per-surah
    marks on the Qur'an page, the Qur'an PDF card and the in-app PDF viewer. */
 (function () {
   "use strict";
@@ -119,7 +120,7 @@
     return '[data-act="' + b.getAttribute("data-act") + '"]' + (b.getAttribute("data-arg") != null ? '[data-arg="' + b.getAttribute("data-arg") + '"]' : "");
   }
 
-  /* ── Settings → Offline Qur'an ──────────────────────────────── */
+  /* ── Offline page parts: Qur'an text, recitation, tafsir, storage ── */
   var audioReciter = null;
   function textComplete(ed) { return off().packCount("text:" + ed) >= 114; }
   function baseComplete() { return off().BASE_EDITIONS.every(textComplete); }
@@ -229,30 +230,120 @@
     var u = usageCache;
     var html = row("download", esc(t("off.storage")), esc(f("off.storageUsed", { size: size(total) })) +
       (u && u.quota ? "<br>" + esc(f("off.storageBrowser", { used: size(u.usage), quota: size(u.quota) })) : ""), "");
+    if (u && u.quota) {
+      var pct = Math.min(100, Math.max(0, u.usage / u.quota * 100));
+      html += '<div class="off-meter" role="img" aria-label="' + esc(f("off.storageBrowser", { used: size(u.usage), quota: size(u.quota) })) +
+        '"><span style="inline-size:' + pct.toFixed(1) + '%"></span></div>';
+    }
     if (persist === "refused") html += '<p class="note off-note">' + esc(t("off.persistRefused")) + "</p>";
     html += '<p class="tiny off-note">' + esc(t("off.private")) + "</p>";
     if (off().used()) html += '<div class="off-foot">' + btn("rm-all", t("off.removeAll"), { cls: "btn-danger", icon: "trash" }) + "</div>";
     return html;
   }
 
-  /** Settings shows a summary card; the full section lives at #/settings/offline. */
-  var settingsSub = false;
-  function renderSettings() {
-    var el = $("st-offline");
-    if (!el || !off() || SS.currentView() !== "settings") return;
+  /* ── The Offline page (#/offline, 3.0) ─────────────────────────── */
+  function heading(ic, key) {
+    return { key: "h-" + key, html: '<h2 class="group-label with-ic">' + icon(ic) + "<span>" + esc(t(key)) + "</span></h2>" };
+  }
+
+  /** Online or not, and whether SalaamStreet itself is saved for offline use. */
+  function statusPart() {
+    var online = navigator.onLine !== false;
+    var sw = "serviceWorker" in navigator && /^https?:$/.test(location.protocol);
+    var app = !sw ? ["is-warn", "wifi-off", "offp.appUnsupported"]
+      : navigator.serviceWorker.controller ? ["", "check", "offp.appReady"] : ["is-warn", "refresh", "offp.appNotReady"];
+    return '<div class="off-status' + (online ? "" : " is-offline") + '"><span class="w-ic">' + icon(online ? "wifi" : "wifi-off") + "</span>" +
+      '<div class="off-main"><span class="w-title">' + esc(t(online ? "offp.online" : "offp.offline")) + "</span>" +
+      '<span class="tiny">' + esc(t(online ? "offp.onlineSub" : "offp.offlineSub")) + "</span>" +
+      '<ul class="off-status-list"><li class="' + app[0] + '">' + icon(app[1]) + "<span>" + esc(t(app[2])) + "</span></li>" +
+      '<li>' + icon("download") + "<span>" + esc(f("offp.storageTotal", { size: size(off().totalBytes()) })) + "</span></li></ul></div></div>";
+  }
+
+  function hadithPart() {
+    var items = "";
+    (SS.HADITH_COLLECTIONS || []).forEach(function (c) {
+      var id = "hadith:" + c.id, job = off().job(id), name = SS.i18n.isAr() ? c.ar : c.en, right, sub;
+      if (job) {
+        items += '<li class="off-li"><span class="off-main"><span class="w-title">' + esc(name) + "</span></span>" + jobBlock(job, "offp.nEditions") + "</li>";
+        return;
+      }
+      if (off().hasHadith(c.id)) {
+        sub = f("offp.nHadith", { n: num(c.last, 0) }) + " · " + size(off().packBytes(id));
+        right = doneBadge() + btn("rm", t("off.remove"), { arg: id, cls: "btn-ghost", icon: "trash", label: t("off.remove") + " — " + name });
+      } else {
+        sub = f("offp.nHadith", { n: num(c.last, 0) }) + " · " + approx(off().estimate.hadith(c.id));
+        right = btn("dl-hadith", t("off.download"), { arg: c.id, icon: "download", label: t("off.download") + " — " + name });
+      }
+      items += '<li class="off-li"><span class="off-main"><span class="w-title">' + esc(name) + "</span>" +
+        '<span class="tiny">' + esc(sub) + '</span></span><span class="off-acts">' + right + "</span></li>";
+    });
+    return row("scroll", esc(t("offp.hadith")), esc(t("offp.hadithDesc")), "") +
+      '<ul class="off-ul">' + items + '</ul><p class="tiny off-note">' + esc(t("offp.hadithNote")) + "</p>";
+  }
+
+  /** Part of SalaamStreet itself: works offline once the app has loaded. */
+  function builtinPart() {
+    var list = [
+      ["#/prayer", "clock", "nav.prayer", "offp.prayerDesc"],
+      ["#/qibla", "compass", "nav.qibla", "offp.qiblaDesc"],
+      ["#/duas", "heart", "nav.duas", "offp.duasDesc"],
+      ["#/dhikr", "beads", "nav.dhikr", ""],
+      ["#/adhkar", "sunrise", "nav.adhkar", "offp.adhkarDesc"],
+      ["#/names", "sparkle", "nav.names", ""],
+      ["#/learn", "letters", "nav.learn", ""],
+    ];
+    return '<p class="tiny off-note">' + esc(t("offp.builtinNote")) + '</p><ul class="off-links">' + list.map(function (x) {
+      return '<li><a href="' + x[0] + '">' + icon(x[1]) + '<span class="off-main"><span class="w-title">' + esc(t(x[2])) + "</span>" +
+        (x[3] ? '<span class="tiny">' + esc(t(x[3])) + "</span>" : "") + "</span>" + icon("check") + "</a></li>";
+    }).join("") + "</ul>";
+  }
+
+  /** What can't work offline, said plainly. */
+  function netPart() {
+    var list = [
+      ["cloud", "offp.netStream", "offp.netStreamDesc"],
+      ["chat", "nav.ai", "offp.netAiDesc"],
+      ["mosque", "nav.mosques", "offp.netMosquesDesc"],
+      ["search", "offp.netSearch", "offp.netSearchDesc"],
+      ["calendar", "nav.calendar", "offp.netCalendarDesc"],
+      ["user", "nav.account", "offp.netSyncDesc"],
+      ["users", "nav.msa", "offp.netMsaDesc"],
+    ];
+    return '<ul class="off-links is-net">' + list.map(function (x) {
+      return '<li><span class="off-link">' + icon(x[0]) + '<span class="off-main"><span class="w-title">' + esc(t(x[1])) + "</span>" +
+        '<span class="tiny">' + esc(t(x[2])) + "</span></span></span></li>";
+    }).join("") + "</ul>";
+  }
+
+  function renderPage() {
+    var el = $("off-root");
+    if (!el || !off() || SS.currentView() !== "offline") return;
     off().ready().then(function () {
-      if (!settingsSub) { setHtml($("st-offline-link"), summaryHtml("settings")); return; }
+      if (SS.currentView() !== "offline") return;
       patch(el, [
-        { key: "intro", html: '<p class="note">' + esc(t("off.intro")) + "</p>" },
+        { key: "status", cls: "card off-card", html: statusPart() },
+        heading("book", "offp.quran"),
         { key: "text", cls: "card off-card", html: textPart() + removeBtn("text", !off().job("text") && baseComplete()) + translationsPart() },
         { key: "audio", cls: "card off-card", html: audioPart() },
         { key: "tafsir", cls: "card off-card", html: tafsirPart() + removeBtn("tafsir", !off().job("tafsir") && off().packCount("tafsir") > 0) },
         { key: "pdf", html: '<div class="off-pdf" hidden></div>' },
+        heading("scroll", "offp.hadith"),
+        { key: "hadith", cls: "card off-card", html: hadithPart() },
+        heading("check", "offp.builtin"),
+        { key: "builtin", cls: "card off-card", html: builtinPart() },
+        heading("wifi-off", "offp.needsNet"),
+        { key: "net", cls: "card off-card", html: '<p class="tiny off-note">' + esc(t("offp.needsNetNote")) + "</p>" + netPart() },
         { key: "storage", cls: "card off-card", html: storagePart() },
       ]);
       renderPdfCard(el.querySelector(".off-pdf"));
       refreshUsage();
     });
+  }
+  /** Settings keeps a one-card summary that opens the Offline page. */
+  function renderSettings() {
+    var el = $("st-offline-link");
+    if (!el || !off() || SS.currentView() !== "settings") return;
+    off().ready().then(function () { setHtml(el, summaryHtml("settings")); });
   }
   /** Browser storage figures (async); only the storage card is redrawn. */
   var usageAt = 0;
@@ -262,7 +353,7 @@
     off().usage().then(function (u) {
       if (!u || (usageCache && usageCache.usage === u.usage && usageCache.quota === u.quota)) return;
       usageCache = u;
-      var slot = $("st-offline") && $("st-offline").querySelector('[data-key="storage"]');
+      var slot = $("off-root") && $("off-root").querySelector('[data-key="storage"]');
       if (!slot) return;
       var html = storagePart();
       if (slot.getAttribute("data-html") !== html) { slot.innerHTML = html; slot.setAttribute("data-html", html); }
@@ -294,6 +385,7 @@
       if (act === "dl-text") beginDownload(off().downloadText());
       else if (act === "add-tr") beginDownload(off().addTranslation(arg));
       else if (act === "dl-tafsir") beginDownload(off().downloadTafsir());
+      else if (act === "dl-hadith") beginDownload(off().downloadHadith(arg));
       else if (act === "dl-audio-all") {
         var pk = off().pack("audio:" + rec), missing = [];
         for (var n = 1; n <= 114; n++) if (!(pk && pk.have[n])) missing.push(n);
@@ -354,7 +446,7 @@
   /** The one-card summary shown on the Qur'an page and at the top of Settings. */
   function summaryHtml(where) {
     var job = off().job("text") || off().job("tr:" + SS.translation().id);
-    var open = '<a class="card widget off-widget" href="#/settings/offline"><span class="w-ic">', chev = '<svg class="ic chev" aria-hidden="true"><use href="#i-chev-r"/></svg></a>';
+    var open = '<a class="card widget off-widget" href="#/offline"><span class="w-ic">', chev = '<svg class="ic chev" aria-hidden="true"><use href="#i-chev-r"/></svg></a>';
     if (job) {
       return open + icon("download") + '</span><span class="w-body">' +
         '<span class="w-title">' + esc(job.status === "running" ? t("off.qDownloading") : statusText(job)) + "</span>" +
@@ -366,7 +458,7 @@
         '<span class="w-title">' + esc(t("off.qReady")) + '</span><span class="w-sub">' + esc(t("off.qManage")) + "</span></span>" + chev;
     }
     return open + icon("download") + '</span><span class="w-body">' +
-      '<span class="w-title">' + esc(where === "settings" ? t("off.title") : t("off.qTitle")) + '</span><span class="w-sub wrap-text">' +
+      '<span class="w-title">' + esc(where === "settings" ? t("offp.title") : t("off.qTitle")) + '</span><span class="w-sub wrap-text">' +
       esc(where === "settings" ? t("off.stSub") : f("off.qSub", { size: approx(off().estimate.text(SS.translation().id)) })) + "</span></span>" + chev;
   }
   function setHtml(el, html) {
@@ -659,6 +751,7 @@
   /* ── Wiring ─────────────────────────────────────────────────── */
   var rTimer = null;
   function render() {
+    renderPage();
     renderSettings();
     renderQuranCard();
   }
@@ -670,21 +763,24 @@
   SS.offlineUI = { mark: markHtml, render: render, viewer: viewer, size: size };
 
   onHook("settingsInit", function (params) {
-    settingsSub = !!(params && params[0] === "offline");
-    var view = $("view-settings");
-    if (view) view.classList.toggle("st-sub", settingsSub);
-    if (settingsSub) {
-      $("tb-title").textContent = t("off.title");
-      document.title = t("off.title") + " — SalaamStreet";
+    // Before 3.0 the downloads lived at #/settings/offline; old links open the Offline page.
+    if (params && params[0] === "offline") {
+      try { location.replace("#/offline"); } catch (e) { location.hash = "#/offline"; }
+      return;
     }
     renderSettings();
   });
+  SS.views.offline = function () { renderPage(); };
   onHook("quranInit", renderQuranCard);
 
   function boot() {
-    var st = $("st-offline");
-    if (st) wire(st);
+    var root = $("off-root");
+    if (root) wire(root);
     viewer.wire();
+    window.addEventListener("online", renderSoon);
+    window.addEventListener("offline", renderSoon);
+    // First visit: the status line changes once the service worker has saved the app.
+    if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("controllerchange", renderSoon);
     document.addEventListener("ss:offline", function () {
       announce();
       render();

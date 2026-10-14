@@ -444,18 +444,32 @@
         throw err;
       });
     },
-    /** A full hadith edition (e.g. "eng-nawawi"): metadata + hadiths[]. Cached 30 days. */
+    /** A full hadith edition (e.g. "eng-nawawi"): metadata + hadiths[]. A
+        downloaded collection (Offline, 3.0) is used first; otherwise cached 30 days. */
     hadithEdition: function (edition) {
       var url = SS.HADITH_BASE + "/" + edition + ".min.json";
-      return cachedFetch("hadith:" + edition, url, 30 * DAY).then(function (r) {
-        return r.data; // { metadata, hadiths: [{ hadithnumber, text, grades, reference }] }
-      });
+      function online() {
+        return cachedFetch("hadith:" + edition, url, 30 * DAY).then(function (r) {
+          return r.data; // { metadata, hadiths: [{ hadithnumber, text, grades, reference }] }
+        });
+      }
+      if (!SS.offline || !SS.offline.hadithEdition) return online();
+      return SS.offline.hadithEdition(edition).then(function (d) { return d || online(); });
     },
-    /** A single hadith by number from an edition (light; for large collections). */
+    /** A single hadith by number from an edition (light; for large collections),
+        from a downloaded collection when there is one. */
     hadithOne: function (edition, num) {
       var url = SS.HADITH_BASE + "/" + edition + "/" + num + ".min.json";
-      return cachedFetch("hadith1:" + edition + ":" + num, url, 30 * DAY).then(function (r) {
-        return (r.data && r.data.hadiths && r.data.hadiths[0]) || null;
+      function online() {
+        return cachedFetch("hadith1:" + edition + ":" + num, url, 30 * DAY).then(function (r) {
+          return (r.data && r.data.hadiths && r.data.hadiths[0]) || null;
+        });
+      }
+      if (!SS.offline || !SS.offline.hadithEdition) return online();
+      return SS.offline.hadithEdition(edition).then(function (d) {
+        if (!d) return online();
+        for (var i = 0; i < d.hadiths.length; i++) if (+d.hadiths[i].hadithnumber === +num) return d.hadiths[i];
+        return online();
       });
     },
     /** Convert a Gregorian date (Date) to Hijri via AlAdhan. Cached 30 days. */

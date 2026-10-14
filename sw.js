@@ -9,8 +9,12 @@
    Offline Qur'an (js/offline.js): downloaded audio and the Qur'an PDF live in
    caches named "ss-offline-…", which belong to the app and survive service
    worker updates. The PDF itself (files/) is fetched by the app, never cached
-   here; pdf.js (js/vendor/pdfjs/) is cached on first use like supabase.js. */
-var VERSION = "ss-v26";
+   here; pdf.js (js/vendor/pdfjs/) is cached on first use like supabase.js.
+   3.0: on a connection that is there but barely working, a cached copy is
+   served after a few seconds instead of leaving the page loading; the network
+   answer still refreshes the cache when it arrives. */
+var VERSION = "ss-v27";
+var SLOW_MS = 4000;
 var KEEP = /^ss-offline/;
 var SHELL = [
   "./", "index.html", "css/styles.css",
@@ -41,19 +45,28 @@ self.addEventListener("fetch", function (e) {
 
   if (url.origin === self.location.origin) {
     if (/\/files\//.test(url.pathname)) return; // the Qur'an PDF: stored by the app only if someone downloads it
-    e.respondWith(
-      fetch(req).then(function (res) {
-        if (res && res.ok) {
-          var copy = res.clone();
-          caches.open(VERSION).then(function (c) { c.put(req, copy); });
-        }
-        return res;
-      }).catch(function () {
-        return caches.match(req, { ignoreSearch: true }).then(function (hit) {
-          return hit || (req.mode === "navigate" ? caches.match("index.html") : undefined);
-        });
-      })
-    );
+    var network = fetch(req).then(function (res) {
+      if (res && res.ok) {
+        var copy = res.clone();
+        e.waitUntil(caches.open(VERSION).then(function (c) { return c.put(req, copy); }));
+      }
+      return res;
+    });
+    var cached = function () {
+      return caches.match(req, { ignoreSearch: true }).then(function (hit) {
+        return hit || (req.mode === "navigate" ? caches.match("index.html") : undefined);
+      });
+    };
+    e.respondWith(new Promise(function (resolve) {
+      var done = false;
+      function settle(res) { if (!done && res) { done = true; resolve(res); } }
+      // Slow network: answer from the cache if there is a copy; otherwise keep waiting.
+      var timer = setTimeout(function () { cached().then(settle); }, SLOW_MS);
+      network.then(function (res) { clearTimeout(timer); settle(res); }, function () {
+        clearTimeout(timer);
+        cached().then(function (hit) { if (hit) settle(hit); else if (!done) { done = true; resolve(Response.error()); } });
+      });
+    }));
     return;
   }
 
