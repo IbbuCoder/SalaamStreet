@@ -61,6 +61,28 @@ final class ScreenshotTests: XCTestCase {
         }
     }
 
+    /// Settings → the countdown switch → the Dynamic Island on the Home Screen.
+    func testDynamicIslandCountdown() {
+        let app = launch(["-SSStartHash", "#/settings"])
+        settle(app, seconds: 5)
+        let toggle = app.webViews.firstMatch.switches.matching(NSPredicate(format: "label CONTAINS[c] %@", "Dynamic Island")).firstMatch
+        for _ in 0..<12 where !(toggle.exists && toggle.isHittable) { app.webViews.firstMatch.swipeUp() }
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5), "the countdown switch in Settings")
+        guard toggle.exists else { return }
+        toggle.tap()
+        Thread.sleep(forTimeInterval: 3)
+        shot(app, "island_settings")
+        XCUIDevice.shared.press(.home)
+        Thread.sleep(forTimeInterval: 3)
+        let home = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        home.name = "island_home"
+        home.lifetime = .keepAlways
+        add(home)
+        app.activate()
+        Thread.sleep(forTimeInterval: 2)
+        if toggle.exists && toggle.isHittable { toggle.tap() } // turn it off again
+    }
+
     /// The main journey by touch: bottom navigation, a surah, the dhikr counter.
     func testMainJourney() {
         let app = launch([])

@@ -9,7 +9,7 @@ class AppTestCase: XCTestCase {
         get throws { try XCTUnwrap(AppRouter.shared.controller, "the app's web view") }
     }
 
-    func waitUntil(_ timeout: TimeInterval, _ what: String, _ ok: () -> Bool) async throws {
+    func waitUntil(_ timeout: TimeInterval, _ what: String, _ ok: @escaping () -> Bool) async throws {
         let end = Date().addingTimeInterval(timeout)
         while !ok() {
             if Date() > end { XCTFail("timed out: \(what)"); throw CancellationError() }

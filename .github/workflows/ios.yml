@@ -95,7 +95,7 @@ jobs:
         run: |
           xcrun simctl privacy "$DEVICE" grant location com.salaamstreet.app || true
           xcrun simctl location "$DEVICE" set 51.5072,-0.1276 || true
-          (brew tap wix/brew >/dev/null && brew install applesimutils >/dev/null \
+          (brew tap wix/brew >/dev/null && (brew trust wix/brew >/dev/null 2>&1 || true) && brew install applesimutils >/dev/null \
             && applesimutils --byId "$DEVICE" --bundle com.salaamstreet.app --setPermissions "notifications=YES") \
             || echo "notifications can't be pre-allowed; that test will be skipped"
       - name: Test
