@@ -88,6 +88,33 @@ final class ScreenshotTests: XCTestCase {
         if toggle.exists && toggle.isHittable { toggle.tap() } // turn it off again
     }
 
+    /// Google sign-in opens the iPhone's secure sign-in sheet (Google blocks embedded web views).
+    func testGoogleSignInUsesTheSystemSheet() {
+        let app = launch(["-SSStartHash", "#/account"])
+        settle(app, seconds: 5)
+        let web = app.webViews.firstMatch
+        let open = web.buttons.matching(NSPredicate(format: "label CONTAINS[c] %@", "Sign in")).firstMatch
+        if open.waitForExistence(timeout: 10) { open.tap() }
+        let google = web.buttons.matching(NSPredicate(format: "label CONTAINS[c] %@", "Google")).firstMatch
+        XCTAssertTrue(google.waitForExistence(timeout: 10), "the website's Continue with Google button")
+        guard google.exists else { return }
+        google.tap()
+        // iOS asks: "SalaamStreet" Wants to Use "supabase.co" to Sign In.
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        let alert = springboard.alerts.firstMatch
+        let appeared = alert.waitForExistence(timeout: 15)
+        let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        shot.name = "signin_sheet"
+        shot.lifetime = .keepAlways
+        add(shot)
+        XCTAssertTrue(appeared, "the system sign-in prompt (ASWebAuthenticationSession)")
+        if appeared {
+            print("SIGNIN-ALERT", alert.label)
+            let cancel = alert.buttons["Cancel"]
+            if cancel.exists { cancel.tap() }
+        }
+    }
+
     /// The main journey by touch: bottom navigation, a surah, the dhikr counter.
     func testMainJourney() {
         let app = launch([])
