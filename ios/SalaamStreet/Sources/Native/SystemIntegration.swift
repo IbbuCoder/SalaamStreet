@@ -7,6 +7,8 @@ import UniformTypeIdentifiers
 /// language); tapping a result opens that page of the site.
 enum Spotlight {
     private static let versionKey = "spotlight.version"
+    /// "indexed N" or the error from the last attempt (for the tests).
+    @MainActor static var lastResult: String?
 
     @MainActor static func index(_ p: Payload) {
         guard let version = p.optString("version", max: 100),
@@ -25,7 +27,10 @@ enum Spotlight {
         let index = CSSearchableIndex.default()
         index.deleteAllSearchableItems { _ in
             index.indexSearchableItems(items) { error in
-                if error == nil { DispatchQueue.main.async { UserDefaults.standard.set(version, forKey: versionKey) } }
+                DispatchQueue.main.async {
+                    lastResult = error.map { "error: \($0.localizedDescription)" } ?? "indexed \(items.count)"
+                    if error == nil { UserDefaults.standard.set(version, forKey: versionKey) }
+                }
             }
         }
     }

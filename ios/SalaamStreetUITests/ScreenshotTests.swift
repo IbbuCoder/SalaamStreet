@@ -78,6 +78,11 @@ final class ScreenshotTests: XCTestCase {
         home.name = "island_home"
         home.lifetime = .keepAlways
         add(home)
+        Thread.sleep(forTimeInterval: 6)
+        let later = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        later.name = "island_home_later"
+        later.lifetime = .keepAlways
+        add(later)
         app.activate()
         Thread.sleep(forTimeInterval: 2)
         if toggle.exists && toggle.isHittable { toggle.tap() } // turn it off again

@@ -627,6 +627,9 @@
     var set = SS.store.set;
     SS.store.set = function (k) {
       var r = set.apply(this, arguments);
+      // A theme choice must reach iOS even when the page's colours don't change
+      // (e.g. Dark → System while iOS itself is showing the app dark).
+      if (String(k) === "settings") sendTheme();
       if (/^(settings|prayers:log|tz:|adhkar:done|quran:today)/.test(String(k))) syncSoon();
       return r;
     };

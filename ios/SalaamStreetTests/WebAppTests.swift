@@ -61,6 +61,7 @@ final class WebAppTests: AppTestCase {
     func testWebsiteStartsWithoutErrors() async throws {
         let vc = try app
         try await waitUntil(40, "website ready") { vc.bridge.isReady }
+        _ = try await js(vc.webView, "if (location.hash !== '#/home') location.hash = '#/home'; return 1;")
         try await Task.sleep(nanoseconds: 3_000_000_000)
         let env = try await js(vc.webView, """
             await document.fonts.ready;
@@ -86,6 +87,32 @@ final class WebAppTests: AppTestCase {
         print("WEBAPP-MISSING", vc.schemeHandler.missing)
         XCTAssertEqual(vc.bridge.jsErrors, [], "no uncaught JavaScript errors")
         XCTAssertEqual(vc.schemeHandler.missing.filter { !$0.hasSuffix("favicon.ico") }, [], "no missing bundled files")
+    }
+
+    /// Every online service the website uses, fetched from the app's page (origin app://salaamstreet).
+    func testOnlineServicesAnswerTheApp() async throws {
+        let vc = try await readyApp()
+        let r = try await js(vc.webView, """
+            const urls = {
+              alquran: "https://api.alquran.cloud/v1/ayah/1/ar.alafasy",
+              aladhan: "https://api.aladhan.com/v1/timings/14-10-2026?latitude=21.42&longitude=39.83&method=4",
+              audio: "https://cdn.islamic.network/quran/audio/64/ar.alafasy/1.mp3",
+              jsdelivr: "https://cdn.jsdelivr.net/gh/fawazahmed0/hadith-api@1/info.min.json",
+              github: "https://raw.githubusercontent.com/spa5k/tafsir_api/main/tafsir/en-tafisr-ibn-kathir/1/1.json",
+              overpass: "https://overpass-api.de/api/status",
+              supabase: SS.CONFIG.supabaseUrl + "/auth/v1/settings",
+            };
+            const out = {};
+            await Promise.all(Object.keys(urls).map(async (k) => {
+              try {
+                const res = await fetch(urls[k], k === "supabase" ? { headers: { apikey: SS.CONFIG.supabaseAnonKey } } : {});
+                out[k] = res.status + " " + (res.headers.get("access-control-allow-origin") || "");
+              } catch (e) { out[k] = "ERR " + e.message; }
+            }));
+            return out;
+            """) as? [String: String]
+        print("WEBAPP-NET", r ?? [:])
+        for (k, v) in r ?? [:] where k != "overpass" { XCTAssertFalse(v.hasPrefix("ERR"), "\(k): \(v)") }
     }
 
     func testStorageWorks() async throws {
