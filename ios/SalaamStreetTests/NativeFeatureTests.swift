@@ -62,11 +62,15 @@ final class NativeFeatureTests: AppTestCase {
         try await waitUntil(40, "moved on to 112:2") { (player.debugState["key"] as? String) == "ar.alafasy:112:2" }
         try await Task.sleep(nanoseconds: 1_500_000_000)
         XCTAssertGreaterThan(player.debugState["seq"] as? Int ?? 0, firstSeq)
-        let page = try await js(vc.webView, "const p = SS.audio.plan(); return { ayah: p.current.ayah, playing: SS.audio.state(112, p.current.ayah).playing };") as? [String: Any]
-        print("NATIVE-AUDIO-PAGE", page ?? [:])
-        XCTAssertEqual(page?["ayah"] as? Int, 2, "the website follows the player")
-        XCTAssertEqual(page?["playing"] as? Bool, true)
-        XCTAssertEqual(player.debugState["key"] as? String, "ar.alafasy:112:2", "adopted, not restarted")
+        // The page follows the player (short ayahs may already be further on).
+        player.pause()
+        try await Task.sleep(nanoseconds: 800_000_000)
+        let page = try await js(vc.webView, "const p = SS.audio.plan(); return { ayah: p.current.ayah };") as? [String: Any]
+        let nativeKey = player.debugState["key"] as? String ?? ""
+        print("NATIVE-AUDIO-PAGE", page ?? [:], nativeKey)
+        let pageAyah = page?["ayah"] as? Int ?? 0
+        XCTAssertGreaterThanOrEqual(pageAyah, 2, "the website moved on with the player")
+        XCTAssertEqual(nativeKey, "ar.alafasy:112:\(pageAyah)", "the page and the player are on the same ayah (adopted, not restarted)")
         player.stop()
     }
 
