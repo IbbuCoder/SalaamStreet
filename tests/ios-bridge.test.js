@@ -64,7 +64,7 @@ async function openInApp(opts = {}) {
         case "audio.hasFile": return Promise.resolve(false);
         case "activity.status": return Promise.resolve({ running: false, enabled: true });
         case "geo.status": return Promise.resolve("prompt");
-        case "net.fetch": return Promise.resolve({ status: 200, type: "audio/mpeg", data: btoa("ID3fake-mp3") });
+        case "net.fetch": return Promise.resolve({ status: 200, type: "audio/mpeg", data: "SUQzZmFrZS1tcDM=" }) // "ID3fake-mp3";
         case "eval": return Promise.reject(new Error("unknown-action: eval"));
         default: return Promise.resolve(null);
       }
