@@ -26,7 +26,9 @@ Tests: **Product → Test** (⌘U) runs both test bundles:
 | `SalaamStreetUITests` | screenshots of the app and of salaamstreet.com page by page, offline screenshots, and a tap-through of the main journey |
 
 The same runs on every push in GitHub Actions (`.github/workflows/ios.yml`, macOS
-runner, light and dark), and `node --test tests/ios-bridge.test.js` checks the
+runner, light and dark). **Run workflow** with *publish_screenshots* also pushes
+side-by-side images of the app and salaamstreet.com to the git ref
+`refs/ios-screenshots/latest` (`git fetch origin refs/ios-screenshots/latest`). And `node --test tests/ios-bridge.test.js` checks the
 bridge against the real website in Chromium.
 
 ## Run it on your iPhone (signing)
@@ -51,6 +53,9 @@ Sensitive Notifications** (prayer reminders can break through a Focus),
 A free Apple ID can run the app; App Groups and Time Sensitive notifications
 need a paid Apple Developer Program membership — without them the app still
 runs, but widgets and Siri won't see your prayer times.
+
+To make a release zip of the committed `ios/` folder: `sh tools/build-ios-zip.sh`
+(writes `SalaamStreet-iOS-3.0.0-Beta.zip` and checks it after extracting).
 
 ## When the website changes
 

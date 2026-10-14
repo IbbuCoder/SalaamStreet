@@ -18,6 +18,10 @@ on:
         description: "Print small JPEG thumbnails of the screenshots into the log (for reviewers who can't download artifacts)"
         type: boolean
         default: false
+      publish_screenshots:
+        description: "Push side-by-side screenshots (app | salaamstreet.com) to refs/ios-screenshots/latest"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -175,13 +179,14 @@ jobs:
           path: build/screenshots
           if-no-files-found: warn
 
-  # Side-by-side images (app | salaamstreet.com, light and dark), pushed to
-  # the ref refs/ios-screenshots/latest (not a branch; replaced on each run)
-  # so they can be fetched with git where artifact downloads are blocked.
+  # On request only (Run workflow → publish_screenshots): side-by-side images
+  # (app | salaamstreet.com, light and dark) pushed to the ref
+  # refs/ios-screenshots/latest (not a branch; replaced each time), for
+  # reviewers who can fetch with git but can't download artifacts.
   screenshots:
     name: Side-by-side screenshots
     needs: tests
-    if: always() && github.event_name != 'pull_request'
+    if: always() && github.event_name == 'workflow_dispatch' && inputs.publish_screenshots
     runs-on: ubuntu-latest
     permissions:
       contents: write
