@@ -1,6 +1,6 @@
-# Builds the native iOS app on a macOS runner and runs the SalaamStreetCore
-# tests. Runs only when something under ios/ (or this file) changes. No
-# signing: the build is for the simulator, so no certificates or secrets.
+# Builds the iOS app (the bundled website in a WKWebView + native features)
+# on a macOS runner and runs its unit and UI tests in the iPhone simulator.
+# No signing identity or secrets: simulator builds are signed ad hoc.
 name: iOS
 
 on:
@@ -15,7 +15,11 @@ on:
   workflow_dispatch:
     inputs:
       print_thumbnails:
-        description: "Also print small JPEG thumbnails of the screenshots into the log (for reviewers who can't download artifacts)"
+        description: "Print small JPEG thumbnails of the screenshots into the log (for reviewers who can't download artifacts)"
+        type: boolean
+        default: false
+      publish_screenshots:
+        description: "Push side-by-side screenshots (app | salaamstreet.com) to refs/ios-screenshots/latest"
         type: boolean
         default: false
 
@@ -26,20 +30,22 @@ concurrency:
   group: ios-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  SIGN: CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= PROVISIONING_PROFILE_SPECIFIER=
+
 jobs:
-  core-tests:
-    name: SalaamStreetCore tests (macOS)
-    runs-on: macos-15
+  webapp:
+    name: Bundled website is current (Linux)
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Swift version
-        run: swift --version
-      - name: Run tests
-        working-directory: ios/SalaamStreetCore
-        run: swift test
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node tools/build-ios-webapp.js --check
 
-  build-app:
-    name: Build app + Live Activity extension (iOS Simulator)
+  build:
+    name: Build app + widgets (iOS Simulator)
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
@@ -50,59 +56,111 @@ jobs:
           set -o pipefail
           mkdir -p build
           xcodebuild build \
-            -project ios/SalaamStreet.xcodeproj \
-            -scheme SalaamStreet \
-            -configuration Debug \
-            -destination 'generic/platform=iOS Simulator' \
-            -derivedDataPath build/DerivedData \
-            CODE_SIGNING_ALLOWED=NO \
-            | tee build/xcodebuild.log | grep -E "error:|warning: .*(isolat|Sendable)|BUILD (SUCCEEDED|FAILED)" || true
+            -project ios/SalaamStreet.xcodeproj -scheme SalaamStreet -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' -derivedDataPath build/DerivedData $SIGN \
+            | tee build/xcodebuild.log | grep -E "error:|warning: .*(deprecated|isolat|Sendable)|BUILD (SUCCEEDED|FAILED)" || true
           grep -q "BUILD SUCCEEDED" build/xcodebuild.log
       - name: Show errors
         if: failure()
         run: grep -n -B2 -A6 "error:" build/xcodebuild.log | head -300 || true
+      - name: App bundle contents
+        run: |
+          APP=build/DerivedData/Build/Products/Debug-iphonesimulator/SalaamStreet.app
+          du -sh "$APP" "$APP/WebApp" "$APP/PlugIns/"* || true
+          ls "$APP" | head -40
+          test -f "$APP/bridge.js" && test -f "$APP/WebApp/index.html" && test -f "$APP/WebApp/files/quran-english-sher-ali.pdf"
+          # Swift-only WebKit APIs pull in libswiftWebKit, which iOS 17/18 don't ship: the app wouldn't start.
+          for b in "$APP/SalaamStreet" "$APP"/*.dylib "$APP/PlugIns/"*/SalaamStreetWidgetsExtension*; do
+            [ -f "$b" ] && otool -L "$b" | grep -i "libswiftWebKit" && { echo "::error::$b links libswiftWebKit"; exit 1; }
+          done; echo "no libswiftWebKit"
+          codesign -d --entitlements :- "$APP" 2>/dev/null | head -30 || true
 
-  ui-tests:
-    name: UI tests + screenshots (${{ matrix.appearance }})
+  tests:
+    name: ${{ matrix.suite }} tests (${{ matrix.appearance }})
     runs-on: macos-15
     strategy:
       fail-fast: false
       matrix:
-        appearance: [light, dark]
+        include:
+          - { suite: Unit, appearance: light, only: SalaamStreetTests }
+          - { suite: UI, appearance: light, only: SalaamStreetUITests }
+          - { suite: UI, appearance: dark, only: SalaamStreetUITests }
     steps:
       - uses: actions/checkout@v4
       - name: Boot an iPhone simulator
         run: |
-          xcrun simctl list devices available | grep -E "iPhone 1[5-7]" | head -5
           DEVICE=$(xcrun simctl list devices available | grep -oE "iPhone 16 \(([0-9A-F-]+)\)" | head -1 | grep -oE "[0-9A-F-]{36}")
           echo "DEVICE=$DEVICE" >> "$GITHUB_ENV"
           xcrun simctl boot "$DEVICE"
           xcrun simctl ui "$DEVICE" appearance ${{ matrix.appearance }}
-      - name: Test (UI tests and SalaamStreetCore on iOS)
+          xcrun simctl status_bar "$DEVICE" override --time "9:41" --batteryState charged --batteryLevel 100 --wifiBars 3 || true
+      - name: Build for testing and install the app
         run: |
           set -o pipefail
           mkdir -p build
-          xcodebuild test \
-            -project ios/SalaamStreet.xcodeproj \
-            -scheme SalaamStreet \
-            -destination "id=$DEVICE" \
-            -derivedDataPath build/DerivedData \
-            -resultBundlePath build/Results.xcresult \
-            CODE_SIGNING_ALLOWED=NO \
-            | tee build/xcodebuild-test.log | grep -E "error:|Test Case .*(passed|failed)|Executed|TEST (SUCCEEDED|FAILED)" || true
-          grep -q "TEST SUCCEEDED" build/xcodebuild-test.log
+          xcodebuild build-for-testing \
+            -project ios/SalaamStreet.xcodeproj -scheme SalaamStreet \
+            -destination "id=$DEVICE" -derivedDataPath build/DerivedData $SIGN \
+            | tee build/xcodebuild-build.log | grep -E "error:|BUILD|TEST BUILD" || true
+          xcrun simctl install "$DEVICE" build/DerivedData/Build/Products/Debug-iphonesimulator/SalaamStreet.app
+      - name: Permissions for the native feature tests (location in London, notifications)
+        if: matrix.suite == 'Unit'
+        run: |
+          xcrun simctl privacy "$DEVICE" grant location com.salaamstreet.app || true
+          xcrun simctl location "$DEVICE" set 51.5072,-0.1276 || true
+          (brew tap wix/brew >/dev/null && (brew trust wix/brew >/dev/null 2>&1 || true) && brew install applesimutils >/dev/null \
+            && applesimutils --byId "$DEVICE" --bundle com.salaamstreet.app --setPermissions "notifications=YES") \
+            || echo "notifications can't be pre-allowed; that test will be skipped"
+      - name: Test
+        run: |
+          set -o pipefail
+          mkdir -p build
+          xcodebuild test-without-building \
+            -project ios/SalaamStreet.xcodeproj -scheme SalaamStreet \
+            -destination "id=$DEVICE" -only-testing:${{ matrix.only }} \
+            -derivedDataPath build/DerivedData -resultBundlePath build/Results.xcresult $SIGN \
+            | tee build/xcodebuild-test.log | grep -E "error:|WEBAPP-|NATIVE-|SIGNIN-|Test Case .*(passed|failed|skipped)|XCTAssert|Executed|TEST (EXECUTE )?(SUCCEEDED|FAILED)" || true
+          grep -q -E "TEST (EXECUTE )?SUCCEEDED" build/xcodebuild-test.log
+      - name: Show failures
+        if: failure()
+        run: |
+          grep -n -B3 -A10 "error:\|failed" build/xcodebuild-test.log | head -200 || true
+          echo "── crash reports ──"
+          for f in $(ls -t ~/Library/Logs/DiagnosticReports/SalaamStreet* 2>/dev/null | head -2); do
+            echo "== $f"
+            python3 - "$f" <<'PY' || head -c 6000 "$f"
+          import json, sys
+          raw = open(sys.argv[1]).read()
+          body = json.loads(raw[raw.index("\n") + 1:])
+          print("exception:", json.dumps(body.get("exception")), "\ntermination:", json.dumps(body.get("termination")))
+          print("asi:", json.dumps(body.get("asi")))
+          imgs = body.get("usedImages", [])
+          bt = body.get("lastExceptionBacktrace") or next((t["frames"] for t in body.get("threads", []) if t.get("triggered")), [])
+          for fr in bt[:40]:
+              img = imgs[fr["imageIndex"]].get("name", "?") if fr.get("imageIndex") is not None and fr["imageIndex"] < len(imgs) else "?"
+              print(" ", img, fr.get("symbol", ""), fr.get("sourceFile", ""), fr.get("sourceLine", ""))
+          PY
+          done
+          echo "── app log ──"
+          xcrun simctl spawn "$DEVICE" log show --last 15m --style compact --predicate 'process == "SalaamStreet"' 2>/dev/null | grep -i -E "exception|terminat|fatal|assert|crash|\[web " | tail -60 || true
+      - name: Widget extension log
+        if: always() && matrix.suite == 'UI'
+        run: |
+          xcrun simctl spawn "$DEVICE" log show --last 20m --style compact \
+            --predicate 'process CONTAINS "SalaamStreetWidgets" OR eventMessage CONTAINS "SalaamStreetWidgets" OR eventMessage CONTAINS "PrayerActivityAttributes"' \
+            2>/dev/null | grep -v -E "^Timestamp" | grep -i -E "error|fail|crash|denied|archiv|render|activity" | tail -40 || true
       - name: Export screenshots
-        if: always()
+        if: always() && matrix.suite == 'UI'
         run: |
           mkdir -p build/screenshots
           xcrun xcresulttool export attachments --path build/Results.xcresult --output-path build/screenshots || true
-          ls build/screenshots | head -50
+          ls build/screenshots | head -80
       - name: Print thumbnails
-        if: always() && inputs.print_thumbnails
+        if: always() && matrix.suite == 'UI' && inputs.print_thumbnails
         run: |
           mkdir -p build/thumbs
           python3 - <<'PY'
-          import json, os, subprocess, base64
+          import json, subprocess, base64
           m = json.load(open("build/screenshots/manifest.json"))
           for test in m:
               for a in test.get("attachments", []):
@@ -110,13 +168,72 @@ jobs:
                   f = a.get("exportedFileName", "")
                   if not f.endswith(".png"): continue
                   out = "build/thumbs/" + f.replace(".png", ".jpg")
-                  subprocess.run(["sips", "-Z", "560", "-s", "format", "jpeg", "-s", "formatOptions", "55", "build/screenshots/" + f, "--out", out], check=True, capture_output=True)
-                  print("THUMB", name.split("_")[0], base64.b64encode(open(out, "rb").read()).decode())
+                  subprocess.run(["sips", "-Z", "520", "-s", "format", "jpeg", "-s", "formatOptions", "50", "build/screenshots/" + f, "--out", out], check=True, capture_output=True)
+                  print("THUMB", name.split("_0_")[0], base64.b64encode(open(out, "rb").read()).decode())
           PY
       - name: Upload screenshots
-        if: always()
+        if: always() && matrix.suite == 'UI'
         uses: actions/upload-artifact@v4
         with:
           name: screenshots-${{ matrix.appearance }}
           path: build/screenshots
           if-no-files-found: warn
+
+  # On request only (Run workflow → publish_screenshots): side-by-side images
+  # (app | salaamstreet.com, light and dark) pushed to the ref
+  # refs/ios-screenshots/latest (not a branch; replaced each time), for
+  # reviewers who can fetch with git but can't download artifacts.
+  screenshots:
+    name: Side-by-side screenshots
+    needs: tests
+    if: always() && github.event_name == 'workflow_dispatch' && inputs.publish_screenshots
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: shots
+      - name: Compose
+        run: |
+          pip install --quiet pillow
+          python3 - <<'PY'
+          import json, os, glob
+          from PIL import Image, ImageDraw
+          os.makedirs("out", exist_ok=True)
+          for theme in ("light", "dark"):
+              d = f"shots/screenshots-{theme}"
+              if not os.path.exists(f"{d}/manifest.json"): continue
+              imgs = {}
+              for t in json.load(open(f"{d}/manifest.json")):
+                  for a in t.get("attachments", []):
+                      f = a.get("exportedFileName", "")
+                      if f.endswith(".png"): imgs[a.get("suggestedHumanReadableName", f).split("_0_")[0]] = f"{d}/{f}"
+              bg, fg = ("#ffffff", "#000000") if theme == "light" else ("#1c1c1e", "#ffffff")
+              for name, path in sorted(imgs.items()):
+                  if not name.startswith("app_"):
+                      im = Image.open(path).convert("RGB"); im.thumbnail((640, 1400)); im.save(f"out/{theme}-{name}.jpg", quality=72)
+                      continue
+                  page = name[4:]
+                  a = Image.open(path).convert("RGB"); a.thumbnail((640, 1400))
+                  s = Image.open(imgs["site_" + page]).convert("RGB").resize(a.size) if "site_" + page in imgs else None
+                  w, h = a.size
+                  c = Image.new("RGB", (w * 2 + 30, h + 50), bg)
+                  c.paste(a, (10, 45))
+                  if s: c.paste(s, (w + 20, 45))
+                  dr = ImageDraw.Draw(c)
+                  dr.text((10, 15), f"iOS app  #/{page}  ({theme})", fill=fg)
+                  dr.text((w + 20, 15), "salaamstreet.com, same simulator" if s else "(no website shot)", fill=fg)
+                  c.save(f"out/{theme}-compare-{page}.jpg", quality=72)
+          print(sorted(os.listdir("out")))
+          PY
+      - name: Push to refs/ios-screenshots/latest
+        env:
+          SHA: ${{ github.sha }}
+          REPO: ${{ github.repository }}
+          TOKEN: ${{ github.token }}
+        run: |
+          cd out
+          git init -q && git checkout -q --orphan shots
+          git add . && git -c user.name=ci -c user.email=ci@users.noreply.github.com commit -q -m "iOS screenshots for $SHA"
+          git push -q -f "https://x-access-token:${TOKEN}@github.com/${REPO}.git" HEAD:refs/ios-screenshots/latest

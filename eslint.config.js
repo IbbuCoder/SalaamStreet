@@ -16,10 +16,17 @@ const browser = {
 };
 const node = { Request: "readonly", crypto: "readonly", TextEncoder: "readonly", require: "readonly", module: "writable", process: "readonly", __dirname: "readonly", Buffer: "readonly", console: "readonly", setTimeout: "readonly", URL: "readonly", globalThis: "readonly" };
 module.exports = [
-  { ignores: ["node_modules/**", "js/vendor/**", "surah/**", "prayer-times/**", "duas/**", "names-of-allah/**", "about/**"] },
+  { ignores: ["node_modules/**", "js/vendor/**", "ios/SalaamStreet/WebApp/**", "surah/**", "prayer-times/**", "duas/**", "names-of-allah/**", "about/**"] },
   {
     files: ["js/**/*.js", "sw.js"],
     languageOptions: { ecmaVersion: 2017, sourceType: "script", globals: browser },
+    rules: { "no-undef": "error", "no-unused-vars": ["warn", { args: "none", caughtErrors: "none" }], "no-redeclare": "error", "no-dupe-keys": "error", "no-unreachable": "error" },
+  },
+  {
+    // The iOS app's bridge script (injected into the bundled website by the app).
+    files: ["ios/**/*.js"],
+    languageOptions: { ecmaVersion: 2017, sourceType: "script", globals: Object.assign({}, browser, {
+      EventTarget: "readonly", DOMException: "readonly", HashChangeEvent: "readonly", MutationObserver: "readonly", btoa: "readonly", atob: "readonly", Uint8Array: "readonly" }) },
     rules: { "no-undef": "error", "no-unused-vars": ["warn", { args: "none", caughtErrors: "none" }], "no-redeclare": "error", "no-dupe-keys": "error", "no-unreachable": "error" },
   },
   {

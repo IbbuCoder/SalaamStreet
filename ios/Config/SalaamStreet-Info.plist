@@ -20,6 +20,16 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>en</string>
+		<string>ar</string>
+		<string>ur</string>
+		<string>bn</string>
+		<string>id</string>
+		<string>tr</string>
+		<string>fr</string>
+	</array>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -31,48 +41,29 @@
 			</array>
 		</dict>
 	</array>
-	<key>BGTaskSchedulerPermittedIdentifiers</key>
-	<array>
-		<string>com.salaamstreet.app.refresh</string>
-	</array>
-	<key>ITSAppUsesNonExemptEncryption</key>
-	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>SalaamStreet uses your location, rounded to about 1 km and only on your iPhone, to calculate prayer times, the Qibla direction and nearby mosques.</string>
-	<key>NSSupportsLiveActivities</key>
-	<true/>
-	<key>UIAppFonts</key>
-	<array>
-		<string>ScheherazadeNew-Regular.ttf</string>
-	</array>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
 		<false/>
 	</dict>
-	<key>UIBackgroundModes</key>
-	<array>
-		<string>audio</string>
-		<string>fetch</string>
-	</array>
 	<key>UILaunchScreen</key>
 	<dict>
 		<key>UIColorName</key>
 		<string>LaunchBackground</string>
 		<key>UIImageName</key>
-		<string>LogoMark</string>
+		<string>LaunchLogo</string>
 		<key>UIImageRespectsSafeAreaInsets</key>
-		<true/>
+		<false/>
 	</dict>
-	<key>UIRequiredDeviceCapabilities</key>
-	<array>
-		<string>arm64</string>
-	</array>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>
@@ -80,6 +71,76 @@
 		<string>UIInterfaceOrientationPortraitUpsideDown</string>
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+		<string>fetch</string>
+	</array>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.salaamstreet.app.refresh</string>
+	</array>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>SalaamStreet uses your location to work out prayer times, the Qibla direction and nearby mosques. It is only used on your iPhone.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>The camera is only used in Qibla camera mode, to show the Qibla direction over the view in front of you. Nothing is recorded or sent.</string>
+	<key>UIApplicationShortcutItems</key>
+	<array>
+		<dict>
+			<key>UIApplicationShortcutItemType</key>
+			<string>com.salaamstreet.app.prayer</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>Prayer Times</string>
+			<key>UIApplicationShortcutItemIconSymbolName</key>
+			<string>clock</string>
+			<key>UIApplicationShortcutItemUserInfo</key>
+			<dict>
+				<key>hash</key>
+				<string>#/prayer</string>
+			</dict>
+		</dict>
+		<dict>
+			<key>UIApplicationShortcutItemType</key>
+			<string>com.salaamstreet.app.qibla</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>Qibla</string>
+			<key>UIApplicationShortcutItemIconSymbolName</key>
+			<string>location.north.line</string>
+			<key>UIApplicationShortcutItemUserInfo</key>
+			<dict>
+				<key>hash</key>
+				<string>#/qibla</string>
+			</dict>
+		</dict>
+		<dict>
+			<key>UIApplicationShortcutItemType</key>
+			<string>com.salaamstreet.app.quran</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>Qur'an</string>
+			<key>UIApplicationShortcutItemIconSymbolName</key>
+			<string>book</string>
+			<key>UIApplicationShortcutItemUserInfo</key>
+			<dict>
+				<key>hash</key>
+				<string>#/quran</string>
+			</dict>
+		</dict>
+		<dict>
+			<key>UIApplicationShortcutItemType</key>
+			<string>com.salaamstreet.app.dhikr</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>Dhikr</string>
+			<key>UIApplicationShortcutItemIconSymbolName</key>
+			<string>circle.dotted</string>
+			<key>UIApplicationShortcutItemUserInfo</key>
+			<dict>
+				<key>hash</key>
+				<string>#/dhikr</string>
+			</dict>
+		</dict>
 	</array>
 </dict>
 </plist>

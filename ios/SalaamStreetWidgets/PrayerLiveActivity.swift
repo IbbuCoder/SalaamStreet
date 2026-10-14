@@ -1,169 +1,110 @@
 import ActivityKit
-import WidgetKit
 import SwiftUI
-import SalaamStreetCore
+import WidgetKit
 
-@main
-struct SalaamStreetWidgetsBundle: WidgetBundle {
-    var body: some Widget {
-        PrayerLiveActivityWidget()
-    }
-}
-
-/// The prayer countdown on the Lock Screen and in the Dynamic Island.
-/// Every presentation opens the Prayer screen (salaamstreet://prayer).
-struct PrayerLiveActivityWidget: Widget {
+/// The prayer countdown on the Lock Screen, in StandBy and in the Dynamic Island.
+struct PrayerLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: PrayerActivityAttributes.self) { context in
-            LockScreenView(context: context)
-                .environment(\.timeZone, context.state.timeZone)
-                .activityBackgroundTint(Brand.deepGreen)
-                .activitySystemActionForegroundColor(Brand.mint)
-                .widgetURL(URL(string: "salaamstreet://prayer"))
+            LockScreenCountdown(context: context)
+                .activityBackgroundTint(Color(red: 0.024, green: 0.306, blue: 0.231))
+                .activitySystemActionForegroundColor(Hero.text)
+                .widgetURL(URL(string: "salaamstreet://page/home"))
         } dynamicIsland: { context in
-            DynamicIsland {
+            let s = context.state
+            return DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
-                    HStack(spacing: 8) {
-                        Image("LogoMark").resizable().frame(width: 30, height: 30)
-                            .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
-                            .accessibilityHidden(true)
-                        VStack(alignment: .leading, spacing: 0) {
-                            Text(begun(context) ? "Now" : "Next").font(.caption2).foregroundStyle(Brand.mint)
-                            Text(context.state.englishName).font(.headline).foregroundStyle(.white).lineLimit(1)
-                        }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(context.attributes.labelNext).font(.caption2).foregroundStyle(Hero.label)
+                        Text(s.name).font(.title3.weight(.heavy)).foregroundStyle(Hero.text)
                     }
                     .padding(.leading, 4)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    VStack(alignment: .trailing, spacing: 0) {
-                        CountdownText(context: context)
-                            .font(.title2.weight(.semibold).monospacedDigit())
-                            .foregroundStyle(.white)
-                        Text(context.state.prayerTime, style: .time).font(.caption).foregroundStyle(.white.opacity(0.75))
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text(s.timeText).font(.caption).foregroundStyle(Hero.soft)
+                        countdown(s).font(.title3.weight(.heavy)).foregroundStyle(Hero.text)
                     }
                     .padding(.trailing, 4)
-                    .environment(\.timeZone, context.state.timeZone)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     HStack {
-                        if context.attributes.showArabicName {
-                            Text(context.state.arabicName).font(.subheadline).foregroundStyle(Brand.mint)
-                        }
+                        Label(context.attributes.city, systemImage: "location.fill").font(.caption2).foregroundStyle(Hero.soft).lineLimit(1)
                         Spacer()
-                        if context.attributes.showFollowingPrayer, let name = context.state.followingName, let time = context.state.followingTime {
-                            Text("Then \(name) ") .font(.caption).foregroundStyle(.white.opacity(0.75))
-                                + Text(time, style: .time).font(.caption).foregroundStyle(.white.opacity(0.75))
-                        } else {
-                            Label(context.state.locationName, systemImage: "location.fill")
-                                .font(.caption).foregroundStyle(.white.opacity(0.75)).lineLimit(1)
+                        if let n = s.followingName, let t = s.followingTimeText {
+                            Text("\(n) \(t)").font(.caption2).foregroundStyle(Hero.soft)
                         }
+                        dots(s.prayedToday)
                     }
                     .padding(.horizontal, 4)
-                    .environment(\.timeZone, context.state.timeZone)
-                    if context.isStale {
-                        Text("Open SalaamStreet to move on to the next prayer.")
-                            .font(.caption2).foregroundStyle(.white.opacity(0.7))
-                    }
                 }
             } compactLeading: {
                 HStack(spacing: 4) {
-                    Image("LogoMark").resizable().frame(width: 20, height: 20)
-                        .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
-                    Text(short(context.state.englishName)).font(.caption.weight(.semibold)).foregroundStyle(Brand.mint)
+                    Image(systemName: "moon.stars.fill").font(.caption2)
+                    Text(s.name).font(.caption.weight(.bold)).lineLimit(1).minimumScaleFactor(0.7)
                 }
-                .accessibilityLabel(context.state.englishName)
+                .foregroundStyle(Hero.label)
+                .padding(.leading, 4)
             } compactTrailing: {
-                CountdownText(context: context)
-                    .font(.caption.weight(.semibold).monospacedDigit())
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: 56)
+                // Room for "10:59:59"; the label never truncates.
+                countdown(s).font(.caption.weight(.bold).monospacedDigit()).foregroundStyle(Hero.text)
+                    .lineLimit(1).minimumScaleFactor(0.6)
+                    .frame(width: 58, alignment: .trailing)
+                    .padding(.trailing, 2)
             } minimal: {
-                Image("LogoMark").resizable().frame(width: 20, height: 20)
-                    .clipShape(Circle())
-                    .accessibilityLabel("\(context.state.englishName) at \(context.state.prayerTime.formatted(date: .omitted, time: .shortened))")
+                Image(systemName: "moon.stars.fill").foregroundStyle(Hero.label)
             }
-            .widgetURL(URL(string: "salaamstreet://prayer"))
-            .keylineTint(Brand.mint)
-        }
-    }
-
-    private func begun(_ context: ActivityViewContext<PrayerActivityAttributes>) -> Bool {
-        context.isStale || context.state.prayerTime <= Date()
-    }
-
-    /// Short labels for the compact Dynamic Island.
-    private func short(_ name: String) -> String {
-        switch name {
-        case "Maghrib": return "Magh."
-        case "Jumu'ah": return "Jum."
-        default: return name
+            .widgetURL(URL(string: "salaamstreet://page/home"))
+            .keylineTint(Hero.label)
         }
     }
 }
 
-/// Counts down to the prayer by itself (no app needed); says "Now" once it has begun.
-struct CountdownText: View {
-    let context: ActivityViewContext<PrayerActivityAttributes>
-
-    var body: some View {
-        let end = context.state.prayerTime
-        if context.isStale || end <= Date() {
-            Text("Now")
-        } else {
-            Text(timerInterval: Date()...end, countsDown: true, showsHours: true)
-                .multilineTextAlignment(.trailing)
-        }
-    }
+private func countdown(_ s: PrayerActivityAttributes.ContentState) -> some View {
+    let now = Date()
+    return Text(timerInterval: now...max(now, s.at), countsDown: true).monospacedDigit().multilineTextAlignment(.trailing)
 }
 
-struct LockScreenView: View {
+private func dots(_ n: Int) -> some View {
+    HStack(spacing: 3) {
+        ForEach(0..<5, id: \.self) { i in
+            Circle().fill(i < n ? Hero.label : Hero.text.opacity(0.25)).frame(width: 6, height: 6)
+        }
+    }
+    .accessibilityLabel("\(n)/5")
+}
+
+struct LockScreenCountdown: View {
     let context: ActivityViewContext<PrayerActivityAttributes>
 
-    private var begun: Bool { context.isStale || context.state.prayerTime <= Date() }
-
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .center, spacing: 12) {
-                Image("LogoMark").resizable().frame(width: 40, height: 40)
-                    .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
-                    .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(begun ? "It's time for" : "Next prayer").font(.caption).foregroundStyle(Brand.mint)
-                    HStack(alignment: .firstTextBaseline, spacing: 6) {
-                        Text(context.state.englishName).font(.title3.weight(.bold)).foregroundStyle(.white)
-                        if context.attributes.showArabicName {
-                            Text(context.state.arabicName).font(.subheadline).foregroundStyle(Brand.mint)
-                        }
-                    }
+        let s = context.state
+        let a = context.attributes
+        HStack(alignment: .center, spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(a.labelNext).font(.caption.weight(.semibold)).foregroundStyle(Hero.label)
+                Text(s.name).font(.system(size: 28, weight: .heavy)).foregroundStyle(Hero.text)
+                HStack(spacing: 6) {
+                    Text(s.timeText).foregroundStyle(Hero.soft)
+                    Text("·").foregroundStyle(Hero.soft)
+                    Text(a.city).foregroundStyle(Hero.soft).lineLimit(1)
                 }
-                Spacer()
-                VStack(alignment: .trailing, spacing: 1) {
-                    if begun {
-                        Text("began").font(.caption).foregroundStyle(.white.opacity(0.75))
-                        Text(context.state.prayerTime, style: .time).font(.title2.weight(.semibold)).foregroundStyle(.white)
-                    } else {
-                        CountdownText(context: context)
-                            .font(.title.weight(.semibold).monospacedDigit())
-                            .foregroundStyle(.white)
-                        Text("at ") .font(.caption).foregroundStyle(.white.opacity(0.75))
-                            + Text(context.state.prayerTime, style: .time).font(.caption).foregroundStyle(.white.opacity(0.75))
-                    }
-                }
+                .font(.footnote)
             }
-            HStack {
-                if context.attributes.showFollowingPrayer, let name = context.state.followingName, let time = context.state.followingTime {
-                    Text("Then \(name) ").font(.caption) + Text(time, style: .time).font(.caption)
+            Spacer()
+            VStack(alignment: .trailing, spacing: 6) {
+                countdown(s).font(.system(size: 30, weight: .heavy)).foregroundStyle(Hero.text)
+                HStack(spacing: 6) {
+                    if let n = s.followingName, let t = s.followingTimeText {
+                        Text("\(n) \(t)").font(.caption2).foregroundStyle(Hero.soft)
+                    }
+                    dots(s.prayedToday)
                 }
-                Spacer()
-                Label(context.state.locationName, systemImage: "location.fill").font(.caption).lineLimit(1)
-            }
-            .foregroundStyle(.white.opacity(0.75))
-            if context.isStale {
-                Text("Open SalaamStreet to move on to the next prayer.")
-                    .font(.caption2).foregroundStyle(.white.opacity(0.7))
             }
         }
         .padding(16)
-        .accessibilityElement(children: .combine)
+        .background(Hero.background)
+        .environment(\.layoutDirection, a.rtl ? .rightToLeft : .leftToRight)
+        .environment(\.locale, Locale(identifier: a.locale))
     }
 }

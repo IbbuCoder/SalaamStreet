@@ -14,7 +14,7 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "AA0000000000000000000020"
+               BlueprintIdentifier = "5A5500000000000000000016"
                BuildableName = "SalaamStreet.app"
                BlueprintName = "SalaamStreet"
                ReferencedContainer = "container:SalaamStreet.xcodeproj">
@@ -32,9 +32,9 @@
             skipped = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "AA0000000000000000000022"
-               BuildableName = "SalaamStreetUITests.xctest"
-               BlueprintName = "SalaamStreetUITests"
+               BlueprintIdentifier = "5A5500000000000000000018"
+               BuildableName = "SalaamStreetTests.xctest"
+               BlueprintName = "SalaamStreetTests"
                ReferencedContainer = "container:SalaamStreet.xcodeproj">
             </BuildableReference>
          </TestableReference>
@@ -42,10 +42,10 @@
             skipped = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "SalaamStreetCoreTests"
-               BuildableName = "SalaamStreetCoreTests"
-               BlueprintName = "SalaamStreetCoreTests"
-               ReferencedContainer = "container:SalaamStreetCore">
+               BlueprintIdentifier = "5A5500000000000000000019"
+               BuildableName = "SalaamStreetUITests.xctest"
+               BlueprintName = "SalaamStreetUITests"
+               ReferencedContainer = "container:SalaamStreet.xcodeproj">
             </BuildableReference>
          </TestableReference>
       </Testables>
@@ -62,13 +62,13 @@
       allowLocationSimulation = "YES">
       <BuildableProductRunnable
          runnableDebuggingMode = "0">
-         <BuildableReference
-            BuildableIdentifier = "primary"
-            BlueprintIdentifier = "AA0000000000000000000020"
-            BuildableName = "SalaamStreet.app"
-            BlueprintName = "SalaamStreet"
-            ReferencedContainer = "container:SalaamStreet.xcodeproj">
-         </BuildableReference>
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "5A5500000000000000000016"
+               BuildableName = "SalaamStreet.app"
+               BlueprintName = "SalaamStreet"
+               ReferencedContainer = "container:SalaamStreet.xcodeproj">
+            </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
    <ProfileAction
@@ -79,13 +79,13 @@
       debugDocumentVersioning = "YES">
       <BuildableProductRunnable
          runnableDebuggingMode = "0">
-         <BuildableReference
-            BuildableIdentifier = "primary"
-            BlueprintIdentifier = "AA0000000000000000000020"
-            BuildableName = "SalaamStreet.app"
-            BlueprintName = "SalaamStreet"
-            ReferencedContainer = "container:SalaamStreet.xcodeproj">
-         </BuildableReference>
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "5A5500000000000000000016"
+               BuildableName = "SalaamStreet.app"
+               BlueprintName = "SalaamStreet"
+               ReferencedContainer = "container:SalaamStreet.xcodeproj">
+            </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>
    <AnalyzeAction
