@@ -235,8 +235,11 @@ final class AudioPlayer: NSObject {
         if let e = enqueuedNext { player.remove(e.avItem) }
         enqueuedNext = nil
         guard let n = next, let av = avItem(for: n) else { return }
+        // Always at the end: the queue may still hold the ayah that just ended.
+        let last = player.items().last
+        guard player.canInsert(av, after: last) else { return }
         watch(av)
-        player.insert(av, after: player.items().first)
+        player.insert(av, after: last)
         enqueuedNext = (n, av)
     }
 
@@ -269,7 +272,11 @@ final class AudioPlayer: NSObject {
             next.seq = seqCounter
             current = next
             enqueuedNext = nil
-            if player.currentItem !== e.avItem { player.insert(e.avItem, after: nil) }
+            // AVQueuePlayer moves on to the queued item by itself; only put it
+            // back if something removed it (inserting it twice would crash).
+            if !player.items().contains(where: { $0 === e.avItem }), player.canInsert(e.avItem, after: nil) {
+                player.insert(e.avItem, after: nil)
+            }
             refreshEnqueuedNext()
             updateNowPlaying()
             emit("audio", ["type": "advance", "ended": endedSeq, "seq": next.seq, "key": next.key])

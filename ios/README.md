@@ -206,6 +206,34 @@ hadith) use the website's own IndexedDB and Cache storage inside the app.
 Downloaded recitation is also copied to the app's cache when played, so it keeps
 playing locked and offline.
 
+## Status of each feature (3.0.0 Beta, build 1)
+
+"Tested in simulator" means an automated test in this repo checked it on an
+iPhone 16 simulator (iOS 18.5, Xcode 16.4) in GitHub Actions. Nothing has been
+tested on a physical iPhone yet.
+
+| Feature | Status |
+|---|---|
+| The website in the app, every page, light and dark, 7 languages | tested in simulator (side-by-side screenshots with salaamstreet.com, no JavaScript errors, no missing files, fonts from the app) |
+| Works with no connection (bundled site, on-device prayer times) | tested in simulator (all http(s) blocked) |
+| Offline page downloads (IndexedDB + Cache API) | tested in simulator (recitation downloaded, then played from the device by the native player) |
+| Recitation with the phone locked, Lock Screen controls, next ayah by itself | tested in simulator (native player, Lock Screen title, moves on and the page follows); playing while actually locked: needs a device |
+| Reminders a week ahead, "I prayed" button, Friday Al-Kahf | tested in simulator (scheduled at the location's prayer times); tapping a delivered notification: needs a device |
+| "I prayed" from a notification / widget / Siri reaches the tracker | tested in simulator |
+| Live Activity / Dynamic Island countdown, location's clock | tested in simulator (screenshot of the Dynamic Island; "05:10" Auckland time on a GMT phone) |
+| Haptics (dhikr, Qibla lock-on) | implemented and tested in Chromium (messages); feel: needs a device |
+| Keep the screen on, theme follows the site | tested in simulator |
+| App icon badge | implemented; needs a device to see |
+| Location (Core Location) | tested in simulator |
+| Qibla compass and camera mode | implemented (permissions wired); needs a device (the simulator has no compass or camera) |
+| Google sign-in through the system sheet | tested in simulator (the iOS sign-in prompt appears); finishing sign-in needs user configuration (Supabase redirect URL) |
+| Sign in with Apple | needs user configuration (see above) |
+| Widgets (Home Screen, Lock Screen, StandBy), interactive "I prayed" | built; not placed on a Home Screen by the tests |
+| Siri / Shortcuts / Action button | built (App Shortcuts in the app's metadata); needs a device to talk to |
+| Control Centre toggle (iOS 18) | built |
+| Spotlight | built; the simulator never confirms indexing, so its test is skipped |
+| Quick actions | tested in simulator (in the website's language) |
+
 ## Permissions (Info.plist)
 
 | Prompt | Used for |
