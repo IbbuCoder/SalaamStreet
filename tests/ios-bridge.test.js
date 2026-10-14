@@ -64,6 +64,7 @@ async function openInApp(opts = {}) {
         case "audio.hasFile": return Promise.resolve(false);
         case "activity.status": return Promise.resolve({ running: false, enabled: true });
         case "geo.status": return Promise.resolve("prompt");
+        case "net.fetch": return Promise.resolve({ status: 200, type: "audio/mpeg", data: btoa("ID3fake-mp3") });
         case "eval": return Promise.reject(new Error("unknown-action: eval"));
         default: return Promise.resolve(null);
       }
@@ -215,5 +216,21 @@ test("the Settings page gets the Lock Screen countdown switch and the Offline pa
   await app.page.waitForFunction(() => document.querySelector("#view-offline .off-status-list li[data-ios]"));
   const text = await app.page.textContent("#view-offline .off-status-list li[data-ios]");
   assert.match(text, /saved on this device/);
+  await app.context.close();
+});
+
+test("recitation downloads go through iOS; every other request goes straight from the page", async () => {
+  const app = await openInApp();
+  const r = await app.page.evaluate(async () => {
+    const res = await fetch("https://cdn.islamic.network/quran/audio/64/ar.alafasy/1.mp3");
+    const text = await res.text();
+    let other = "";
+    try { await fetch("https://api.alquran.cloud/v1/x"); } catch (e) { other = "page"; }
+    return { status: res.status, type: res.headers.get("content-type"), text, other };
+  });
+  assert.deepEqual(r, { status: 200, type: "audio/mpeg", text: "ID3fake-mp3", other: "page" });
+  const proxied = await app.msgs("net.fetch");
+  assert.equal(proxied.length, 1);
+  assert.match(proxied[0].payload.url, /^https:\/\/cdn\.islamic\.network\//);
   await app.context.close();
 });

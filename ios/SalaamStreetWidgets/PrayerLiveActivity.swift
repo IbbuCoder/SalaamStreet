@@ -39,9 +39,18 @@ struct PrayerLiveActivity: Widget {
                     .padding(.horizontal, 4)
                 }
             } compactLeading: {
-                Text(s.name).font(.caption.weight(.bold)).foregroundStyle(Hero.label).lineLimit(1)
+                HStack(spacing: 4) {
+                    Image(systemName: "moon.stars.fill").font(.caption2)
+                    Text(s.name).font(.caption.weight(.bold)).lineLimit(1).minimumScaleFactor(0.7)
+                }
+                .foregroundStyle(Hero.label)
+                .padding(.leading, 4)
             } compactTrailing: {
-                countdown(s).font(.caption.weight(.bold)).foregroundStyle(Hero.text).frame(maxWidth: 52)
+                // Room for "10:59:59"; the label never truncates.
+                countdown(s).font(.caption.weight(.bold).monospacedDigit()).foregroundStyle(Hero.text)
+                    .lineLimit(1).minimumScaleFactor(0.6)
+                    .frame(width: 58, alignment: .trailing)
+                    .padding(.trailing, 2)
             } minimal: {
                 Image(systemName: "moon.stars.fill").foregroundStyle(Hero.label)
             }

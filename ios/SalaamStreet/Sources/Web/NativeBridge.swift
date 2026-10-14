@@ -15,6 +15,7 @@ enum BridgeAction: String, CaseIterable {
     case activityStart = "activity.start", activityStop = "activity.stop", activityStatus = "activity.status"
     case spotlight
     case openExternal = "open.external"
+    case netFetch = "net.fetch"
 }
 
 enum BridgeError: Error, CustomStringConvertible {
@@ -263,6 +264,9 @@ final class NativeBridge: NSObject, WKScriptMessageHandlerWithReply {
             Spotlight.index(p)
             return nil
 
+        case .netFetch:
+            return try await NetProxy.fetch(try p.string("url", max: 500))
+
         case .openExternal:
             guard let url = URL(string: try p.string("url")), url.scheme == "https" else { throw BridgeError.invalid("url") }
             host?.openInSafari(url)
@@ -303,5 +307,26 @@ enum Haptics {
             }
             delay += ms / 1000
         }
+    }
+}
+
+/// The recitation CDN (cdn.islamic.network) doesn't allow requests from an app
+/// page's origin, so the Offline page's recitation downloads go through iOS.
+/// Only that host, only https, only GET, and at most 8 MB per file.
+enum NetProxy {
+    static let allowedHosts: Set<String> = ["cdn.islamic.network"]
+
+    static func isAllowed(_ url: URL) -> Bool {
+        url.scheme == "https" && allowedHosts.contains(url.host ?? "")
+    }
+
+    static func fetch(_ string: String) async throws -> [String: Any] {
+        guard let url = URL(string: string), isAllowed(url) else { throw BridgeError.invalid("url") }
+        var request = URLRequest(url: url, timeoutInterval: 30)
+        request.httpMethod = "GET"
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard data.count <= 8_000_000 else { throw BridgeError.failed("too-large") }
+        let http = response as? HTTPURLResponse
+        return ["status": http?.statusCode ?? 0, "type": http?.mimeType ?? "application/octet-stream", "data": data.base64EncodedString()]
     }
 }

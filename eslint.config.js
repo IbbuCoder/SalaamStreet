@@ -26,7 +26,7 @@ module.exports = [
     // The iOS app's bridge script (injected into the bundled website by the app).
     files: ["ios/**/*.js"],
     languageOptions: { ecmaVersion: 2017, sourceType: "script", globals: Object.assign({}, browser, {
-      EventTarget: "readonly", DOMException: "readonly", HashChangeEvent: "readonly", MutationObserver: "readonly", btoa: "readonly", Uint8Array: "readonly" }) },
+      EventTarget: "readonly", DOMException: "readonly", HashChangeEvent: "readonly", MutationObserver: "readonly", btoa: "readonly", atob: "readonly", Uint8Array: "readonly" }) },
     rules: { "no-undef": "error", "no-unused-vars": ["warn", { args: "none", caughtErrors: "none" }], "no-redeclare": "error", "no-dupe-keys": "error", "no-unreachable": "error" },
   },
   {

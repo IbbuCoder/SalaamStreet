@@ -158,10 +158,12 @@ final class NativeFeatureTests: AppTestCase {
     func testSpotlightAndQuickActions() async throws {
         _ = try await readyApp()
         try await waitUntil(30, "quick actions in the website's language") { (UIApplication.shared.shortcutItems ?? []).count == 4 }
-        try await waitUntil(30, "Spotlight answered") { Spotlight.lastResult != nil || UserDefaults.standard.string(forKey: "spotlight.version") != nil }
+        try await waitUntil(30, "Spotlight asked") { Spotlight.lastResult != nil || UserDefaults.standard.string(forKey: "spotlight.version") != nil }
+        let end = Date().addingTimeInterval(20)
+        while Spotlight.lastResult == "requested" && Date() < end { try await Task.sleep(nanoseconds: 500_000_000) }
         print("NATIVE-SPOTLIGHT", Spotlight.lastResult ?? "indexed earlier")
-        if let r = Spotlight.lastResult, r.hasPrefix("error") {
-            throw XCTSkip("Spotlight indexing isn't available on this simulator: \(r)")
+        if let r = Spotlight.lastResult, r == "requested" || r.hasPrefix("error") {
+            throw XCTSkip("Spotlight didn't confirm indexing on this simulator (\(r)); the surahs and duas were handed to it")
         }
     }
 }

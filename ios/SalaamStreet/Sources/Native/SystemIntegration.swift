@@ -25,12 +25,12 @@ enum Spotlight {
             return CSSearchableItem(uniqueIdentifier: hash, domainIdentifier: (d["domain"] as? String) ?? "page", attributeSet: attrs)
         }
         let index = CSSearchableIndex.default()
-        index.deleteAllSearchableItems { _ in
-            index.indexSearchableItems(items) { error in
-                DispatchQueue.main.async {
-                    lastResult = error.map { "error: \($0.localizedDescription)" } ?? "indexed \(items.count)"
-                    if error == nil { UserDefaults.standard.set(version, forKey: versionKey) }
-                }
+        lastResult = "requested"
+        // Same ids replace what was indexed before (a new language or version).
+        index.indexSearchableItems(items) { error in
+            DispatchQueue.main.async {
+                lastResult = error.map { "error: \($0.localizedDescription)" } ?? "indexed \(items.count)"
+                if error == nil { UserDefaults.standard.set(version, forKey: versionKey) }
             }
         }
     }

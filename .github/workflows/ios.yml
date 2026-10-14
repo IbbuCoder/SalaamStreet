@@ -134,8 +134,8 @@ jobs:
         if: always() && matrix.suite == 'UI'
         run: |
           xcrun simctl spawn "$DEVICE" log show --last 20m --style compact \
-            --predicate 'process CONTAINS "SalaamStreetWidgets" OR (eventMessage CONTAINS[c] "salaamstreet" AND (process == "chronod" OR process == "SpringBoard" OR process == "liveactivitiesd"))' \
-            2>/dev/null | grep -v -E "^Timestamp" | tail -40 || true
+            --predicate 'process CONTAINS "SalaamStreetWidgets" OR eventMessage CONTAINS "SalaamStreetWidgets" OR eventMessage CONTAINS "PrayerActivityAttributes"' \
+            2>/dev/null | grep -v -E "^Timestamp" | grep -i -E "error|fail|crash|denied|archiv|render|activity" | tail -40 || true
       - name: Export screenshots
         if: always() && matrix.suite == 'UI'
         run: |

@@ -93,17 +93,22 @@ final class ScreenshotTests: XCTestCase {
         let app = launch([])
         settle(app, seconds: 6)
         let web = app.webViews.firstMatch
-        let quran = web.links.matching(NSPredicate(format: "label CONTAINS[c] %@", "Qur")).firstMatch
-        XCTAssertTrue(quran.waitForExistence(timeout: 10), "bottom navigation: Qur'an")
-        quran.tap()
-        let fatiha = web.links.matching(NSPredicate(format: "label CONTAINS[c] %@", "Al-Fatihah")).firstMatch
-        XCTAssertTrue(fatiha.waitForExistence(timeout: 20), "surah list")
-        fatiha.tap()
+        func tapText(_ label: String, last: Bool = false) -> Bool {
+            let q = web.staticTexts.matching(NSPredicate(format: "label == %@", label))
+            guard q.firstMatch.waitForExistence(timeout: 15) else { return false }
+            let el = last ? q.element(boundBy: q.count - 1) : q.firstMatch
+            guard el.isHittable else { return false }
+            el.tap()
+            return true
+        }
+        XCTAssertTrue(tapText("Qur'an", last: true), "bottom navigation: Qur'an")
+        Thread.sleep(forTimeInterval: 2)
+        XCTAssertTrue(tapText("Al-Fatihah"), "surah list → Al-Fatihah")
         Thread.sleep(forTimeInterval: 4)
         shot(app, "journey_surah")
-        let dhikr = web.links.matching(NSPredicate(format: "label CONTAINS[c] %@", "Dhikr")).firstMatch
-        if dhikr.waitForExistence(timeout: 5) { dhikr.tap() } else { app.terminate(); return }
+        XCTAssertTrue(web.staticTexts["The Opener · 7 verses · Meccan"].exists || web.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "The Opener")).firstMatch.exists, "Al-Fatihah opened")
+        XCTAssertTrue(tapText("Home", last: true), "bottom navigation: Home")
         Thread.sleep(forTimeInterval: 2)
-        shot(app, "journey_dhikr")
+        shot(app, "journey_home")
     }
 }

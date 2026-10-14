@@ -186,6 +186,33 @@
     });
   }
 
+  /* ── Recitation downloads (Offline page) ───────────────────────────── */
+  // The recitation CDN refuses requests from an app page's origin, so fetches
+  // to it go through iOS (NativeBridge NetProxy: that host only, GET only).
+  var PROXY_HOSTS = { "cdn.islamic.network": 1 };
+  var pageFetch = window.fetch;
+  function fromBase64(b64) {
+    var bin = atob(b64), out = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+  window.fetch = function (input, init) {
+    var url = typeof input === "string" ? input : input && input.url;
+    var host = "";
+    try { host = new URL(url, location.href).hostname; } catch (e) { /* not a URL */ }
+    var method = (init && init.method) || (input && input.method) || "GET";
+    if (!PROXY_HOSTS[host] || String(method).toUpperCase() !== "GET") return pageFetch.apply(this, arguments);
+    var signal = init && init.signal;
+    if (signal && signal.aborted) return Promise.reject(new DOMException("Aborted", "AbortError"));
+    return new Promise(function (resolve, reject) {
+      if (signal) signal.addEventListener("abort", function () { reject(new DOMException("Aborted", "AbortError")); });
+      call("net.fetch", { url: url }).then(function (r) {
+        var body = r.status === 204 || r.status === 304 ? null : fromBase64(r.data || "");
+        resolve(new Response(body, { status: r.status || 200, headers: { "Content-Type": r.type || "application/octet-stream", "Content-Length": String(body ? body.length : 0) } }));
+      }, function (e) { reject(new TypeError("Load failed (" + (e && e.message || e) + ")")); });
+    });
+  };
+
   /* ── Qur'an recitation through AVPlayer ────────────────────────────── */
   var current = null;      // the Audio object iOS is playing for
   var adoptSeq = null;     // set when iOS moved to the next ayah by itself

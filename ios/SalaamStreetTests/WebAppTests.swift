@@ -112,6 +112,7 @@ final class WebAppTests: AppTestCase {
             return out;
             """) as? [String: String]
         print("WEBAPP-NET", r ?? [:])
+        // audio goes through iOS (NetProxy), the rest straight from the page.
         for (k, v) in r ?? [:] where k != "overpass" { XCTAssertFalse(v.hasPrefix("ERR"), "\(k): \(v)") }
     }
 
