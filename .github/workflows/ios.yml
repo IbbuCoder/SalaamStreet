@@ -90,6 +90,15 @@ jobs:
           xcrun simctl boot "$DEVICE"
           xcrun simctl ui "$DEVICE" appearance ${{ matrix.appearance }}
           xcrun simctl status_bar "$DEVICE" override --time "9:41" --batteryState charged --batteryLevel 100 --wifiBars 3 || true
+      - name: Build for testing and install the app
+        run: |
+          set -o pipefail
+          mkdir -p build
+          xcodebuild build-for-testing \
+            -project ios/SalaamStreet.xcodeproj -scheme SalaamStreet \
+            -destination "id=$DEVICE" -derivedDataPath build/DerivedData $SIGN \
+            | tee build/xcodebuild-build.log | grep -E "error:|BUILD|TEST BUILD" || true
+          xcrun simctl install "$DEVICE" build/DerivedData/Build/Products/Debug-iphonesimulator/SalaamStreet.app
       - name: Permissions for the native feature tests (location in London, notifications)
         if: matrix.suite == 'Unit'
         run: |
@@ -102,7 +111,7 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p build
-          xcodebuild test \
+          xcodebuild test-without-building \
             -project ios/SalaamStreet.xcodeproj -scheme SalaamStreet \
             -destination "id=$DEVICE" -only-testing:${{ matrix.only }} \
             -derivedDataPath build/DerivedData -resultBundlePath build/Results.xcresult $SIGN \
