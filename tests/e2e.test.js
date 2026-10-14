@@ -819,16 +819,16 @@ async function offlineDevice(opts = {}) {
 
 test("offline Qur'an: download text and audio, go offline, read a surah, play across surahs, remove it all", async () => {
   const { context, page, log, net } = await offlineDevice({ settings: { continuousPlay: true } });
-  await open(page, "#/settings/offline");
-  await page.click('#st-offline [data-act="dl-text"]');
-  await page.waitForSelector('#st-offline [data-key="text"] .progress');
-  await page.waitForSelector('#st-offline [data-key="text"] .off-done', { timeout: 30000 });
-  await page.click('#st-offline details[data-key="surahs"] > summary');
+  await open(page, "#/offline");
+  await page.click('#off-root [data-act="dl-text"]');
+  await page.waitForSelector('#off-root [data-key="text"] .progress');
+  await page.waitForSelector('#off-root [data-key="text"] .off-done', { timeout: 30000 });
+  await page.click('#off-root details[data-key="surahs"] > summary');
   for (const n of [113, 114]) {
-    await page.click(`#st-offline [data-act="dl-audio"][data-arg="${n}"]`);
-    await page.waitForSelector(`#st-offline [data-act="rm-audio"][data-arg="${n}"]`, { timeout: 15000 });
+    await page.click(`#off-root [data-act="dl-audio"][data-arg="${n}"]`);
+    await page.waitForSelector(`#off-root [data-act="rm-audio"][data-arg="${n}"]`, { timeout: 15000 });
   }
-  assert.match(await page.textContent('#st-offline [data-key="storage"]'), /Offline Qur'an uses [\d.]+ (KB|MB)/);
+  assert.match(await page.textContent('#off-root [data-key="storage"]'), /Offline downloads use [\d.]+ (KB|MB)/);
   await page.evaluate(() => window.scrollTo(0, document.getElementById("offline-quran").offsetTop - 70));
   await shot(page, "offline-settings-mobile");
 
@@ -855,8 +855,8 @@ test("offline Qur'an: download text and audio, go offline, read a surah, play ac
   await page.click("#ab-close");
 
   // Remove everything.
-  await page.evaluate(() => { location.hash = "#/settings/offline"; });
-  await page.click('#st-offline [data-act="rm-all"]');
+  await page.evaluate(() => { location.hash = "#/offline"; });
+  await page.click('#off-root [data-act="rm-all"]');
   await page.waitForFunction(() => !SS.offline.used() && SS.offline.totalBytes() === 0);
   assert.equal(await page.evaluate(() => caches.keys().then((k) => k.filter((n) => n.startsWith("ss-offline")).length)), 0);
   assert.ok(!(await page.evaluate(() => indexedDB.databases().then((l) => l.map((d) => d.name)))).includes("salaamstreet-offline"));
@@ -974,17 +974,17 @@ test("hadith library: ten grouped collections, hadith of the day, knowledge, boo
   await context.close();
 });
 
-test("less crowded: Settings links to Offline Qur'an on its own page; Home shortcuts share one card", async () => {
+test("less crowded: Settings links to the Offline page; Home shortcuts share one card", async () => {
   const { page, context } = await device();
   await open(page, "#/settings");
-  await page.waitForSelector("#st-offline-link a[href='#/settings/offline']");
-  assert.equal(await page.isVisible("#st-offline"), false, "the long section isn't on the main Settings page");
+  await page.waitForSelector("#st-offline-link a[href='#/offline']");
+  assert.equal(await page.locator("#view-settings .off-card").count(), 0, "the long section isn't on the Settings page");
   assert.equal(await page.isVisible("#st-method"), true);
   await page.click("#st-offline-link a");
-  await page.waitForSelector("#st-offline .off-card");
-  assert.equal(await page.isVisible("#st-method"), false, "the sub-page shows only Offline Qur'an");
-  assert.equal(await page.isVisible("#st-off-h"), true);
-  await page.click("#view-settings .st-only-sub .back-link");
+  await page.waitForSelector("#off-root .off-card");
+  assert.equal(await page.isVisible("#st-method"), false);
+  assert.equal(await page.isVisible("#off-h"), true);
+  await page.goBack();
   await page.waitForSelector("#st-method", { state: "visible" });
 
   await open(page, "#/home");

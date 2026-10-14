@@ -1384,9 +1384,25 @@ dialog.modal.pdf-dialog{inline-size:100vw;max-inline-size:100vw;block-size:100dv
 [dir="rtl"] .pdf-page{direction:ltr}
 
 /* ── 2.7.0: Settings keeps the long Offline Qur'an section on its own page (#/settings/offline) ── */
-#view-settings:not(.st-sub) .st-only-sub{display:none}
-#view-settings.st-sub > :not(.st-only-sub){display:none}
-#view-settings.st-sub .st-only-sub .page-head{margin-block-end:12px}
+/* 3.0 Offline page */
+.off-section .group-label{margin-block:14px 0}
+.off-status{display:flex;align-items:flex-start;gap:14px}
+.off-status .w-ic{flex-shrink:0}
+.off-status.is-offline .w-ic{color:var(--gold);background:color-mix(in srgb,var(--gold) 14%,transparent)}
+.off-status-list{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.off-status-list li{display:flex;gap:8px;align-items:flex-start;color:var(--text-2);font-size:.92rem}
+.off-status-list .ic{inline-size:16px;block-size:16px;margin-block-start:3px;color:var(--primary-strong)}
+.off-status-list .is-warn .ic{color:var(--gold)}
+.off-meter{block-size:8px;border-radius:99px;background:var(--surface-3);overflow:hidden}
+.off-meter span{display:block;block-size:100%;background:var(--primary);border-radius:inherit;min-inline-size:2px}
+.off-links{list-style:none;margin:0;padding:0;display:grid}
+.off-links li{border-block-start:1px solid var(--border)}
+.off-links li:first-child{border-block-start:0}
+.off-links a,.off-links .off-link{display:flex;align-items:center;gap:12px;min-block-size:52px;padding-block:8px;color:var(--text);text-decoration:none}
+.off-links a:hover .w-title{text-decoration:underline;text-underline-offset:3px}
+.off-links .ic{color:var(--primary-strong)}
+.off-links.is-net .ic{color:var(--text-3)}
+.off-links .off-main .tiny{color:var(--text-3)}
 
 /* ── 2.7.0: Hadith library — grouped lists, hadith of the day, knowledge, gradings ── */
 .hd-group{padding-block:4px}

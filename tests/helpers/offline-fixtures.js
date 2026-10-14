@@ -57,8 +57,8 @@ function edition(id, n) {
 }
 
 /**
- * Route the Qur'an text, tafsir and audio APIs on a Playwright context.
- * opts.log: array that receives "text n eds" / "tafsir n" / "audio g" for each successful response.
+ * Route the Qur'an text, tafsir, audio and hadith APIs on a Playwright context.
+ * opts.log: array that receives "text n eds" / "tafsir n" / "audio g" / "hadith edition[/n]" for each successful response.
  * opts.delay: ms per request. opts.fail(kind, key, attempt) → true to answer 500.
  * opts.stats: { active, max } concurrency counters.
  * Returns { attempts, stats, net }: set net.offline = true to fail every request
@@ -88,6 +88,11 @@ async function routeQuranApis(context, opts = {}) {
     } else if (u.hostname === "cdn.islamic.network" && (m = u.pathname.match(/\/quran\/audio\/(\d+)\/([^/]+)\/(\d+)\.mp3$/))) {
       if (m[1] !== "128") return route.fulfill({ status: 404, body: "nf" });
       kind = "audio"; key = m[3]; body = mp3; type = "audio/mpeg";
+    } else if (u.hostname === "cdn.jsdelivr.net" && (m = u.pathname.match(/hadith-api@1\/editions\/((eng|ara)-[a-z]+)(?:\/(\d+))?\.min\.json$/))) {
+      // hadith-api: a whole edition, or one hadith; 3 hadith per collection is enough for the tests.
+      kind = "hadith"; key = m[1] + (m[3] ? "/" + m[3] : "");
+      const one = (n) => ({ hadithnumber: n, text: `${m[1]} hadith ${n}`, grades: [{ name: "Test", grade: "Sahih" }], reference: { book: 1, hadith: n } });
+      body = JSON.stringify({ metadata: { name: m[1] }, hadiths: m[3] ? [one(+m[3])] : [one(1), one(2), one(3)] });
     } else if (u.hostname === "api.aladhan.com") {
       return route.fulfill({ json: { data: { timings: { Fajr: "05:00", Sunrise: "06:30", Dhuhr: "12:30", Asr: "15:45", Maghrib: "18:30", Isha: "19:45" },
         date: { hijri: { day: "12", month: { number: 4, en: "Rabi al-Thani", ar: "ربيع الآخر" }, year: "1448" } } } } });

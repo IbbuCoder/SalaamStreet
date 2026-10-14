@@ -1,8 +1,8 @@
 /* SalaamStreet — offline.js (classic script)
    Offline Qur'an (2.6.0): download the Qur'an once and use it with no internet.
 
-   • Text (Arabic Uthmani, translations, transliteration) and Tafsir Ibn Kathir
-     live in IndexedDB ("salaamstreet-offline"): localStorage (~5 MB) is far
+   • Text (Arabic Uthmani, translations, transliteration), Tafsir Ibn Kathir
+     and hadith collections (3.0) live in IndexedDB ("salaamstreet-offline"): localStorage (~5 MB) is far
      too small for the whole Qur'an.
    • Recitation audio and the Qur'an PDF live in the Cache API
      ("ss-offline-audio", "ss-offline-pdf"). The service worker never deletes
@@ -19,7 +19,7 @@
   "use strict";
   window.SS = window.SS || {};
 
-  var DB_NAME = "salaamstreet-offline", DB_VERSION = 1;
+  var DB_NAME = "salaamstreet-offline", DB_VERSION = 2; // 2: the "hadith" store (3.0)
   var AUDIO_CACHE = "ss-offline-audio", PDF_CACHE = "ss-offline-pdf";
   var BASE_EDITIONS = ["quran-uthmani", "en.transliteration"];
   var AUDIO_KEY = "https://salaamstreet.offline/audio/"; // cache keys only; never fetched
@@ -107,7 +107,7 @@
       try { req = indexedDB.open(DB_NAME, DB_VERSION); } catch (e) { reject(err("storage", e)); return; }
       req.onupgradeneeded = function () {
         var d = req.result;
-        ["text", "tafsir", "meta"].forEach(function (s) { if (!d.objectStoreNames.contains(s)) d.createObjectStore(s); });
+        ["text", "tafsir", "hadith", "meta"].forEach(function (s) { if (!d.objectStoreNames.contains(s)) d.createObjectStore(s); });
       };
       req.onsuccess = function () {
         var d = req.result;
@@ -160,8 +160,9 @@
   }
 
   /* ── State: what is downloaded (packs) and what is downloading (jobs) ──
-     A pack is one downloadable thing: "text:<edition>", "audio:<reciter>" or
-     "tafsir". pack.have maps surah → bytes stored for it. */
+     A pack is one downloadable thing: "text:<edition>", "audio:<reciter>",
+     "tafsir" or "hadith:<collection>". pack.have maps surah → bytes stored for
+     it (for hadith: edition, e.g. "eng-nawawi" → bytes). */
   var state = { packs: {}, jobs: {}, order: [] };
   var readyPromise = null;
   function ready() {
@@ -580,12 +581,51 @@
     return savePack(pk);
   }
 
+  /* ── Kind: hadith collections (3.0) ────────────────────────────
+     params: { collection }. Two units: the English and Arabic editions, each
+     one file from hadith-api, stored whole so every hadith in it opens offline. */
+  function hadithMeta(id) {
+    for (var i = 0; i < (SS.HADITH_COLLECTIONS || []).length; i++) if (SS.HADITH_COLLECTIONS[i].id === id) return SS.HADITH_COLLECTIONS[i];
+    return null;
+  }
+  KINDS.hadith = {
+    units: function (job) {
+      var c = hadithMeta(job.params.collection);
+      return c ? [c.eng, c.ara] : [];
+    },
+    skip: function (job, ed) { return !!pack("hadith:" + job.params.collection, "hadith").have[ed]; },
+    doneBytes: function (job) { return packBytes(state.packs["hadith:" + job.params.collection]); },
+    perform: function (job, ed) {
+      return fetchJson(SS.HADITH_BASE + "/" + ed + ".min.json").then(function (json) {
+        if (!json || !Array.isArray(json.hadiths) || !json.hadiths.length) throw err("bad-response");
+        var size = sizeOf(json);
+        guard(job);
+        return idb.put("hadith", ed, json).then(function () {
+          var p = pack("hadith:" + job.params.collection, "hadith");
+          p.collection = job.params.collection;
+          p.have[ed] = size;
+          return savePack(p).then(function () { return size; });
+        });
+      });
+    },
+    /** Cancel: a collection with only one of its two editions is removed. */
+    cancel: function (job) {
+      var id = "hadith:" + job.params.collection, p = state.packs[id];
+      if (p && packCount(p) >= 2) return null;
+      return removePack(id);
+    },
+  };
+
   /* ── Removing ───────────────────────────────────────────────── */
   function removePack(id) {
     var p = state.packs[id];
     var work;
     if (id.indexOf("text:") === 0) work = idb.delPrefix("text", id.slice(5) + "/");
     else if (id === "tafsir") work = tx("tafsir", "readwrite", function (st) { return st.clear(); });
+    else if (id.indexOf("hadith:") === 0) {
+      var c = hadithMeta(id.slice(7));
+      work = c ? Promise.all([idb.del("hadith", c.eng), idb.del("hadith", c.ara)]) : Promise.resolve();
+    }
     else if (id.indexOf("audio:") === 0) return removeAudio(id.slice(6), range(1, 114));
     else work = Promise.resolve();
     return work.then(function () {
@@ -854,6 +894,17 @@
         return res ? res.blob().then(function (b) { return URL.createObjectURL(b); }) : null;
       }).catch(function () { return null; });
     },
+    /** A whole hadith edition (e.g. "eng-nawawi") from the offline store, or null. */
+    hadithEdition: function (ed) {
+      if (!used()) return Promise.resolve(null);
+      return ready().then(function () {
+        var stored = Object.keys(state.packs).some(function (id) { return id.indexOf("hadith:") === 0 && state.packs[id].have[ed]; });
+        if (!stored) return null;
+        return idb.get("hadith", ed).then(function (json) { return json && Array.isArray(json.hadiths) ? json : null; });
+      }).catch(function () { return null; });
+    },
+    /** Is this hadith collection (English and Arabic) stored? (sync) */
+    hasHadith: function (collection) { return packCount(state.packs["hadith:" + collection]) >= 2; },
     hasText: function (n, tr) {
       return hasEdition("quran-uthmani", n) && hasEdition("en.transliteration", n) && hasEdition(tr || SS.translation().id, n);
     },
@@ -893,6 +944,8 @@
         return BASE_EDITIONS.concat([tr]).reduce(function (s, ed) { return s + SS.offline.estimate.edition(ed); }, 0);
       },
       tafsir: function () { return TAFSIR_MB * MB; },
+      /** About 1.2 KB per hadith for the English and Arabic editions together (same figure as the iOS app). */
+      hadith: function (collection) { var c = hadithMeta(collection); return c ? c.last * 1200 : 0; },
       audio: function (reciter, surahs, bitrate) {
         var br = bitrate || SS.AUDIO_BITRATES[SS.store.get("audio:br:" + reciter, 0) || 0] || 128;
         var whole = (SEC_PER_PAGE[reciter] || 120) * 604 * br * 1000 / 8;
@@ -914,6 +967,10 @@
       return start({ id: "tr:" + tr, kind: "text", params: { editions: BASE_EDITIONS.concat([tr]) } });
     },
     downloadTafsir: function () { return start({ id: "tafsir", kind: "tafsir", params: {} }); },
+    /** A hadith collection, English and Arabic (3.0). */
+    downloadHadith: function (collection) {
+      return start({ id: "hadith:" + collection, kind: "hadith", params: { collection: collection } });
+    },
     /** Recitation for some surahs, or "all". */
     downloadAudio: function (reciter, surahs) {
       if (surahs === "all" || !surahs) surahs = range(1, 114);
@@ -961,7 +1018,7 @@
     },
 
     /* Removing ------------------------------------------------------ */
-    /** Remove one downloaded item ("text:<edition>", "audio:<reciter>" [surah], "tafsir"). */
+    /** Remove one downloaded item ("text:<edition>", "audio:<reciter>" [surah], "tafsir", "hadith:<collection>"). */
     remove: function (id, surah) {
       return ready().then(function () {
         if (id.indexOf("audio:") === 0) {
@@ -971,7 +1028,8 @@
           return removeAudio(reciter, range(1, 114));
         }
         stopJobsFor(function (j) {
-          return (id === "tafsir" && j.kind === "tafsir") || (j.kind === "text" && j.params.editions.indexOf(id.slice(5)) !== -1);
+          return (id === "tafsir" && j.kind === "tafsir") || j.id === id ||
+            (j.kind === "text" && id.indexOf("text:") === 0 && j.params.editions.indexOf(id.slice(5)) !== -1);
         });
         return removePack(id);
       });

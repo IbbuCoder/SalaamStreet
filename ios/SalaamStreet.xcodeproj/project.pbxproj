@@ -13,6 +13,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		AA0000000000000000000052 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AA0000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AA0000000000000000000020;
+			remoteInfo = SalaamStreet;
+		};
 		AA0000000000000000000050 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = AA0000000000000000000001 /* Project object */;
@@ -39,6 +46,7 @@
 /* Begin PBXFileReference section */
 		AA0000000000000000000010 /* SalaamStreet.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SalaamStreet.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA0000000000000000000011 /* SalaamStreetWidgetsExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = SalaamStreetWidgetsExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		AA0000000000000000000012 /* SalaamStreetUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SalaamStreetUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA0000000000000000000080 /* SalaamStreet-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "SalaamStreet-Info.plist"; sourceTree = "<group>"; };
 		AA0000000000000000000081 /* SalaamStreetWidgets-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "SalaamStreetWidgets-Info.plist"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -47,6 +55,11 @@
 		AA0000000000000000000004 /* SalaamStreet */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = SalaamStreet;
+			sourceTree = "<group>";
+		};
+		AA0000000000000000000007 /* SalaamStreetUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = SalaamStreetUITests;
 			sourceTree = "<group>";
 		};
 		AA0000000000000000000005 /* SalaamStreetWidgets */ = {
@@ -62,6 +75,13 @@
 			buildActionMask = 2147483647;
 			files = (
 				AA0000000000000000000041 /* SalaamStreetCore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA0000000000000000000038 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -81,6 +101,7 @@
 			children = (
 				AA0000000000000000000004 /* SalaamStreet */,
 				AA0000000000000000000005 /* SalaamStreetWidgets */,
+				AA0000000000000000000007 /* SalaamStreetUITests */,
 				AA0000000000000000000006 /* Config */,
 				AA0000000000000000000003 /* Products */,
 			);
@@ -91,6 +112,7 @@
 			children = (
 				AA0000000000000000000010 /* SalaamStreet.app */,
 				AA0000000000000000000011 /* SalaamStreetWidgetsExtension.appex */,
+				AA0000000000000000000012 /* SalaamStreetUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -155,6 +177,27 @@
 			productReference = AA0000000000000000000011 /* SalaamStreetWidgetsExtension.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
+		AA0000000000000000000022 /* SalaamStreetUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AA0000000000000000000079 /* Build configuration list for PBXNativeTarget "SalaamStreetUITests" */;
+			buildPhases = (
+				AA0000000000000000000037 /* Sources */,
+				AA0000000000000000000038 /* Frameworks */,
+				AA0000000000000000000039 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				AA0000000000000000000053 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				AA0000000000000000000007 /* SalaamStreetUITests */,
+			);
+			name = SalaamStreetUITests;
+			productName = SalaamStreetUITests;
+			productReference = AA0000000000000000000012 /* SalaamStreetUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -170,6 +213,10 @@
 					};
 					AA0000000000000000000021 = {
 						CreatedOnToolsVersion = 16.0;
+					};
+					AA0000000000000000000022 = {
+						CreatedOnToolsVersion = 16.0;
+						TestTargetID = AA0000000000000000000020;
 					};
 				};
 			};
@@ -192,12 +239,20 @@
 			targets = (
 				AA0000000000000000000020 /* SalaamStreet */,
 				AA0000000000000000000021 /* SalaamStreetWidgetsExtension */,
+				AA0000000000000000000022 /* SalaamStreetUITests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		AA0000000000000000000032 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA0000000000000000000039 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -221,6 +276,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		AA0000000000000000000037 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		AA0000000000000000000034 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -235,6 +297,11 @@
 			isa = PBXTargetDependency;
 			target = AA0000000000000000000021 /* SalaamStreetWidgetsExtension */;
 			targetProxy = AA0000000000000000000050 /* PBXContainerItemProxy */;
+		};
+		AA0000000000000000000053 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AA0000000000000000000020 /* SalaamStreet */;
+			targetProxy = AA0000000000000000000052 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -392,6 +459,36 @@
 			};
 			name = Release;
 		};
+		AA000000000000000000007A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.salaamstreet.app.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = SalaamStreet;
+			};
+			name = Debug;
+		};
+		AA000000000000000000007B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.salaamstreet.app.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = SalaamStreet;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -418,6 +515,15 @@
 			buildConfigurations = (
 				AA0000000000000000000077 /* Debug */,
 				AA0000000000000000000078 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AA0000000000000000000079 /* Build configuration list for PBXNativeTarget "SalaamStreetUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA000000000000000000007A /* Debug */,
+				AA000000000000000000007B /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
