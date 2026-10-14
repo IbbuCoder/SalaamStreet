@@ -65,6 +65,10 @@ jobs:
           du -sh "$APP" "$APP/WebApp" "$APP/PlugIns/"* || true
           ls "$APP" | head -40
           test -f "$APP/bridge.js" && test -f "$APP/WebApp/index.html" && test -f "$APP/WebApp/files/quran-english-sher-ali.pdf"
+          # Swift-only WebKit APIs pull in libswiftWebKit, which iOS 17/18 don't ship: the app wouldn't start.
+          for b in "$APP/SalaamStreet" "$APP"/*.dylib "$APP/PlugIns/"*/SalaamStreetWidgetsExtension*; do
+            [ -f "$b" ] && otool -L "$b" | grep -i "libswiftWebKit" && { echo "::error::$b links libswiftWebKit"; exit 1; }
+          done; echo "no libswiftWebKit"
           codesign -d --entitlements :- "$APP" 2>/dev/null | head -30 || true
 
   tests:
@@ -112,7 +116,7 @@ jobs:
           imgs = body.get("usedImages", [])
           bt = body.get("lastExceptionBacktrace") or next((t["frames"] for t in body.get("threads", []) if t.get("triggered")), [])
           for fr in bt[:40]:
-              img = imgs[fr["imageIndex"]]["name"] if fr.get("imageIndex") is not None and fr["imageIndex"] < len(imgs) else "?"
+              img = imgs[fr["imageIndex"]].get("name", "?") if fr.get("imageIndex") is not None and fr["imageIndex"] < len(imgs) else "?"
               print(" ", img, fr.get("symbol", ""), fr.get("sourceFile", ""), fr.get("sourceLine", ""))
           PY
           done

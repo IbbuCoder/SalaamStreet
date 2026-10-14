@@ -102,8 +102,11 @@ final class NativeBridge: NSObject, WKScriptMessageHandlerWithReply {
     // MARK: Native → website
 
     func emit(_ name: String, _ data: [String: Any] = [:]) {
-        webView?.callAsyncJavaScript("if (window.SSNative && window.SSNative._emit) window.SSNative._emit(name, data);",
-                                     arguments: ["name": name, "data": data], in: nil, in: .page, completionHandler: nil)
+        // Plain evaluateJavaScript (not the Swift-only callAsyncJavaScript, whose
+        // library isn't on every iOS version). Arguments go in as JSON literals.
+        guard let args = try? JSONSerialization.data(withJSONObject: [name, data]),
+              let json = String(data: args, encoding: .utf8) else { return }
+        webView?.evaluateJavaScript("(function (a) { if (window.SSNative && window.SSNative._emit) window.SSNative._emit(a[0], a[1]); })(\(json)); void 0;", completionHandler: nil)
     }
 
     /// Ticks made by a notification button, a widget or Siri while the app runs.
