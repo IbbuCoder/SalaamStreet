@@ -90,6 +90,14 @@ jobs:
           xcrun simctl boot "$DEVICE"
           xcrun simctl ui "$DEVICE" appearance ${{ matrix.appearance }}
           xcrun simctl status_bar "$DEVICE" override --time "9:41" --batteryState charged --batteryLevel 100 --wifiBars 3 || true
+      - name: Permissions for the native feature tests (location in London, notifications)
+        if: matrix.suite == 'Unit'
+        run: |
+          xcrun simctl privacy "$DEVICE" grant location com.salaamstreet.app || true
+          xcrun simctl location "$DEVICE" set 51.5072,-0.1276 || true
+          (brew tap wix/brew >/dev/null && brew install applesimutils >/dev/null \
+            && applesimutils --byId "$DEVICE" --bundle com.salaamstreet.app --setPermissions "notifications=YES") \
+            || echo "notifications can't be pre-allowed; that test will be skipped"
       - name: Test
         run: |
           set -o pipefail
@@ -98,7 +106,7 @@ jobs:
             -project ios/SalaamStreet.xcodeproj -scheme SalaamStreet \
             -destination "id=$DEVICE" -only-testing:${{ matrix.only }} \
             -derivedDataPath build/DerivedData -resultBundlePath build/Results.xcresult $SIGN \
-            | tee build/xcodebuild-test.log | grep -E "error:|WEBAPP-|Test Case .*(passed|failed)|XCTAssert|Executed|TEST (SUCCEEDED|FAILED)" || true
+            | tee build/xcodebuild-test.log | grep -E "error:|WEBAPP-|NATIVE-|Test Case .*(passed|failed|skipped)|XCTAssert|Executed|TEST (SUCCEEDED|FAILED)" || true
           grep -q "TEST SUCCEEDED" build/xcodebuild-test.log
       - name: Show failures
         if: failure()

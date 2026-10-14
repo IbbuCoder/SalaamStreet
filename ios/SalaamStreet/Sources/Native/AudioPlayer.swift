@@ -322,6 +322,13 @@ final class AudioPlayer: NSObject {
         }
     }
 
+    /// What is playing, for the tests.
+    var debugState: [String: Any] {
+        let url = (player.currentItem?.asset as? AVURLAsset)?.url
+        return ["key": current?.key ?? "", "seq": current?.seq ?? 0, "upcoming": upcoming.count, "paused": isPaused,
+                "time": player.currentTime().seconds.isFinite ? player.currentTime().seconds : 0, "localFile": url?.isFileURL ?? false]
+    }
+
     // MARK: Lock Screen
 
     private static let artwork: MPMediaItemArtwork? = {

@@ -17,6 +17,12 @@ final class ScreenshotTests: XCTestCase {
     private func settle(_ app: XCUIApplication, seconds: Double) {
         XCTAssertTrue(app.webViews.firstMatch.waitForExistence(timeout: 30), "web view")
         Thread.sleep(forTimeInterval: seconds)
+        // First run: the website asks about location. Answer "Not now", as a person would.
+        let notNow = app.webViews.firstMatch.buttons["Not now"]
+        if notNow.exists && notNow.isHittable {
+            notNow.tap()
+            Thread.sleep(forTimeInterval: 1)
+        }
     }
 
     private func shot(_ app: XCUIApplication, _ name: String) {
