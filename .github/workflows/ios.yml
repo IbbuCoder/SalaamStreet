@@ -1,0 +1,58 @@
+# Builds the native iOS app on a macOS runner and runs the SalaamStreetCore
+# tests. Runs only when something under ios/ (or this file) changes. No
+# signing: the build is for the simulator, so no certificates or secrets.
+name: iOS
+
+on:
+  push:
+    paths:
+      - "ios/**"
+      - ".github/workflows/ios.yml"
+  pull_request:
+    paths:
+      - "ios/**"
+      - ".github/workflows/ios.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  core-tests:
+    name: SalaamStreetCore tests (macOS)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Swift version
+        run: swift --version
+      - name: Run tests
+        working-directory: ios/SalaamStreetCore
+        run: swift test
+
+  build-app:
+    name: Build app + Live Activity extension (iOS Simulator)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Xcode version
+        run: xcodebuild -version
+      - name: Build
+        run: |
+          set -o pipefail
+          mkdir -p build
+          xcodebuild build \
+            -project ios/SalaamStreet.xcodeproj \
+            -scheme SalaamStreet \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            | tee build/xcodebuild.log | grep -E "error:|warning: .*(isolat|Sendable)|BUILD (SUCCEEDED|FAILED)" || true
+          grep -q "BUILD SUCCEEDED" build/xcodebuild.log
+      - name: Show errors
+        if: failure()
+        run: grep -n -B2 -A6 "error:" build/xcodebuild.log | head -300 || true
