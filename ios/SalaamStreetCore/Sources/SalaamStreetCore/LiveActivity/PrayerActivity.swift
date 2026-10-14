@@ -14,9 +14,13 @@ public struct PrayerCountdownState: Codable, Hashable, Sendable {
     public var followingName: String?
     public var followingTime: Date?
     public var locationName: String
+    /// Times are shown in the location's clock, as everywhere else in the app (not the phone's, if they differ).
+    public var timeZoneIdentifier: String
+
+    public var timeZone: TimeZone { TimeZone(identifier: timeZoneIdentifier) ?? .current }
 
     public init(prayer: Prayer, englishName: String, arabicName: String, prayerTime: Date,
-                followingName: String?, followingTime: Date?, locationName: String) {
+                followingName: String?, followingTime: Date?, locationName: String, timeZoneIdentifier: String) {
         self.prayer = prayer
         self.englishName = englishName
         self.arabicName = arabicName
@@ -24,6 +28,7 @@ public struct PrayerCountdownState: Codable, Hashable, Sendable {
         self.followingName = followingName
         self.followingTime = followingTime
         self.locationName = locationName
+        self.timeZoneIdentifier = timeZoneIdentifier
     }
 }
 
@@ -56,7 +61,7 @@ public enum PrayerActivityPlanner {
         let second = upcoming.count > 1 ? upcoming[1] : nil
         return PrayerCountdownState(prayer: first.prayer, englishName: first.englishName, arabicName: first.arabicName,
                                     prayerTime: first.date, followingName: second?.englishName, followingTime: second?.date,
-                                    locationName: builder.location.name)
+                                    locationName: builder.location.name, timeZoneIdentifier: builder.location.timeZoneIdentifier)
     }
 
     /// The countdown ends at the prayer time. iOS then redraws the activity as

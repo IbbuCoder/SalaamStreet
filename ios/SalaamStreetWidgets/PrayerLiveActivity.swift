@@ -16,6 +16,7 @@ struct PrayerLiveActivityWidget: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: PrayerActivityAttributes.self) { context in
             LockScreenView(context: context)
+                .environment(\.timeZone, context.state.timeZone)
                 .activityBackgroundTint(Brand.deepGreen)
                 .activitySystemActionForegroundColor(Brand.mint)
                 .widgetURL(URL(string: "salaamstreet://prayer"))
@@ -41,6 +42,7 @@ struct PrayerLiveActivityWidget: Widget {
                         Text(context.state.prayerTime, style: .time).font(.caption).foregroundStyle(.white.opacity(0.75))
                     }
                     .padding(.trailing, 4)
+                    .environment(\.timeZone, context.state.timeZone)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     HStack {
@@ -57,6 +59,7 @@ struct PrayerLiveActivityWidget: Widget {
                         }
                     }
                     .padding(.horizontal, 4)
+                    .environment(\.timeZone, context.state.timeZone)
                     if context.isStale {
                         Text("Open SalaamStreet to move on to the next prayer.")
                             .font(.caption2).foregroundStyle(.white.opacity(0.7))

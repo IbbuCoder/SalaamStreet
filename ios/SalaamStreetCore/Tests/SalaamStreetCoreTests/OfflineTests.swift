@@ -106,6 +106,7 @@ final class LiveActivityAndReminderTests: XCTestCase {
         XCTAssertEqual(before.prayer, .asr)
         XCTAssertEqual(before.followingName, "Maghrib")
         XCTAssertEqual(before.locationName, "London")
+        XCTAssertEqual(before.timeZone.identifier, "Europe/London", "times are shown in the location's clock")
         let during = PrayerActivityPlanner.state(builder: b, now: asr.date.addingTimeInterval(600))!
         XCTAssertEqual(during.prayer, .asr, "for 15 minutes it still says it's time for Asr")
         let after = PrayerActivityPlanner.state(builder: b, now: asr.date.addingTimeInterval(16 * 60))!

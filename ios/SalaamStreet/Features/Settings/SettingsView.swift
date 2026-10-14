@@ -175,7 +175,7 @@ struct LiveActivityPreview: View {
             LogoMark(size: 40)
             if let state {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Next prayer").font(.caption).foregroundStyle(Brand.mint)
+                    Text(state.prayerTime > Date() ? "Next prayer" : "It's time for").font(.caption).foregroundStyle(Brand.mint)
                     HStack(spacing: 6) {
                         Text(state.englishName).font(.title3.weight(.bold)).foregroundStyle(.white)
                         if showArabic { Text(state.arabicName).font(.subheadline).foregroundStyle(Brand.mint) }
@@ -183,12 +183,19 @@ struct LiveActivityPreview: View {
                 }
                 Spacer()
                 VStack(alignment: .trailing, spacing: 2) {
-                    Text(timerInterval: Date()...max(Date(), state.prayerTime), countsDown: true)
-                        .font(.title2.weight(.semibold).monospacedDigit())
-                        .foregroundStyle(.white)
-                        .multilineTextAlignment(.trailing)
-                    Text(state.prayerTime, style: .time).font(.caption).foregroundStyle(.white.opacity(0.8))
+                    if state.prayerTime > Date() {
+                        Text(timerInterval: Date()...state.prayerTime, countsDown: true)
+                            .font(.title2.weight(.semibold).monospacedDigit())
+                            .foregroundStyle(.white)
+                            .multilineTextAlignment(.trailing)
+                        Text(state.prayerTime, style: .time).font(.caption).foregroundStyle(.white.opacity(0.8))
+                    } else {
+                        // As on the Lock Screen: once the prayer has begun, say so (no stuck 0:00).
+                        Text("began").font(.caption).foregroundStyle(.white.opacity(0.8))
+                        Text(state.prayerTime, style: .time).font(.title2.weight(.semibold)).foregroundStyle(.white)
+                    }
                 }
+                .environment(\.timeZone, state.timeZone)
             }
         }
         .padding(16)

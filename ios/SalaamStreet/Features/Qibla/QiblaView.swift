@@ -51,6 +51,9 @@ struct QiblaView: View {
     @StateObject private var compass = CompassModel()
 
     private var qibla: Double { Qibla.bearing(latitude: model.location.latitude, longitude: model.location.longitude) }
+    private var distanceKm: Double { Qibla.distanceKm(latitude: model.location.latitude, longitude: model.location.longitude) }
+    /// Within ~2 km of the Kaaba a compass bearing means nothing: face the Kaaba itself.
+    private var atTheKaaba: Bool { distanceKm < 2 }
 
     var body: some View {
         let heading = compass.heading
@@ -62,6 +65,16 @@ struct QiblaView: View {
                 if model.isUsingDefaultLocation {
                     StatusBanner(kind: .info, text: "Choose your location for an accurate Qibla direction.", actionTitle: "Choose") { router.show(.settings) }
                 }
+                if atTheKaaba {
+                    VStack(spacing: 10) {
+                        Image(systemName: "building.columns.fill").font(.system(size: 54)).foregroundStyle(Brand.primary)
+                        Text("You're at the Haram").font(.title2.weight(.bold))
+                        Text("Within about 2 km of the Kaaba a compass direction isn't meaningful — face the Kaaba itself.")
+                            .multilineTextAlignment(.center).foregroundStyle(Brand.text2)
+                    }
+                    .padding(.vertical, 24)
+                    .accessibilityElement(children: .combine)
+                } else {
                 Text(instruction(turn: turn, aligned: aligned))
                     .font(.title2.weight(.bold))
                     .multilineTextAlignment(.center)
@@ -76,10 +89,11 @@ struct QiblaView: View {
                 VStack(spacing: 6) {
                     Text("Qibla: \(Int(qibla.rounded()))° \(Qibla.compassPoint(qibla)) from true north")
                         .font(.headline)
-                    Text("\(Int(Qibla.distanceKm(latitude: model.location.latitude, longitude: model.location.longitude).rounded()).formatted()) km to the Kaaba · \(model.location.name)")
+                    Text("\(Int(distanceKm.rounded()).formatted()) km to the Kaaba · \(model.location.name)")
                         .font(.subheadline).foregroundStyle(Brand.text2)
                 }
                 .multilineTextAlignment(.center)
+                }
 
                 if !compass.available {
                     StatusBanner(kind: .info, text: "This device has no compass. Face \(Int(qibla.rounded()))° clockwise from north using a map or the sun.")
