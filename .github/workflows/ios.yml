@@ -13,6 +13,11 @@ on:
       - "ios/**"
       - ".github/workflows/ios.yml"
   workflow_dispatch:
+    inputs:
+      print_thumbnails:
+        description: "Also print small JPEG thumbnails of the screenshots into the log (for reviewers who can't download artifacts)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -92,6 +97,22 @@ jobs:
           mkdir -p build/screenshots
           xcrun xcresulttool export attachments --path build/Results.xcresult --output-path build/screenshots || true
           ls build/screenshots | head -50
+      - name: Print thumbnails
+        if: always() && inputs.print_thumbnails
+        run: |
+          mkdir -p build/thumbs
+          python3 - <<'PY'
+          import json, os, subprocess, base64
+          m = json.load(open("build/screenshots/manifest.json"))
+          for test in m:
+              for a in test.get("attachments", []):
+                  name = a.get("suggestedHumanReadableName", "")
+                  f = a.get("exportedFileName", "")
+                  if not f.endswith(".png"): continue
+                  out = "build/thumbs/" + f.replace(".png", ".jpg")
+                  subprocess.run(["sips", "-Z", "560", "-s", "format", "jpeg", "-s", "formatOptions", "55", "build/screenshots/" + f, "--out", out], check=True, capture_output=True)
+                  print("THUMB", name.split("_")[0], base64.b64encode(open(out, "rb").read()).decode())
+          PY
       - name: Upload screenshots
         if: always()
         uses: actions/upload-artifact@v4

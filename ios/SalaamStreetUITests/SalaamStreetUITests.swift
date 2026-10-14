@@ -47,7 +47,8 @@ final class SalaamStreetUITests: XCTestCase {
         snap("05-Quran")
         app.staticTexts["Al-Fatihah"].firstMatch.tap()
         // Online in CI: the reader loads Al-Fatihah from AlQuran Cloud (or says it can't, never spins forever).
-        let ayah = app.staticTexts["1:7"]
+        // The reader is a lazy list, so wait for the first ayah (later ones may be off screen).
+        let ayah = app.staticTexts["1:1"]
         let failed = app.buttons["Try again"]
         let loaded = NSPredicate { _, _ in ayah.exists || failed.exists }
         expectation(for: loaded, evaluatedWith: NSObject())
@@ -80,7 +81,8 @@ final class SalaamStreetUITests: XCTestCase {
         snap("10-Duas")
         app.navigationBars.buttons.element(boundBy: 0).tap()
         app.buttons["Settings"].firstMatch.tap()
-        app.buttons["Lock Screen & Dynamic Island"].firstMatch.tap()
+        // A LabeledContent row reads "Lock Screen & Dynamic Island, Off" to VoiceOver.
+        app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Lock Screen & Dynamic Island")).firstMatch.tap()
         XCTAssertTrue(app.switches["Show the next prayer"].waitForExistence(timeout: 5))
         snap("11-LiveActivity-settings")
     }
