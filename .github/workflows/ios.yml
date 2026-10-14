@@ -17,7 +17,7 @@ on:
       print_thumbnails:
         description: "Print small JPEG thumbnails of the screenshots into the log (for reviewers who can't download artifacts)"
         type: boolean
-        default: true
+        default: false
 
 permissions:
   contents: read
@@ -129,7 +129,7 @@ jobs:
           xcrun xcresulttool export attachments --path build/Results.xcresult --output-path build/screenshots || true
           ls build/screenshots | head -80
       - name: Print thumbnails
-        if: always() && matrix.suite == 'UI' && (github.event_name != 'workflow_dispatch' || inputs.print_thumbnails)
+        if: always() && matrix.suite == 'UI' && inputs.print_thumbnails
         run: |
           mkdir -p build/thumbs
           python3 - <<'PY'
@@ -151,3 +151,61 @@ jobs:
           name: screenshots-${{ matrix.appearance }}
           path: build/screenshots
           if-no-files-found: warn
+
+  # Side-by-side images (app | salaamstreet.com, light and dark), pushed to
+  # the ref refs/ios-screenshots/latest (not a branch; replaced on each run)
+  # so they can be fetched with git where artifact downloads are blocked.
+  screenshots:
+    name: Side-by-side screenshots
+    needs: tests
+    if: always() && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: shots
+      - name: Compose
+        run: |
+          pip install --quiet pillow
+          python3 - <<'PY'
+          import json, os, glob
+          from PIL import Image, ImageDraw
+          os.makedirs("out", exist_ok=True)
+          for theme in ("light", "dark"):
+              d = f"shots/screenshots-{theme}"
+              if not os.path.exists(f"{d}/manifest.json"): continue
+              imgs = {}
+              for t in json.load(open(f"{d}/manifest.json")):
+                  for a in t.get("attachments", []):
+                      f = a.get("exportedFileName", "")
+                      if f.endswith(".png"): imgs[a.get("suggestedHumanReadableName", f).split("_0_")[0]] = f"{d}/{f}"
+              bg, fg = ("#ffffff", "#000000") if theme == "light" else ("#1c1c1e", "#ffffff")
+              for name, path in sorted(imgs.items()):
+                  if not name.startswith("app_"):
+                      im = Image.open(path).convert("RGB"); im.thumbnail((640, 1400)); im.save(f"out/{theme}-{name}.jpg", quality=72)
+                      continue
+                  page = name[4:]
+                  a = Image.open(path).convert("RGB"); a.thumbnail((640, 1400))
+                  s = Image.open(imgs["site_" + page]).convert("RGB").resize(a.size) if "site_" + page in imgs else None
+                  w, h = a.size
+                  c = Image.new("RGB", (w * 2 + 30, h + 50), bg)
+                  c.paste(a, (10, 45))
+                  if s: c.paste(s, (w + 20, 45))
+                  dr = ImageDraw.Draw(c)
+                  dr.text((10, 15), f"iOS app  #/{page}  ({theme})", fill=fg)
+                  dr.text((w + 20, 15), "salaamstreet.com, same simulator" if s else "(no website shot)", fill=fg)
+                  c.save(f"out/{theme}-compare-{page}.jpg", quality=72)
+          print(sorted(os.listdir("out")))
+          PY
+      - name: Push to refs/ios-screenshots/latest
+        env:
+          SHA: ${{ github.sha }}
+          REPO: ${{ github.repository }}
+          TOKEN: ${{ github.token }}
+        run: |
+          cd out
+          git init -q && git checkout -q --orphan shots
+          git add . && git -c user.name=ci -c user.email=ci@users.noreply.github.com commit -q -m "iOS screenshots for $SHA"
+          git push -q -f "https://x-access-token:${TOKEN}@github.com/${REPO}.git" HEAD:refs/ios-screenshots/latest
