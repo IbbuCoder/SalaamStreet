@@ -115,27 +115,22 @@ final class ScreenshotTests: XCTestCase {
         }
     }
 
-    /// The main journey by touch: bottom navigation, a surah, the dhikr counter.
+    /// The main journey by touch: the bottom bar's Qur'an, Qibla and Home tabs.
     func testMainJourney() {
         let app = launch([])
         settle(app, seconds: 6)
-        let web = app.webViews.firstMatch
-        func tapText(_ label: String, last: Bool = false) -> Bool {
-            let q = web.staticTexts.matching(NSPredicate(format: "label == %@", label))
-            guard q.firstMatch.waitForExistence(timeout: 15) else { return false }
-            let el = last ? q.element(boundBy: q.count - 1) : q.firstMatch
-            guard el.isHittable else { return false }
-            el.tap()
-            return true
+        func tapTab(_ x: CGFloat) { app.coordinate(withNormalizedOffset: CGVector(dx: x, dy: 0.935)).tap() }
+        func shows(_ text: String) -> Bool {
+            app.webViews.firstMatch.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", text)).firstMatch.waitForExistence(timeout: 10)
         }
-        XCTAssertTrue(tapText("Qur'an", last: true), "bottom navigation: Qur'an")
-        Thread.sleep(forTimeInterval: 2)
-        XCTAssertTrue(tapText("Al-Fatihah"), "surah list → Al-Fatihah")
-        Thread.sleep(forTimeInterval: 4)
-        shot(app, "journey_surah")
-        XCTAssertTrue(web.staticTexts["The Opener · 7 verses · Meccan"].exists || web.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "The Opener")).firstMatch.exists, "Al-Fatihah opened")
-        XCTAssertTrue(tapText("Home", last: true), "bottom navigation: Home")
-        Thread.sleep(forTimeInterval: 2)
+        tapTab(0.5)
+        XCTAssertTrue(shows("The Noble Qur"), "Qur'an tab")
+        shot(app, "journey_quran")
+        tapTab(0.7)
+        XCTAssertTrue(shows("Qibla Finder"), "Qibla tab")
+        shot(app, "journey_qibla")
+        tapTab(0.1)
+        XCTAssertTrue(shows("Next prayer"), "Home tab")
         shot(app, "journey_home")
     }
 }

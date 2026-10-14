@@ -115,8 +115,8 @@ jobs:
             -project ios/SalaamStreet.xcodeproj -scheme SalaamStreet \
             -destination "id=$DEVICE" -only-testing:${{ matrix.only }} \
             -derivedDataPath build/DerivedData -resultBundlePath build/Results.xcresult $SIGN \
-            | tee build/xcodebuild-test.log | grep -E "error:|WEBAPP-|NATIVE-|SIGNIN-|Test Case .*(passed|failed|skipped)|XCTAssert|Executed|TEST (SUCCEEDED|FAILED)" || true
-          grep -q "TEST SUCCEEDED" build/xcodebuild-test.log
+            | tee build/xcodebuild-test.log | grep -E "error:|WEBAPP-|NATIVE-|SIGNIN-|Test Case .*(passed|failed|skipped)|XCTAssert|Executed|TEST (EXECUTE )?(SUCCEEDED|FAILED)" || true
+          grep -q -E "TEST (EXECUTE )?SUCCEEDED" build/xcodebuild-test.log
       - name: Show failures
         if: failure()
         run: |
