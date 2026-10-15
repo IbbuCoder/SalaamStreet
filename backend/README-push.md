@@ -70,6 +70,19 @@ pushPublicKey: "<that public key>",
 ```
 Commit and publish. The option appears in Settings → Prayer reminders.
 
+## 3.1: the daily Qur'an reminder and the Qibla button
+
+- If someone sets a **daily Qur'an goal and a reminder time** (Settings), the
+  server also sends that reminder while SalaamStreet is closed. It opens
+  `#/go/continue` (the ayah they last read), and it's skipped on a day the
+  goal is already met (the app tells the server when it is).
+- Prayer reminders get a second button, **Qibla**, next to "I prayed".
+
+**Upgrading (once):** run `backend/supabase-schema.sql` again (it adds the
+`quran_time` and `quran_done` columns; safe to re-run), then redeploy the
+function: `supabase functions deploy send-reminders --no-verify-jwt`. Until
+then everything else keeps working as before.
+
 ## Keeping it in step
 After changing `js/praytimes.js` or reminder texts in `js/i18n.js` / `js/lang/`:
 ```bash

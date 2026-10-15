@@ -1486,5 +1486,17 @@ SS.i18n.register("fr", {
 "kids.leaveText": "Désactive le mode Enfants sur cet appareil. La progression enregistrée reste dans le compte du parent.",
 "kids.left": "Mode Enfants désactivé sur cet appareil",
 "kids.unsavedConfirm": "{n} étapes d’apprentissage ne sont pas encore enregistrées (pas de connexion). Quitter quand même et les perdre ?",
-"kids.removedByParent": "Un parent a retiré le mode Enfants de {n} de cet appareil."
+"kids.removedByParent": "Un parent a retiré le mode Enfants de {n} de cet appareil.",
+"quran.focus": "Concentration",
+"quran.focusExit": "Quitter la concentration",
+"sc.title": "Siri et raccourcis",
+"sc.intro": "Chaque lien ouvre une seule chose dans SalaamStreet. Ajoutez-le à votre téléphone et ouvrez-le à la voix ou depuis l'écran d'accueil.",
+"sc.howTitle": "Comment le configurer",
+"sc.howIos": "iPhone et iPad : copiez un lien, ouvrez l'app Raccourcis, touchez +, ajoutez l'action « Ouvrir des URL » et collez le lien. Nommez le raccourci (par exemple « Continuer le Coran »), puis dites « Dis Siri, Continuer le Coran ».",
+"sc.howAndroid": "Android : copiez un lien, ouvrez-le dans Chrome, puis menu → Ajouter à l'écran d'accueil. SalaamStreet installé affiche aussi des raccourcis quand on maintient son icône.",
+"sc.continue": "Continuer la lecture",
+"sc.kahf": "Écouter la sourate Al-Kahf",
+"sc.tapPlay": "Touchez lecture pour lancer la récitation.",
+"np.ayahOf": "Verset {n} sur {total}",
+"push.quranBody": "Reprenez là où vous vous étiez arrêté — quelques minutes suffisent."
 });

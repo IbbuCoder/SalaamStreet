@@ -12,7 +12,10 @@
   "daily.adhkarRem_morning": "Time for the morning adhkar",
   "daily.adhkarRem_evening": "Time for the evening adhkar",
   "daily.adhkarRemBody": "A few minutes of remembrance — tap to begin.",
-  "daily.iPrayed": "I prayed"
+  "daily.iPrayed": "I prayed",
+  "nav.qibla": "Qibla",
+  "daily.goalRemTitle": "Your Qur'an goal for today",
+  "push.quranBody": "Continue where you left off — a few minutes is enough."
  },
  "ar": {
   "prayer.Fajr": "الفجر",
@@ -27,7 +30,10 @@
   "daily.adhkarRem_morning": "حان وقت أذكار الصباح",
   "daily.adhkarRem_evening": "حان وقت أذكار المساء",
   "daily.adhkarRemBody": "دقائق من الذكر — اضغط للبدء.",
-  "daily.iPrayed": "صلّيت"
+  "daily.iPrayed": "صلّيت",
+  "nav.qibla": "القبلة",
+  "daily.goalRemTitle": "هدفك اليوم من القرآن",
+  "push.quranBody": "أكمل من حيث توقفت — تكفي دقائق قليلة."
  },
  "ur": {
   "prayer.Fajr": "فجر",
@@ -42,7 +48,10 @@
   "daily.adhkarRem_morning": "صبح کے اذکار کا وقت",
   "daily.adhkarRem_evening": "شام کے اذکار کا وقت",
   "daily.adhkarRemBody": "چند منٹ کا ذکر — شروع کرنے کے لیے ٹیپ کریں۔",
-  "daily.iPrayed": "پڑھ لی"
+  "daily.iPrayed": "پڑھ لی",
+  "nav.qibla": "قبلہ",
+  "daily.goalRemTitle": "آج کا آپ کا قرآن ہدف",
+  "push.quranBody": "جہاں چھوڑا تھا وہیں سے جاری رکھیں — چند منٹ کافی ہیں۔"
  },
  "bn": {
   "prayer.Fajr": "ফজর",
@@ -57,7 +66,10 @@
   "daily.adhkarRem_morning": "সকালের আযকারের সময়",
   "daily.adhkarRem_evening": "সন্ধ্যার আযকারের সময়",
   "daily.adhkarRemBody": "কয়েক মিনিটের যিকির — শুরু করতে ট্যাপ করুন।",
-  "daily.iPrayed": "পড়েছি"
+  "daily.iPrayed": "পড়েছি",
+  "nav.qibla": "কিবলা",
+  "daily.goalRemTitle": "আজকের আপনার কুরআন লক্ষ্য",
+  "push.quranBody": "যেখানে থেমেছিলেন সেখান থেকে চালিয়ে যান — কয়েক মিনিটই যথেষ্ট।"
  },
  "id": {
   "prayer.Fajr": "Subuh",
@@ -72,7 +84,10 @@
   "daily.adhkarRem_morning": "Waktunya dzikir pagi",
   "daily.adhkarRem_evening": "Waktunya dzikir petang",
   "daily.adhkarRemBody": "Beberapa menit berdzikir — ketuk untuk mulai.",
-  "daily.iPrayed": "Sudah shalat"
+  "daily.iPrayed": "Sudah shalat",
+  "nav.qibla": "Kiblat",
+  "daily.goalRemTitle": "Target Al-Qur'an Anda hari ini",
+  "push.quranBody": "Lanjutkan dari tempat terakhir — beberapa menit sudah cukup."
  },
  "tr": {
   "prayer.Fajr": "Sabah",
@@ -87,7 +102,10 @@
   "daily.adhkarRem_morning": "Sabah ezkârı vakti",
   "daily.adhkarRem_evening": "Akşam ezkârı vakti",
   "daily.adhkarRemBody": "Birkaç dakikalık zikir — başlamak için dokunun.",
-  "daily.iPrayed": "Kıldım"
+  "daily.iPrayed": "Kıldım",
+  "nav.qibla": "Kıble",
+  "daily.goalRemTitle": "Bugünkü Kur'an hedefiniz",
+  "push.quranBody": "Kaldığınız yerden devam edin — birkaç dakika yeter."
  },
  "fr": {
   "prayer.Fajr": "Fajr",
@@ -102,6 +120,9 @@
   "daily.adhkarRem_morning": "C'est l'heure des adhkar du matin",
   "daily.adhkarRem_evening": "C'est l'heure des adhkar du soir",
   "daily.adhkarRemBody": "Quelques minutes de rappel d'Allah — touchez pour commencer.",
-  "daily.iPrayed": "J'ai prié"
+  "daily.iPrayed": "J'ai prié",
+  "nav.qibla": "Qibla",
+  "daily.goalRemTitle": "Votre objectif de Coran du jour",
+  "push.quranBody": "Reprenez là où vous vous étiez arrêté — quelques minutes suffisent."
  }
 }

@@ -139,11 +139,11 @@
     // Quiet Mode (2.10, Mosque Mode): only prayer reminders, and never the chime.
     var quiet = !!(SS.modes && SS.modes.quiet());
     if (quiet && !(extra && extra.essential)) return false;
-    var opts = { body: body, tag: tag, icon: "icons/icon-192.png", badge: "icons/icon-192.png", data: { url: url || "./#/prayer" } };
-    // e.g. an "I prayed" button (shown where the system supports notification buttons).
+    var opts = { body: body, tag: tag, icon: "icons/icon-192.png", badge: "icons/icon-192.png", data: { url: url || "./#/prayer" }, timestamp: Date.now() };
+    // e.g. "I prayed" and "Qibla" buttons (shown where the system supports notification buttons).
     if (extra && extra.prayed) {
       opts.data.prayed = extra.prayed;
-      opts.actions = [{ action: "prayed", title: t("daily.iPrayed") }];
+      opts.actions = [{ action: "prayed", title: t("daily.iPrayed") }, { action: "qibla", title: t("nav.qibla") }];
     }
     var shown = false;
     if (notifPermission() === "granted") {

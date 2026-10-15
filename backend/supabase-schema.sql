@@ -231,6 +231,10 @@ create table if not exists public.push_subscriptions (
 );
 alter table public.push_subscriptions enable row level security;
 -- No policies on purpose: the API can't select, insert, update or delete directly.
+-- 3.1: the daily Qur'an goal reminder — the time chosen in Settings ("HH:MM",
+-- device time) and the day the goal was last met (no reminder that day).
+alter table public.push_subscriptions add column if not exists quran_time text check (quran_time ~ '^[0-2][0-9]:[0-5][0-9]$');
+alter table public.push_subscriptions add column if not exists quran_done date;
 
 create or replace function public.push_register(sub jsonb, prefs jsonb)
 returns void
@@ -240,7 +244,7 @@ set search_path = public
 as $$
 begin
     insert into public.push_subscriptions as p
-        (endpoint, p256dh, auth, lat, lng, tz, method, school, offset_min, prayers, kahf, adhkar, lang, updated_at)
+        (endpoint, p256dh, auth, lat, lng, tz, method, school, offset_min, prayers, kahf, adhkar, lang, quran_time, quran_done, updated_at)
     values (
         sub->>'endpoint', sub->'keys'->>'p256dh', sub->'keys'->>'auth',
         round((prefs->>'lat')::numeric, 2), round((prefs->>'lng')::numeric, 2),
@@ -248,12 +252,14 @@ begin
         coalesce((prefs->>'method')::smallint, 3), coalesce((prefs->>'school')::smallint, 0),
         coalesce((prefs->>'offset')::smallint, 0),
         coalesce((prefs->>'prayers')::boolean, true), coalesce((prefs->>'kahf')::boolean, true),
-        coalesce((prefs->>'adhkar')::boolean, false), coalesce(left(prefs->>'lang', 5), 'en'), now()
+        coalesce((prefs->>'adhkar')::boolean, false), coalesce(left(prefs->>'lang', 5), 'en'),
+        nullif(prefs->>'quranTime', ''), nullif(prefs->>'quranDone', '')::date, now()
     )
     on conflict (endpoint) do update set
         p256dh = excluded.p256dh, auth = excluded.auth, lat = excluded.lat, lng = excluded.lng, tz = excluded.tz,
         method = excluded.method, school = excluded.school, offset_min = excluded.offset_min,
         prayers = excluded.prayers, kahf = excluded.kahf, adhkar = excluded.adhkar, lang = excluded.lang,
+        quran_time = excluded.quran_time, quran_done = excluded.quran_done,
         updated_at = now();
 end;
 $$;

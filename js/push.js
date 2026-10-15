@@ -42,6 +42,9 @@
       lat: +loc.lat.toFixed(2), lng: +loc.lng.toFixed(2), tz: tz,
       method: +s.method, school: +s.school, offset: +s.reminderOffset || 0,
       prayers: !!s.reminders, kahf: s.kahfReminder !== false, adhkar: !!s.adhkarReminders,
+      // The daily Qur'an goal reminder (3.1), when a goal and a time are set.
+      quranTime: +s.quranGoal && /^\d{2}:\d{2}$/.test(s.goalTime || "") ? s.goalTime : null,
+      quranDone: SS.quranGoal && +s.quranGoal && SS.quranGoal.count() >= +s.quranGoal ? SS.quranGoal.day().date : null,
       lang: SS.i18n.getLocale(),
     };
   }

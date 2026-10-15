@@ -132,7 +132,11 @@
       while (keys.length > 120) delete h[keys.shift()];
       SS.store.set("quran:daily", h);
       var goal = +settings().quranGoal || 0;
-      if (goal && h[d.date] === goal) SS.toast(f("daily.goalDone", { n: goal }));
+      if (goal && h[d.date] === goal) {
+        SS.toast(f("daily.goalDone", { n: goal }));
+        // Done for today: the reminder server skips today's Qur'an reminder (3.1).
+        if (SS.push && SS.push.sync) SS.push.sync();
+      }
     },
   };
   SS.quranGoal = quran;
@@ -192,7 +196,7 @@
       at(when - now, function () {
         if (quran.count() >= +settings().quranGoal) return;
         once("goal-" + day, function () {
-          SS.reminders.notify(t("daily.goalRemTitle"), f("daily.goalRemBody", { n: quran.count(), goal: +settings().quranGoal }), "goal-" + day, "./#/quran");
+          SS.reminders.notify(t("daily.goalRemTitle"), f("daily.goalRemBody", { n: quran.count(), goal: +settings().quranGoal }), "goal-" + day, "./#/go/continue");
         });
       });
     }

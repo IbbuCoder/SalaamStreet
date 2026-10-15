@@ -2117,3 +2117,33 @@ p.legal-warn{background:var(--danger-soft);border-inline-start:4px solid var(--d
 .lab-err-row .lab-err{flex:1 1 220px}
 .lab-err-row #lab-again{margin-block-start:10px}
 .lab-slow{font-style:italic}
+
+/* 3.1 Focus reading: only the Qur'an on screen (js/shortcuts.js) */
+.focus-exit{display:none}
+body.reading-focus{--topbar-h:0px;--bottomnav-h:0px;--nav-w:0px}
+body.reading-focus .topbar,body.reading-focus .sidenav,body.reading-focus .bottomnav,body.reading-focus .net-banner,
+body.reading-focus #view-surah .back-link,body.reading-focus #sr-toolbar,body.reading-focus #sr-source,
+body.reading-focus #sr-plan,body.reading-focus #view-surah .reader-nav{display:none!important}
+body.reading-focus .main{padding-block-start:calc(var(--safe-t) + 28px)}
+body.reading-focus #view-surah{max-inline-size:min(var(--reading-max),100%)}
+body.reading-focus #view-surah .ayah-card{background:transparent;border-color:transparent;box-shadow:none;padding-inline:4px}
+body.reading-focus #view-surah .ayah-card + .ayah-card{border-block-start:1px solid var(--border);border-radius:0}
+body.reading-focus #view-surah .ayah-card.playing{background:var(--primary-soft);border-radius:var(--radius-sm);box-shadow:none}
+body.reading-focus #view-surah .ayah-tools{opacity:0;transition:opacity .2s}
+body.reading-focus #view-surah .ayah-card:hover .ayah-tools,body.reading-focus #view-surah .ayah-card:focus-within .ayah-tools{opacity:1}
+body.reading-focus .focus-exit{
+  display:inline-flex;position:fixed;z-index:45;inset-block-start:calc(var(--safe-t) + 10px);inset-inline-end:calc(var(--safe-r) + 12px);
+  background:color-mix(in srgb,var(--surface) 88%,transparent);color:var(--text-2);border:1px solid var(--border);border-radius:999px;
+  -webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);opacity:.55;transition:opacity .2s
+}
+body.reading-focus .focus-exit:hover,body.reading-focus .focus-exit:focus-visible{opacity:1}
+
+/* 3.1 Settings → Siri & Shortcuts */
+.sc-intro{margin-block:12px 4px}
+.sc-name{gap:12px;min-inline-size:0;font-weight:600}
+.sc-name .ic{flex-shrink:0;color:var(--primary)}
+.sc-name > span{display:flex;flex-direction:column;min-inline-size:0}
+.sc-link{font-size:.78rem;color:var(--text-3);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sc-how{padding-block:10px 14px;border-block-start:1px solid var(--border)}
+.sc-how summary{cursor:pointer;font-weight:600;color:var(--primary-strong);min-block-size:32px;display:flex;align-items:center}
+.sc-how p{margin-block:8px 0}

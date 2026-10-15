@@ -21,6 +21,7 @@
   "shortcuts": [
     { "name": "Prayer Times", "url": "./#/prayer", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
     { "name": "Qur'an", "url": "./#/quran", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
-    { "name": "Qibla", "url": "./#/qibla", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] }
+    { "name": "Qibla", "url": "./#/qibla", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Continue reading", "url": "./#/go/continue", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] }
   ]
 }

@@ -623,6 +623,7 @@
         <button class="toggle" id="sr-tr" type="button" aria-pressed="true" data-i18n="quran.translation">Translation</button>
         <button class="toggle" id="sr-tl" type="button" aria-pressed="false" data-i18n="quran.transliteration">Transliteration</button>
         <button class="toggle" id="sr-hifz" type="button" aria-pressed="false" data-i18n="quran.memorize">Memorize</button>
+        <button class="toggle" id="sr-focus" type="button" aria-pressed="false" data-i18n="quran.focus">Focus</button>
         <div class="stepper" role="group" aria-label="Arabic text size">
           <button type="button" id="sr-font-down" aria-label="Smaller Arabic text"><svg class="ic" aria-hidden="true"><use href="#i-minus"/></svg></button>
           <span aria-hidden="true">ع</span>
@@ -634,6 +635,7 @@
       <div id="sr-plan" hidden></div>
       <p class="bismillah" id="sr-bismillah" lang="ar" hidden>بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</p>
       <div class="ayah-list" id="sr-list" aria-busy="true"></div>
+      <button class="btn btn-sm focus-exit" id="sr-focus-exit" type="button"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg><span data-i18n="quran.focusExit">Exit focus</span></button>
       <p class="tiny mt-2 center" id="sr-source">Text: Tanzil Uthmani via AlQuran Cloud · Translation: Saheeh International</p>
 
       <nav class="reader-nav" aria-label="Surah navigation">
@@ -1161,6 +1163,17 @@
       </div>
       <p class="tiny mt-1" id="st-rem-note" data-i18n="rem.note">Reminders work while SalaamStreet is open in a tab or installed on your home screen. Phones may pause the app in the background, so keep your phone's own alarm for anything you can't miss.</p>
 
+      <h2 class="group-label with-ic" id="shortcuts"><svg class="ic" aria-hidden="true"><use href="#i-link"/></svg><span data-i18n="sc.title">Siri &amp; Shortcuts</span></h2>
+      <div class="card settings-group">
+        <p class="note sc-intro" data-i18n="sc.intro">Each link opens one thing in SalaamStreet. Add one to your phone and open it by voice or from your Home Screen.</p>
+        <div id="st-shortcuts"></div>
+        <details class="sc-how">
+          <summary data-i18n="sc.howTitle">How to set one up</summary>
+          <p class="tiny" data-i18n="sc.howIos">iPhone and iPad: copy a link, open the Shortcuts app, tap +, add the “Open URLs” action and paste the link. Name the shortcut (for example “Continue Qur'an”), then say “Hey Siri, Continue Qur'an”.</p>
+          <p class="tiny" data-i18n="sc.howAndroid">Android: copy a link, open it in Chrome, then menu → Add to Home screen. Installed SalaamStreet also shows shortcuts when you touch and hold its icon.</p>
+        </details>
+      </div>
+
       <h2 class="group-label with-ic"><svg class="ic" aria-hidden="true"><use href="#i-download"/></svg><span data-i18n="settings.data">Your data</span></h2>
       <div class="card settings-group">
         <div class="set-row">
@@ -1494,6 +1507,7 @@
   <script src="js/account.js" defer></script>
   <script src="js/modes.js" defer></script>
   <script src="js/msa.js" defer></script>
+  <script src="js/shortcuts.js" defer></script>
   <script src="js/app.js" defer></script>
 </body>
 </html>
