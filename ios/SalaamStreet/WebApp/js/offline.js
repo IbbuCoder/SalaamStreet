@@ -28,7 +28,7 @@
     "js/vendor/pdfjs/wasm/jbig2.wasm", "js/vendor/pdfjs/wasm/openjpeg.wasm", "js/vendor/pdfjs/wasm/qcms_bg.wasm"];
   var PDFJS_WASM = "js/vendor/pdfjs/wasm/";
   var MB = 1048576;
-  var cfg = { parallel: 4, tries: 3, retryDelay: 800, timeout: 30000 };
+  var cfg = { parallel: 4, tries: 3, retryDelay: 800, timeout: 30000, blockedWait: 10000 };
 
   /* ── Size estimates (shown before downloading; real sizes replace them) ──
      Text: whole-Qur'an MB per edition. Audio: seconds of recitation per mushaf
@@ -75,10 +75,10 @@
     if (cause) e.cause = cause;
     return e;
   }
-  /** Map any failure to what the person is told: quota | offline | storage | failed. */
+  /** Map any failure to what the person is told: quota | offline | storage | blocked | failed. */
   function classify(e) {
     if (!e) return "failed";
-    if (e.code === "quota" || e.code === "offline" || e.code === "storage") return e.code;
+    if (e.code === "quota" || e.code === "offline" || e.code === "storage" || e.code === "blocked") return e.code;
     if (e.name === "QuotaExceededError" || e.code === 22 || /quota/i.test(e.message || "")) return "quota";
     if (e.cause) return classify(e.cause);
     if (navigator.onLine === false) return "offline";
@@ -99,11 +99,14 @@
 
   /* ── IndexedDB ──────────────────────────────────────────────── */
   var dbPromise = null;
-  function openDb() {
-    if (dbPromise) return dbPromise;
-    dbPromise = new Promise(function (resolve, reject) {
+  /** One attempt at opening the database. An upgrade (version 1 → 2 in 3.0) waits
+      while SalaamStreet is still open elsewhere with the old version (another tab,
+      the installed app, a page asleep in the background): that is "blocked", not
+      a browser that can't store anything, so keep waiting a while for it. */
+  function openOnce() {
+    return new Promise(function (resolve, reject) {
       if (!window.indexedDB) { reject(err("storage")); return; }
-      var req;
+      var req, settled = false, timer = null;
       try { req = indexedDB.open(DB_NAME, DB_VERSION); } catch (e) { reject(err("storage", e)); return; }
       req.onupgradeneeded = function () {
         var d = req.result;
@@ -111,18 +114,57 @@
       };
       req.onsuccess = function () {
         var d = req.result;
-        d.onversionchange = function () { d.close(); dbPromise = null; };
+        clearTimeout(timer);
+        // Opened after we stopped waiting: let it go, the next call opens afresh.
+        if (settled) { d.close(); return; }
+        settled = true;
+        d.onversionchange = function () { d.close(); if (dbPromise && dbPromise.db === d) dbPromise = null; };
+        // Safari can drop the connection ("Connection to Indexed Database server lost").
+        d.onclose = function () { if (dbPromise && dbPromise.db === d) dbPromise = null; };
         resolve(d);
       };
-      req.onerror = function () { reject(err("storage", req.error)); };
-      req.onblocked = function () { reject(err("storage")); };
+      req.onerror = function (ev) {
+        clearTimeout(timer);
+        if (ev && ev.preventDefault) ev.preventDefault();
+        if (settled) return;
+        settled = true;
+        reject(err("storage", req.error));
+      };
+      // Requests queued behind a blocked one get no "blocked" event of their own,
+      // so the wait starts now: an open that never finishes is treated the same.
+      timer = setTimeout(function () {
+        if (settled) return;
+        settled = true;
+        reject(err("blocked"));
+      }, cfg.blockedWait);
     });
-    dbPromise.catch(function () { dbPromise = null; });
-    return dbPromise;
+  }
+  function openDb() {
+    if (dbPromise) return dbPromise;
+    // A failed open is often passing (Safari right after waking up): try once more.
+    var p = openOnce().catch(function (e) {
+      if (e.code === "blocked" || !window.indexedDB) throw e;
+      return delay(300).then(openOnce);
+    });
+    p.then(function (d) { p.db = d; }, function () { if (dbPromise === p) dbPromise = null; });
+    dbPromise = p;
+    return p;
+  }
+  /** A connection that has gone away (closed under us, Safari's lost server
+      connection): open a new one and try the transaction again, once. */
+  function lostConnection(e) {
+    return !!e && (e.name === "InvalidStateError" || e.name === "UnknownError" || e.name === "TransactionInactiveError");
+  }
+  function withDb(fn) {
+    return openDb().then(fn).catch(function (e) {
+      if (!lostConnection(e)) throw e;
+      dbPromise = null;
+      return openDb().then(fn);
+    });
   }
   /** One transaction; resolves with the last request's result once it commits. */
   function tx(store, mode, fn) {
-    return openDb().then(function (d) {
+    return withDb(function (d) {
       return new Promise(function (resolve, reject) {
         var t = d.transaction(store, mode), last = null;
         var r = fn(t.objectStore(store));
@@ -146,7 +188,7 @@
   };
   // A cursor read that returns { key: value } for a whole store.
   function readAll(s) {
-    return openDb().then(function (d) {
+    return withDb(function (d) {
       return new Promise(function (resolve, reject) {
         var out = {}, t = d.transaction(s, "readonly"), cur = t.objectStore(s).openCursor();
         cur.onsuccess = function () {
@@ -169,10 +211,16 @@
     if (readyPromise) return readyPromise;
     if (!used()) return Promise.resolve(state); // never opened for people who don't download
     readyPromise = readAll("meta").then(function (meta) {
+      // This can finish after a download already started (an earlier read failed):
+      // what is in memory is newer, so add to it rather than replace it.
       Object.keys(meta).forEach(function (k) {
-        if (k.indexOf("pack:") === 0) state.packs[k.slice(5)] = meta[k];
+        if (k.indexOf("pack:") !== 0) return;
+        var id = k.slice(5), mine = state.packs[id];
+        if (!mine) { state.packs[id] = meta[k]; return; }
+        var have = meta[k].have || {};
+        for (var n in have) if (!(n in mine.have)) mine.have[n] = have[n];
       });
-      Object.keys(meta).filter(function (k) { return k.indexOf("job:") === 0; })
+      Object.keys(meta).filter(function (k) { return k.indexOf("job:") === 0 && !state.jobs[meta[k].id]; })
         .sort(function (a, b) { return (meta[a].at || 0) - (meta[b].at || 0); })
         .forEach(function (k) {
           var d = meta[k];
@@ -348,7 +396,7 @@
       n++;
       return fn().catch(function (e) {
         var why = classify(e);
-        if (job.halt || why === "quota" || why === "offline" || why === "storage" || n >= cfg.tries) throw e;
+        if (job.halt || why === "quota" || why === "offline" || why === "storage" || why === "blocked" || n >= cfg.tries) throw e;
         return delay(cfg.retryDelay * Math.pow(2, n - 1)).then(function () {
           if (job.halt) throw e;
           if (navigator.onLine === false) throw err("offline");
@@ -1069,7 +1117,7 @@
     pdfjsWasmUrl: function () { return new URL(PDFJS_WASM, location.href).href; },
     /** Human message key for a job's stop reason. */
     reasonKey: function (reason) {
-      return { quota: "off.errQuota", offline: "off.errOffline", storage: "off.errStorage", failed: "off.errFailed" }[reason] || "";
+      return { quota: "off.errQuota", offline: "off.errOffline", storage: "off.errStorage", blocked: "off.errBlocked", failed: "off.errFailed" }[reason] || "";
     },
   };
 

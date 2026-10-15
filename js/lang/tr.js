@@ -875,6 +875,7 @@ SS.i18n.register("tr", {
 "off.errQuota": "Bu cihazda yeterli depolama alanı yok. Biraz yer açın veya diğer indirmeleri kaldırın, sonra tekrar deneyin.",
 "off.errOffline": "Bağlantı koptu — indirme duraklatıldı, tekrar çevrimiçi olduğunuzda devam edecek.",
 "off.errStorage": "Bu tarayıcı çevrimdışı veri saklayamıyor (gizli gezinme engelliyor olabilir).",
+"off.errBlocked": "Diğer sekme veya pencerelerdeki SalaamStreet'i kapatın (ya da uygulamayı yeniden açın), sonra tekrar deneyin.",
 "off.errFailed": "Bazı dosyalar indirilemedi. Lütfen tekrar deneyin.",
 "off.markText": "Metin çevrimdışı kullanılabilir",
 "off.markAudio": "Tilavet çevrimdışı kullanılabilir",

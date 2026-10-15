@@ -875,6 +875,7 @@ SS.i18n.register("fr", {
 "off.errQuota": "Espace de stockage insuffisant sur cet appareil. Libérez de la place ou supprimez d'autres téléchargements, puis réessayez.",
 "off.errOffline": "Connexion perdue — le téléchargement est en pause et reprendra dès votre retour en ligne.",
 "off.errStorage": "Ce navigateur ne peut pas stocker de données hors ligne (la navigation privée peut le bloquer).",
+"off.errBlocked": "Fermez SalaamStreet dans vos autres onglets ou fenêtres (ou rouvrez l’application), puis réessayez.",
 "off.errFailed": "Certains fichiers n'ont pas pu être téléchargés. Veuillez réessayer.",
 "off.markText": "Texte disponible hors ligne",
 "off.markAudio": "Récitation disponible hors ligne",

@@ -416,3 +416,44 @@ test("service worker: a connection that hangs gets the saved page after a few se
   assert.ok(took < 15000, "served from the cache (" + took + " ms)");
   await context.close();
 });
+
+/* An older copy of the site still open elsewhere (another tab, the installed
+   app, a page asleep in the background) holds the pre-3.0 database (version 1)
+   and doesn't let go straight away. The upgrade waits for it instead of every
+   download failing with "This browser can't store offline data". */
+async function oldTab(context) {
+  const other = await context.newPage();
+  await other.goto(base + "about/");
+  await other.evaluate(() => new Promise((resolve) => {
+    const req = indexedDB.open("salaamstreet-offline", 1);
+    req.onupgradeneeded = () => req.result.createObjectStore("meta");
+    req.onsuccess = () => { window.oldDb = req.result; resolve(); }; // never closes on versionchange
+  }));
+  return other;
+}
+
+test("a download waits while an older copy of the site still holds the database, then carries on", async () => {
+  const { context, page } = await device({ delay: 5 });
+  const other = await oldTab(context);
+  await open(page, "#/offline");
+  await page.click('#off-root [data-act="dl-text"]');
+  await page.waitForTimeout(1500);
+  assert.ok(!(await page.textContent("#off-root")).includes("can't store offline data"));
+  await other.evaluate(() => window.oldDb.close()); // the other tab lets go
+  await waitText(page, ["quran-uthmani", "en.sahih", "en.transliteration"]);
+  assert.deepEqual(page.errors, []);
+  await context.close();
+});
+
+test("if the older copy never lets go, the message says to close it, and the retry works", async () => {
+  const { context, page } = await device({ delay: 5 });
+  const other = await oldTab(context);
+  await open(page, "#/offline");
+  await page.evaluate(() => { SS.offline.config.blockedWait = 500; });
+  await page.click('#off-root [data-act="dl-text"]');
+  await page.waitForFunction(() => /other tabs or windows/.test(document.getElementById("off-root").textContent), null, { timeout: 8000 });
+  await other.evaluate(() => window.oldDb.close()); // the person closes the other tab
+  await page.click('#off-root [data-act="resume"]'); // Retry
+  await waitText(page, ["quran-uthmani", "en.sahih", "en.transliteration"]);
+  await context.close();
+});

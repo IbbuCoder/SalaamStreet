@@ -875,6 +875,7 @@ SS.i18n.register("id", {
 "off.errQuota": "Ruang penyimpanan di perangkat ini tidak cukup. Kosongkan ruang atau hapus unduhan lain, lalu coba lagi.",
 "off.errOffline": "Koneksi terputus — unduhan dijeda dan akan dilanjutkan saat Anda kembali online.",
 "off.errStorage": "Browser ini tidak dapat menyimpan data offline (mode penjelajahan pribadi mungkin memblokirnya).",
+"off.errBlocked": "Tutup SalaamStreet di tab atau jendela lain (atau buka ulang aplikasinya), lalu coba lagi.",
 "off.errFailed": "Beberapa file gagal diunduh. Silakan coba lagi.",
 "off.markText": "Teks tersedia offline",
 "off.markAudio": "Bacaan tersedia offline",
