@@ -52,6 +52,7 @@ export function dueReminders(sub, nowMs, pt, messages) {
         url: "./#/home",
         prayed: `./#/home/prayed/${key}/${L.date}`,
         action: t("daily.iPrayed"),
+        qibla: t("nav.qibla"),
       });
     }
   }
@@ -61,6 +62,10 @@ export function dueReminders(sub, nowMs, pt, messages) {
   if (sub.adhkar) {
     at("adhkar-morning", mins(times.Fajr) + 20, { title: t("daily.adhkarRem_morning"), body: t("daily.adhkarRemBody"), tag: `adhkar-morning-${L.date}`, url: "./#/adhkar/morning" });
     at("adhkar-evening", mins(times.Asr) + 20, { title: t("daily.adhkarRem_evening"), body: t("daily.adhkarRemBody"), tag: `adhkar-evening-${L.date}`, url: "./#/adhkar/evening" });
+  }
+  // The daily Qur'an goal (3.1): at the time the person chose, opening the ayah they last read.
+  if (/^\d{2}:\d{2}$/.test(sub.quran_time || "") && String(sub.quran_done || "").slice(0, 10) !== L.date) {
+    at("quran", mins(sub.quran_time), { title: t("daily.goalRemTitle"), body: t("push.quranBody"), tag: `goal-${L.date}`, url: "./#/go/continue" });
   }
   return { send, sent };
 }

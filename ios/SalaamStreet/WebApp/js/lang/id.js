@@ -1486,5 +1486,17 @@ SS.i18n.register("id", {
 "kids.leaveText": "Menonaktifkan Mode Anak di perangkat ini. Kemajuan yang tersimpan tetap ada di akun orang tua.",
 "kids.left": "Mode Anak nonaktif di perangkat ini",
 "kids.unsavedConfirm": "{n} langkah belajar belum tersimpan (tidak ada koneksi). Tetap keluar dan kehilangan langkah itu?",
-"kids.removedByParent": "Orang tua telah menghapus Mode Anak milik {n} dari perangkat ini."
+"kids.removedByParent": "Orang tua telah menghapus Mode Anak milik {n} dari perangkat ini.",
+"quran.focus": "Fokus",
+"quran.focusExit": "Keluar dari fokus",
+"sc.title": "Siri & Pintasan",
+"sc.intro": "Setiap tautan membuka satu hal di SalaamStreet. Tambahkan ke ponsel Anda dan buka dengan suara atau dari Layar Utama.",
+"sc.howTitle": "Cara memasangnya",
+"sc.howIos": "iPhone dan iPad: salin tautan, buka app Pintasan, ketuk +, tambahkan tindakan “Buka URL” lalu tempel tautannya. Beri nama pintasan (misalnya “Lanjut Qur'an”), lalu katakan “Hai Siri, Lanjut Qur'an”.",
+"sc.howAndroid": "Android: salin tautan, buka di Chrome, lalu menu → Tambahkan ke Layar utama. SalaamStreet yang terpasang juga menampilkan pintasan saat ikonnya ditekan lama.",
+"sc.continue": "Lanjutkan membaca",
+"sc.kahf": "Putar Surah Al-Kahf",
+"sc.tapPlay": "Ketuk putar untuk memulai bacaan.",
+"np.ayahOf": "Ayat {n} dari {total}",
+"push.quranBody": "Lanjutkan dari tempat terakhir — beberapa menit sudah cukup."
 });

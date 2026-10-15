@@ -764,6 +764,52 @@ test("ayah of the day: Listen plays just that ayah in the shared player", async 
   await context.close();
 });
 
+test("3.1 shortcut links, the Lock Screen card, and focus reading", async () => {
+  const { page, context } = await device();
+  // #/go/continue opens the ayah last read (or the Qur'an list before any reading).
+  await open(page, "#/go/continue");
+  await page.waitForFunction(() => location.hash === "#/quran");
+  await page.evaluate(() => SS.store.set("quran:lastRead", { surah: 18, ayah: 10, at: Date.now() }));
+  await page.evaluate(() => { location.hash = "#/go/continue"; });
+  await page.waitForFunction(() => location.hash === "#/surah/18/10");
+  await page.waitForSelector("#ayah-10");
+  for (const [go, to] of [["qibla", "#/qibla"], ["morning", "#/adhkar/morning"], ["next-prayer", "#/prayer"], ["nonsense", "#/home"]]) {
+    await page.evaluate((g) => { location.hash = "#/go/" + g; }, go);
+    await page.waitForFunction((t) => location.hash === t, to);
+  }
+  // #/go/kahf opens Al-Kahf and starts it in the player.
+  await page.evaluate(() => { location.hash = "#/go/kahf"; });
+  await page.waitForFunction(() => location.hash === "#/surah/18" && SS.audio.state(18, 1).loaded);
+  // The Lock Screen / Control Centre card: title, reciter, ayah of total, and a drawn artwork.
+  await page.waitForFunction(() => navigator.mediaSession.metadata && navigator.mediaSession.metadata.artwork.length === 1, null, { timeout: 8000 });
+  const md = await page.evaluate(() => { const m = navigator.mediaSession.metadata; return { title: m.title, artist: m.artist, album: m.album, src: m.artwork[0].src.slice(0, 22), sizes: m.artwork[0].sizes }; });
+  assert.equal(md.title, "Al-Kahf 18:1");
+  assert.ok(md.artist.length > 0, "reciter");
+  assert.equal(md.album, "Ayah 1 of 110 · The Cave");
+  assert.equal(md.src, "data:image/png;base64,");
+  assert.equal(md.sizes, "512x512");
+  // Focus reading hides everything but the Qur'an, and Escape brings it back.
+  await page.click("#sr-focus");
+  assert.equal(await page.evaluate(() => document.body.classList.contains("reading-focus")), true);
+  assert.equal(await page.isVisible(".bottomnav"), false);
+  assert.equal(await page.isVisible("#sr-toolbar"), false);
+  assert.equal(await page.isVisible("#sr-focus-exit"), true);
+  await shot(page, "focus-reading");
+  await page.keyboard.press("Escape");
+  assert.equal(await page.isVisible(".bottomnav"), true);
+  await page.click("#sr-focus");
+  await page.click("#sr-focus-exit");
+  assert.equal(await page.evaluate(() => document.body.classList.contains("reading-focus")), false);
+  // Settings → Siri & Shortcuts lists the links, with copy buttons.
+  await open(page, "#/settings");
+  await page.waitForSelector("#st-shortcuts [data-sc='continue']");
+  assert.equal(await page.locator("#st-shortcuts [data-sc]").count(), 9);
+  assert.match(await page.textContent("#st-shortcuts"), /#\/go\/continue/);
+  assert.equal(await page.evaluate(() => SS.shortcuts.link("continue")), base + "#/go/continue");
+  assert.deepEqual(page.errors, []);
+  await context.close();
+});
+
 test("NVHS MSA (2.11): in the sidebar and the More menu, and old #/msa links open it", async () => {
   const { page, context } = await device({ context: { viewport: { width: 1440, height: 900 } } });
   await open(page, "#/msa");

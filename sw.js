@@ -13,13 +13,13 @@
    3.0: on a connection that is there but barely working, a cached copy is
    served after a few seconds instead of leaving the page loading; the network
    answer still refreshes the cache when it arrives. */
-var VERSION = "ss-v27";
+var VERSION = "ss-v28";
 var SLOW_MS = 4000;
 var KEEP = /^ss-offline/;
 var SHELL = [
   "./", "index.html", "css/styles.css",
   "js/surahs.js", "js/duas.js", "js/extras.js", "js/content.js", "js/i18n.js", "js/praytimes.js", "js/core.js",
-  "js/offline.js", "js/views.js", "js/features.js", "js/stories.js", "js/stories-ui.js", "js/daily.js", "js/push.js", "js/offline-ui.js", "js/qibla.js", "js/config.js", "js/sync.js", "js/account.js", "js/modes.js", "js/msa.js", "js/app.js",
+  "js/offline.js", "js/views.js", "js/features.js", "js/stories.js", "js/stories-ui.js", "js/daily.js", "js/push.js", "js/offline-ui.js", "js/qibla.js", "js/config.js", "js/sync.js", "js/account.js", "js/modes.js", "js/msa.js", "js/shortcuts.js", "js/app.js",
   // 2.10 Modes: downloaded by the page only when a mode is opened; kept here so they work offline afterwards.
   "js/modes/travel.js", "js/modes/hajj.js", "js/modes/mosque.js", "js/modes/kids.js",
   "manifest.webmanifest", "manifest-dark.webmanifest", "icons/icon-192.png", "icons/apple-touch-icon.png", "icons/favicon-32.png",
@@ -91,9 +91,10 @@ self.addEventListener("push", function (e) {
   try { m = e.data ? e.data.json() : {}; } catch (err) { m = { title: "SalaamStreet", body: e.data ? e.data.text() : "" }; }
   var opts = {
     body: m.body || "", tag: m.tag || "salaamstreet", icon: "icons/icon-192.png", badge: "icons/icon-192.png",
-    data: { url: m.url || "./#/home", prayed: m.prayed || null },
+    data: { url: m.url || "./#/home", prayed: m.prayed || null }, timestamp: Date.now(), vibrate: [120, 80, 120],
   };
-  if (m.prayed) opts.actions = [{ action: "prayed", title: m.action || "I prayed" }];
+  // Prayer reminders: "I prayed" and a quick way to the Qibla.
+  if (m.prayed) opts.actions = [{ action: "prayed", title: m.action || "I prayed" }, { action: "qibla", title: m.qibla || "Qibla" }];
   e.waitUntil(self.registration.showNotification(m.title || "SalaamStreet", opts));
 });
 
@@ -102,7 +103,7 @@ self.addEventListener("notificationclick", function (e) {
   e.notification.close();
   var data = e.notification.data || {};
   // "I prayed" ticks the prayer in the tracker (the app reads the link and marks it).
-  var target = (e.action === "prayed" && data.prayed) || data.url || "./#/home";
+  var target = (e.action === "prayed" && data.prayed) || (e.action === "qibla" && "./#/qibla") || data.url || "./#/home";
   e.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(function (list) {
       for (var i = 0; i < list.length; i++) {

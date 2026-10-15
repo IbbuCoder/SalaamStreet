@@ -53,11 +53,36 @@ test("offset, Friday Al-Kahf, adhkar and the device's language", async () => {
   assert.deepEqual(off.send, []);
 });
 
+test("3.1: the daily Qur'an reminder, once, at the chosen time — not on a day the goal is already met", async () => {
+  const { dueReminders } = await load();
+  const sub = { ...chicago, prayers: false, kahf: false, adhkar: false, quran_time: "20:30" };
+  const before = dueReminders(sub, at("2026-10-08T01:29:00Z"), pt, messages); // 20:29 in Chicago
+  assert.deepEqual(before.send, []);
+  const r = dueReminders(sub, at("2026-10-08T01:31:00Z"), pt, messages);
+  assert.equal(r.send.length, 1);
+  assert.equal(r.send[0].title, "Your Qur'an goal for today");
+  assert.equal(r.send[0].url, "./#/go/continue", "opens the ayah last read");
+  assert.equal(r.send[0].tag, "goal-2026-10-07", "same tag as the reminder the open app shows, so it never appears twice");
+  assert.deepEqual(dueReminders({ ...sub, sent: r.sent }, at("2026-10-08T01:36:00Z"), pt, messages).send, []);
+  assert.deepEqual(dueReminders({ ...sub, quran_done: "2026-10-07" }, at("2026-10-08T01:31:00Z"), pt, messages).send, [], "goal met today");
+  assert.deepEqual(dueReminders({ ...sub, quran_time: null }, at("2026-10-08T01:31:00Z"), pt, messages).send, []);
+  const fr = dueReminders({ ...sub, lang: "fr" }, at("2026-10-08T01:31:00Z"), pt, messages);
+  assert.match(fr.send[0].body, /Reprenez/);
+});
+
+test("prayer reminders carry the Qibla button's label in the device's language", async () => {
+  const { dueReminders } = await load();
+  const times = pt.times(new Date(2026, 9, 9), 41.88, -87.63, { method: 2, school: 0, tzOffset: -300 });
+  const [h, m] = times.Asr.split(":").map(Number);
+  const r = dueReminders({ ...chicago, lang: "tr" }, Date.UTC(2026, 9, 9, h + 5, m + 1), pt, messages);
+  assert.equal(r.send.find((x) => x.id === "Asr").qibla, "Kıble");
+});
+
 test("the server's copies of the calculator and texts match the app", () => {
   assert.equal(fs.readFileSync(path.join(ROOT, "backend/functions/send-reminders/praytimes.js"), "utf8"),
     fs.readFileSync(path.join(ROOT, "js/praytimes.js"), "utf8"), "run node tools/build-push-messages.js");
   for (const [lang, dict] of Object.entries(messages)) {
-    assert.equal(Object.keys(dict).length, 13, lang + " has every reminder text (run node tools/build-push-messages.js)");
+    assert.equal(Object.keys(dict).length, 16, lang + " has every reminder text (run node tools/build-push-messages.js)");
   }
 });
 

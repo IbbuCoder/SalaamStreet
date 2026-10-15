@@ -164,9 +164,16 @@
     audio.preload = "auto";
     audio.addEventListener("play", function () { setPlayingUI(true); });
     audio.addEventListener("pause", function () { setPlayingUI(false); });
+    var lastPos = 0;
     audio.addEventListener("timeupdate", function () {
       var pct = audio.duration ? (audio.currentTime / audio.duration) * 100 : 0;
       $("ab-progress").style.inlineSize = pct + "%";
+      // The Lock Screen's progress bar for this ayah (about once a second).
+      var ms = navigator.mediaSession;
+      if (ms && ms.setPositionState && isFinite(audio.duration) && audio.duration > 0 && Date.now() - lastPos > 900) {
+        lastPos = Date.now();
+        try { ms.setPositionState({ duration: audio.duration, position: Math.min(audio.currentTime, audio.duration), playbackRate: audio.playbackRate || 1 }); } catch (e) { /* noop */ }
+      }
     });
     audio.addEventListener("ended", function () {
       if (onEnd) {
@@ -213,6 +220,9 @@
         ms.setActionHandler("pause", function () { audio.pause(); });
         ms.setActionHandler("previoustrack", function () { step(-1); });
         ms.setActionHandler("nexttrack", function () { step(1); });
+      } catch (e) { /* unsupported action */ }
+      try {
+        ms.setActionHandler("seekto", function (d) { if (d && isFinite(d.seekTime)) audio.currentTime = d.seekTime; });
       } catch (e) { /* unsupported action */ }
     }
   }
@@ -269,7 +279,9 @@
       $("ab-next").disabled = ayah >= meta.ayahs;
       setPlayingUI(true);
       highlight();
-      if ("mediaSession" in navigator && typeof MediaMetadata === "function") {
+      // The Lock Screen / Control Centre card (artwork and all: js/shortcuts.js).
+      if (SS.nowPlaying) SS.nowPlaying.show(surah, ayah, meta, reciterName());
+      else if ("mediaSession" in navigator && typeof MediaMetadata === "function") {
         try {
           navigator.mediaSession.metadata = new MediaMetadata({
             title: (SS.i18n.isAr() ? meta.ar : meta.en) + " " + surah + ":" + ayah,
@@ -389,6 +401,14 @@
     var h = (location.hash || "#/home").replace(/^#\/?/, "");
     var parts = h.split("/");
     var view = parts.shift() || "home";
+    // Shortcut links (#/go/continue, #/go/kahf, …; js/shortcuts.js) stand in for the page they lead to.
+    if (view === "go" && SS.shortcuts) {
+      var dest = SS.shortcuts.resolve(parts);
+      try { history.replaceState(null, "", dest.hash); } catch (e) { /* file:// */ }
+      if (dest.after) setTimeout(dest.after, 400);
+      parts = dest.hash.replace(/^#\/?/, "").split("/");
+      view = parts.shift() || "home";
+    }
     if (VIEWS.indexOf(view) === -1) view = "home";
     // Kids Mode (2.10) keeps a child's device inside the Kids area.
     if (SS.modes && SS.modes.kidLocked() && view !== "kids") {

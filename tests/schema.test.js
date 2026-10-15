@@ -141,6 +141,14 @@ test("push reminders: guests register and remove their own device; nobody can re
     [JSON.stringify({ ...SUB, endpoint: "http://insecure" }), JSON.stringify(prefs)]));
   await assert.rejects(asAnon(pg, `select public.push_register($1::jsonb, $2::jsonb)`,
     [JSON.stringify({ ...SUB, endpoint: "https://x/2" }), JSON.stringify({ ...prefs, lat: 123 })]));
+  // 3.1: the daily Qur'an reminder's time and the day the goal was met.
+  await asAnon(pg, `select public.push_register($1::jsonb, $2::jsonb)`, [JSON.stringify(SUB), JSON.stringify({ ...prefs, quranTime: "20:30", quranDone: "2026-10-07" })]);
+  rows = (await pg.query(`select quran_time, quran_done::text from public.push_subscriptions`)).rows;
+  assert.deepEqual(rows, [{ quran_time: "20:30", quran_done: "2026-10-07" }]);
+  await asAnon(pg, `select public.push_register($1::jsonb, $2::jsonb)`, [JSON.stringify(SUB), JSON.stringify(prefs)]);
+  rows = (await pg.query(`select quran_time, quran_done from public.push_subscriptions`)).rows;
+  assert.deepEqual(rows, [{ quran_time: null, quran_done: null }], "turning the goal off clears it");
+  await assert.rejects(asAnon(pg, `select public.push_register($1::jsonb, $2::jsonb)`, [JSON.stringify(SUB), JSON.stringify({ ...prefs, quranTime: "8pm" })]));
   // Turning reminders off deletes the row.
   await asAnon(pg, `select public.push_unregister($1)`, [SUB.endpoint]);
   rows = (await pg.query(`select * from public.push_subscriptions`)).rows;

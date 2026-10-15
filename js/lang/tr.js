@@ -1486,5 +1486,17 @@ SS.i18n.register("tr", {
 "kids.leaveText": "Bu cihazda Çocuk Modunu kapatır. Kaydedilmiş ilerleme ebeveynin hesabında kalır.",
 "kids.left": "Bu cihazda Çocuk Modu kapalı",
 "kids.unsavedConfirm": "{n} öğrenme adımı henüz kaydedilmedi (bağlantı yok). Yine de çıkıp bunları kaybetmek istiyor musun?",
-"kids.removedByParent": "Bir ebeveyn {n} için Çocuk Modunu bu cihazdan kaldırdı."
+"kids.removedByParent": "Bir ebeveyn {n} için Çocuk Modunu bu cihazdan kaldırdı.",
+"quran.focus": "Odak",
+"quran.focusExit": "Odaktan çık",
+"sc.title": "Siri ve Kestirmeler",
+"sc.intro": "Her bağlantı SalaamStreet'te tek bir şeyi açar. Telefonunuza ekleyin; sesle ya da Ana Ekran'dan açın.",
+"sc.howTitle": "Nasıl kurulur",
+"sc.howIos": "iPhone ve iPad: bir bağlantıyı kopyalayın, Kestirmeler uygulamasını açın, + simgesine dokunun, “URL'leri Aç” eylemini ekleyip bağlantıyı yapıştırın. Kestirmeye bir ad verin (ör. “Kur'an'a devam”) ve “Hey Siri, Kur'an'a devam” deyin.",
+"sc.howAndroid": "Android: bir bağlantıyı kopyalayıp Chrome'da açın, ardından menü → Ana ekrana ekle. Yüklü SalaamStreet'in simgesine basılı tutunca da kestirmeler görünür.",
+"sc.continue": "Okumaya devam et",
+"sc.kahf": "Kehf Suresi'ni çal",
+"sc.tapPlay": "Tilaveti başlatmak için oynat'a dokunun.",
+"np.ayahOf": "Ayet {n} / {total}",
+"push.quranBody": "Kaldığınız yerden devam edin — birkaç dakika yeter."
 });

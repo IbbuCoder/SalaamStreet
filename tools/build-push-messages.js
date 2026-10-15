@@ -13,7 +13,8 @@ const vm = require("vm");
 const ROOT = path.resolve(__dirname, "..");
 const OUT = path.join(ROOT, "backend/functions/send-reminders");
 const KEYS = ["prayer.Fajr", "prayer.Dhuhr", "prayer.Asr", "prayer.Maghrib", "prayer.Isha", "rem.now", "rem.soon",
-  "friday.title", "friday.notify", "daily.adhkarRem_morning", "daily.adhkarRem_evening", "daily.adhkarRemBody", "daily.iPrayed"];
+  "friday.title", "friday.notify", "daily.adhkarRem_morning", "daily.adhkarRem_evening", "daily.adhkarRemBody", "daily.iPrayed",
+  "nav.qibla", "daily.goalRemTitle", "push.quranBody"];
 
 const box = { console };
 box.window = box;
