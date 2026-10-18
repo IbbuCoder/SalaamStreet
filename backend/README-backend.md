@@ -253,6 +253,14 @@ approver. If another account had claimed the name, it is flagged.
 The roster is loaded the same way as before (MSA → Manage → Edit the list),
 or with a one-time SQL insert that is **not** kept in this repository.
 
+## 3.0.0 — The AI update
+
+**Upgrading to 3.0:** run the whole updated `supabase-schema.sql` again (safe
+to re-run), then deploy the `ai-lab` Edge Function — GitHub → Actions →
+"Deploy Supabase" does both. It adds `ai_usage.rating` and `ai_rate()` (👍/👎
+on answers, numbers only), and the function now accepts verified text from
+the app (`sources`) and a `rate` action. Details: [`README-ai.md`](README-ai.md#30-verified-text-ratings-out-of-beta).
+
 ## 3.0.0-beta — SalaamStreet AI (Beta)
 
 **Upgrading to 3.0 Beta:** run the whole updated `supabase-schema.sql` again

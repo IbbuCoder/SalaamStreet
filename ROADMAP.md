@@ -1,6 +1,6 @@
 # SalaamStreet Roadmap
 
-What we plan to build after **3.0.0-beta — SalaamStreet AI (Beta)**, in order. This is a plan, not a
+What we plan to build after **3.0.0 — The AI update**, in order. This is a plan, not a
 promise: nothing planned below exists in the app yet, and there are no dates —
 releases ship when they're ready and tested. The same list appears in the app
 under About → Updates (`SS.ROADMAP` in `js/content.js`); keep the two in step.
@@ -28,7 +28,7 @@ under About → Updates (`SS.ROADMAP` in `js/content.js`); keep the two in step.
 | 2.11.7 | NVHS MSA: join with your school email | ✅ Completed |
 | 2.11.8 | Steadier Qibla camera, MSA admins | ✅ Completed |
 | 3.0 Beta | SalaamStreet AI (Beta) | ✅ Completed |
-| 3.0 | The AI update | 🚧 In progress |
+| 3.0 | The AI update | ✅ Completed (paid plans ⏸ Deferred) |
 | 3.1 | Personalization | 📋 Planned |
 | 3.2 | Qur'an Experience | 📋 Planned |
 | 3.3 | Community: mosque pages | 📋 Planned |
@@ -137,7 +137,17 @@ the Manage page gains "approve all on the list", a new-announcement button,
 joined-this-week, filters and a CSV download. Release notes:
 [`docs/release-notes/2.11.8.md`](docs/release-notes/2.11.8.md).
 
-## 3.0 — The AI update · 🚧 In progress
+## 3.0 — The AI update · ✅ Completed
+
+Shipped in 3.0.0: SalaamStreet AI out of beta, free for everyone with an
+account — answers built on the app's own verified Qur'an, tafsir and hadith
+text (ayahs mentioned in a question, `/tafsir`, `/hadith`), shown under each
+answer, ayah links in answers, "Ask SalaamStreet AI" from the tafsir sheet,
+follow-up suggestions, read aloud, saving a conversation on the device, and
+👍/👎 ratings reported to the Lab as counts only.
+Release notes: [`docs/release-notes/3.0.0.md`](docs/release-notes/3.0.0.md).
+Paid plans and payments are ⏸ deferred (see stages 5–8 and "Changes to the
+plan"): nothing free got a new limit, and billing stays off.
 
 **Goal:** SalaamStreet AI — an Islamic AI tutor that helps with Qur'an and
 tafsir study, questions about Islam, learning and planning, honest about its
@@ -168,12 +178,14 @@ no plan is "unlimited"):
    `#/ai` — Islamic questions only, app-data commands, a daily allowance per
    person, and a fair waiting list when it's busy. Plans are still off.
    Notes: [`docs/release-notes/3.0.0-beta.md`](docs/release-notes/3.0.0-beta.md).
-3. 📋 Better usage reporting, source-aware answers (quoting the app's own
-   verified Qur'an and hadith data), optional secure document testing.
+3. ✅ **3.0.0:** better usage reporting (helpful/not-helpful counts in the
+   Lab) and source-aware answers quoting the app's own verified Qur'an,
+   tafsir and hadith data. Optional secure document testing is ⏸ deferred
+   with the paid plans (it's a Max feature).
 4. 🚧 Plan entitlements checked on the server — prepared in
    `backend/functions/ai-lab/plans.js` with billing off, so everyone is on Free.
-5. 📋 Build and test Plus features. 6. 📋 Pro. 7. 📋 Max.
-8. 📋 Payments (Stripe test mode first) — only when we decide to start billing.
+5. ⏸ Build and test Plus features. 6. ⏸ Pro. 7. ⏸ Max.
+8. ⏸ Payments (Stripe test mode first) — only when we decide to start billing.
 
 **Rules:** AI answers never invent Qur'an verses, hadith, quotations or
 citations, say when something is unverified, present differences of scholarly
@@ -182,7 +194,10 @@ stored by default. Plans are enforced on the server.
 
 **Risks:** charging for something people already use for free; AI accuracy on
 religious questions; API costs; payment and tax rules.
-**Completion criteria:** a public list of exactly what's free and what's paid;
+**Completion criteria (met for 3.0.0, with plans deferred):** what's free is
+listed in `backend/functions/ai-lab/plans.js` and the app; nothing that was
+free gets a new limit; allowances are enforced on the server. **When paid
+plans resume:** a public list of exactly what's free and what's paid;
 nothing that was free gets a new limit; allowances enforced on the server;
 payments handled by a trusted provider (we never see card details); cancelling
 is easy and keeps your data.
@@ -368,6 +383,11 @@ scheduled.
 ---
 
 ## Changes to the plan
+
+- **3.0.0 shipped without paid plans** (October 2026). SalaamStreet AI left
+  beta as a free feature for everyone with an account, with verified-text
+  answers and ratings. Plus, Pro, Max, payments and document testing are
+  deferred until we decide to start billing; nothing free changes.
 
 - **3.0 is the AI update** (SalaamStreet AI), with optional Plus ($4.99),
   Pro ($7.99) and Max ($9.99 a month) plans for the AI features that cost

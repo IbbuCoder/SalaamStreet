@@ -1,18 +1,49 @@
-# SalaamStreet AI (3.0 Beta) and the AI Testing Lab — setup and operation
+# SalaamStreet AI (3.0) and the AI Testing Lab — setup and operation
 
 Two pages, one server:
 
-- **SalaamStreet AI (Beta)** — `https://salaamstreet.com/#/ai`, in the menus.
+- **SalaamStreet AI** — `https://salaamstreet.com/#/ai`, in the menus.
   Anyone signed in with a confirmed email can ask Islamic questions, with a
   daily allowance each and a fair **waiting list** when it's busy.
 - **AI Testing Lab** — `https://salaamstreet.com/#/lab`, in no menu. The admin
   (`ibrahim.asim.contact@gmail.com`, signed in with Google) gets the same chat
-  plus status, app stats, settings, the beta switch and the emergency switch.
+  plus status, app stats, settings, the open switch and the emergency switch.
 
 - Code: `js/ai-lab.js` (both pages, loaded only on them)
 - Server: Supabase Edge Function `ai-lab` (`backend/functions/ai-lab/`)
 - Database: the "SalaamStreet AI" section at the end of `backend/supabase-schema.sql`
-- Tests: `tests/ai-lab.test.js` (server + database), the "ai lab" test in `tests/e2e.test.js` (both pages)
+- Tests: `tests/ai-lab.test.js` (server + database), the "ai lab" and "SalaamStreet AI 3.0" tests in `tests/e2e.test.js` (both pages)
+
+## 3.0: verified text, ratings, out of beta
+
+**Upgrading to 3.0:** run the whole updated `supabase-schema.sql` again (safe
+to re-run), then deploy `ai-lab` (the "Deploy Supabase" GitHub Action does
+both). It adds `ai_usage.rating` and `ai_rate()`. The AI Terms version is now
+`2026-10-18`, so everyone accepts the Terms once more.
+
+- **Verified text (`sources`).** The page looks up the app's own text — ayahs
+  mentioned in a question (up to 3, `findRefs()`), `/ayah`, `/reflect`,
+  `/tafsir` (Tafsir Ibn Kathir, up to 6,000 characters) and `/hadith` (the
+  10 collections, with gradings) — and sends it as `sources: [{ ref, text,
+  arabic?, grade? }]`, separate from the messages. Every later question in the
+  conversation sends them again (newest first). The server (`readSources()`)
+  accepts up to 8, 16,000 characters in all, and adds them to the system
+  instruction after the app data, introduced by `SOURCES_PROMPT` as data,
+  never instructions. The person sees them under the answer ("Verified text
+  from the app"), with links to the Qur'an and Hadith pages.
+- **Ayah links.** References in answers like "Al-Baqarah 2:255" or "(18:10)"
+  become links to `#/surah/2/255`; times ("at 5:30", "4:30 pm") don't.
+- **Ratings.** Each chat reply carries its usage `id`. 👍/👎 calls the `rate`
+  action (`{ id, rating: 1 | -1 | 0 }`); `ai_rate()` only changes the
+  caller's own successful chat from the last 24 hours, and stores only the
+  number. The Lab's Status card shows **Helpful · 7 days**.
+- **Read aloud and Save** run only in the browser (the device's speech voice;
+  a `.txt` download). Nothing new is stored.
+- **Deep link:** `#/ai/ask/<url-encoded text>` opens the page with that text in
+  the box (the tafsir sheet uses `/tafsir s:a`); nothing is sent until the
+  person presses Send.
+- "Beta" is gone from the page. `beta_open` keeps its name in the database and
+  the API; the Lab calls it "Open to everyone with an account".
 
 ## 3.0 Beta: who can use it, limits and the waiting list
 
@@ -236,6 +267,9 @@ Or directly in SQL: `update public.ai_settings set enabled = false;`
 - No API keys or session tokens are logged. Server logs only record error codes.
 - Per person (`ai_members`): which Terms version they accepted and when,
   their off-topic strike count and any pause. Never their messages.
+- 3.0: whether a person rated an answer helpful (`ai_usage.rating`: 1, -1 or
+  empty). The verified text sent with a question goes to Google like the
+  messages do, and isn't stored. "Save" downloads to the person's device only.
 
 ## Islamic questions only
 
@@ -330,13 +364,16 @@ Commands (type them, or tap the chips above the box):
 | `/help` | Lists the commands (answered on the page, not sent to Gemini) |
 | `/bookmarks` | Themes and reflections from your bookmarked ayahs |
 | `/ayah 2:255` | Explains an ayah, sending the Arabic and translation from the app |
+| `/tafsir 2:255` | Tafsir Ibn Kathir of an ayah in plain language, sending the tafsir and ayah from the app |
+| `/hadith nawawi 1` | Explains a hadith from the app's collections, with its gradings (`/hadith` alone lists them) |
 | `/progress` | How you're doing with Qur'an, prayers and dhikr, with next steps |
 | `/plan 30` | A plan to finish the Qur'an in N days from where you are |
 | `/dua exams` | Duas for a need, pointing out your favourites |
 | `/quiz seerah` | A 5-question quiz, one question at a time |
 | `/reflect` | A short reflection on your last-read ayah |
 
-To add a command, add an entry to `COMMANDS` in `js/ai-lab.js`.
+To add a command, add an entry to `COMMANDS` in `js/ai-lab.js`. Tab finishes
+a command that's been started, and the chips narrow as you type.
 
 ## Accuracy rules the model is given
 
@@ -345,8 +382,10 @@ invent Qur'an verses, hadith, quotations, citations or links; say when it is
 quoting from memory and that it should be checked; separate Qur'an/hadith,
 scholarly opinion and its own explanation; present differences of opinion
 fairly; never act as a mufti or issue rulings, and refer personal rulings to a
-qualified scholar. There's no live source lookup yet (stage 2), and the model
-is told to say so.
+qualified scholar. When the app sends verified text (3.0), the model is told
+to prefer it, quote it exactly, cite its reference and keep its grading;
+otherwise it says it is quoting from memory. It is also told to cite ayahs as
+"Surah Name s:a" so the page can link them.
 
 ## Tests
 
@@ -364,7 +403,12 @@ is told to say so.
 - Page (`tests/e2e.test.js`, real browser): Google sign-in → status → chat with
   history → copy → connection test → quota error → server unreachable →
   emergency switch → settings → phone and desktop widths → another account
-  refused, including calling the function directly.
+  refused, including calling the function directly. 3.0: the tafsir sheet's
+  link → Terms → `/tafsir` with verified text → a question mentioning an ayah
+  (and a time that isn't one) → ayah links → follow-ups → 👍/👎 saved → read
+  aloud → command completion → `/hadith` → Save → following a link and back.
+- Server (3.0): ratings only on your own recent answers, the Lab's 7-day
+  counts, and `sources` validation and placement.
 - `index.ts` type-checks with Deno 2, and `core.js` runs under Deno.
 
 **Not yet tested** (needs your accounts): a real request to Google's Gemini

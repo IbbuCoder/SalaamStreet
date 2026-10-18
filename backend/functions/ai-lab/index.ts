@@ -1,5 +1,5 @@
 // SalaamStreet — ai-lab (Supabase Edge Function, Deno)
-// SalaamStreet AI (3.0 Beta, for everyone with an account) and the admin's
+// SalaamStreet AI (3.0, for everyone with an account) and the admin's
 // private AI Testing Lab.
 // All the checks live in core.js (shared with the tests); this file connects
 // them to Supabase. See backend/README-ai.md for setup.
@@ -40,6 +40,7 @@ const store = {
   async userStatus(userId: string) { return must(await db.rpc("ai_user_status", { p_user: userId })); },
   async acceptTerms(userId: string, version: string) { return must(await db.rpc("ai_accept_terms", { p_user: userId, p_version: version })); },
   async strike(userId: string) { return must(await db.rpc("ai_strike", { p_user: userId })); },
+  async rate(userId: string, id: number, rating: number) { return must(await db.rpc("ai_rate", { p_user: userId, p_id: id, p_rating: rating })); },
   async finish(id: number, patch: Record<string, unknown>) { must(await db.from("ai_usage").update(patch).eq("id", id)); },
   async summary() { return must(await db.rpc("ai_usage_summary")); },
   async stats() { return must(await db.rpc("admin_stats")); },

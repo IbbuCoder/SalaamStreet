@@ -2095,7 +2095,7 @@ test("google sign-in always asks which account to use", async () => {
 /* ═══════════ AI Testing Lab (private) ═══════════
    The page talks to the REAL ai-lab server code (core.js, with its Postgres
    tables in PGlite) through the Supabase mock; only Gemini is a stand-in. */
-test("ai lab + SalaamStreet AI beta: the admin's Lab, everyone else's #/ai with its allowance and waiting list", async () => {
+test("ai lab + SalaamStreet AI: the admin's Lab, everyone else's #/ai with its allowance and waiting list", async () => {
   const crypto = require("crypto");
   const { aiDb, pgStore, fakeGemini } = require("./helpers/ai-lab-store");
   const { createHandler } = await import(path.join(ROOT, "backend/functions/ai-lab/core.js"));
@@ -2124,7 +2124,8 @@ test("ai lab + SalaamStreet AI beta: the admin's Lab, everyone else's #/ai with 
   await A.page.waitForSelector("#lab-app:not([hidden])", { timeout: 10000 });
   assert.match(await A.page.textContent("#lab-badges"), /AI requests on.*Gemini key set.*Model: gemini-3\.5-flash-lite/);
   assert.match(await A.page.textContent("#lab-stats"), /0 \/ 1,000/);
-  assert.match(await A.page.textContent("#lab-badges"), /Beta open/);
+  assert.match(await A.page.textContent("#lab-badges"), /Open to everyone/);
+  assert.match(await A.page.textContent("#lab-stats"), /Helpful · 7 days\s*No ratings yet/);
   assert.equal(await A.page.title(), "AI Testing Lab — SalaamStreet");
   await A.page.waitForFunction(() => /Accounts/.test(document.getElementById("lab-app-stats").textContent));
 
@@ -2241,7 +2242,7 @@ test("ai lab + SalaamStreet AI beta: the admin's Lab, everyone else's #/ai with 
   assert.equal(direct, 403);
   assert.equal(g.calls.length, 5, "two chats, /bookmarks, the quota-error try and one connection test reached Gemini; nothing from the other account");
 
-  // …but, like everyone with an account, it can use SalaamStreet AI (Beta) at #/ai.
+  // …but, like everyone with an account, it can use SalaamStreet AI at #/ai.
   await pg.query("update public.ai_usage set at = at - interval '2 minutes'");
   await pg.query("update public.ai_settings set user_daily_limit = 5, minute_limit = 1");
   await B.page.evaluate(() => { location.hash = "#/ai"; });
@@ -2258,7 +2259,7 @@ test("ai lab + SalaamStreet AI beta: the admin's Lab, everyone else's #/ai with 
   assert.equal((await pg.query("select count(*)::int as n from public.ai_members where terms_accepted_at is not null")).rows[0].n, 1, "acceptance recorded");
   assert.match(await B.page.textContent("#ai-rule"), /Islamic and SalaamStreet questions only.*pauses SalaamStreet AI for you for 7 days/);
   assert.equal(await B.page.title(), "SalaamStreet AI — SalaamStreet");
-  assert.match(await B.page.textContent("#lab-h"), /SalaamStreet AI\s*Beta/);
+  assert.equal((await B.page.textContent("#lab-h")).trim(), "SalaamStreet AI", "out of beta: no badge");
   assert.match(await B.page.textContent("#ai-quota"), /5 of 5 questions left today/);
   assert.equal(await B.page.$$eval("#lab-settings, #lab-badges, #lab-app-stats", (e) => e.length), 0, "none of the Lab's admin tools");
   await B.page.fill("#lab-input", "What is Laylat al-Qadr?");
@@ -2346,5 +2347,153 @@ test("ai lab + SalaamStreet AI beta: the admin's Lab, everyone else's #/ai with 
   await shot(B.page, "ai-beta-390");
   assert.deepEqual(B.page.errors, []);
   await A.context.close(); await B.context.close();
+  await pg.close();
+});
+
+/* SalaamStreet AI 3.0: answers built on the app's own Qur'an, tafsir and hadith, and the extras around them. */
+test("SalaamStreet AI 3.0: verified text from the app, ayah links, follow-ups, ratings, read aloud, save, command completion and the tafsir sheet's link", async () => {
+  const { aiDb, pgStore, fakeGemini } = require("./helpers/ai-lab-store");
+  const { createHandler } = await import(path.join(ROOT, "backend/functions/ai-lab/core.js"));
+  const mock = createMock();
+  const pg = await aiDb(), g = fakeGemini();
+  const env = { GEMINI_API_KEY: "AIzaE2E-fake-key-for-tests-0000000000", AI_ALLOWED_ORIGINS: base.replace(/\/$/, ""), AI_TIMEOUT_MS: "1500", AI_RETRY_PAUSE_MS: "1" };
+  mock.functions["ai-lab"] = createHandler({ env: (k) => env[k], fetch: g.fetch, store: pgStore(pg, (t) => mock.userForToken(t)), log: { warn() {} } });
+  const tick = () => pg.query("update public.ai_usage set at = at - interval '2 minutes'"); // past the per-person minute limit
+  const chats = () => g.calls.filter((c) => /generateContent/.test(c.url));
+  const lastAi = (sel) => `.lab-msg.ai:not(.lab-local):not(.lab-warn):last-of-type ${sel || ""}`;
+  const answers = () => A.page.$$eval(".lab-msg.ai:not(.lab-local):not(.lab-warn) > .lab-bubble", (b) => b.length);
+
+  const A = await device({ mock });
+  // The browser's own voice, replaced by a stand-in so the test can see what would be read.
+  await A.context.addInitScript(() => {
+    window.__spoken = [];
+    Object.defineProperty(window, "speechSynthesis", { configurable: true, value: { speak(u) { window.__spoken.push(u.text); }, cancel() { window.__spoken.push("(stop)"); } } });
+  });
+  await open(A.page, "#/account");
+  await A.page.click("#ac-signin");
+  await A.page.click('#acct-dialog[open] [data-method="apple"]');
+  await A.page.waitForFunction(() => window.SS && SS.account && SS.account.signedIn(), null, { timeout: 10000 });
+
+  // The tafsir sheet offers "Ask SalaamStreet AI about this ayah": it opens #/ai with /tafsir in the box, sending nothing.
+  await A.page.evaluate(() => { location.hash = "#/surah/112"; });
+  await A.page.waitForSelector("#ayah-1 [data-tafsir]");
+  await A.page.click("#ayah-1 [data-tafsir]");
+  await A.page.waitForSelector("#tafsir-dialog[open] #tafsir-ai:not([hidden])");
+  assert.equal(await A.page.getAttribute("#tafsir-ai", "href"), "#/ai/ask/%2Ftafsir%20112%3A1");
+  await A.page.click("#tafsir-ai");
+  await A.page.waitForSelector("#ai-terms-go");
+  assert.equal(await A.page.isVisible("#tafsir-dialog"), false, "the sheet closes");
+  await A.page.check("#ai-terms-ok");
+  await A.page.click("#ai-terms-go");
+  await A.page.waitForSelector("#lab-app:not([hidden]) #ai-quota");
+  assert.equal(await A.page.inputValue("#lab-input"), "/tafsir 112:1");
+  assert.match(A.page.url(), /#\/ai$/, "the link's text isn't left in the address");
+  assert.equal(chats().length, 0);
+  assert.equal(await A.page.isDisabled("#ai-save"), true, "nothing to save yet");
+
+  // /tafsir sends Ibn Kathir's text and the ayah from the app, as verified text beside (not inside) the question.
+  await A.page.press("#lab-input", "Enter");
+  await A.page.waitForFunction(() => document.querySelectorAll(".lab-msg.ai:not(.lab-local) > .lab-bubble:not(.lab-typing)").length === 1);
+  let call = chats().pop();
+  const verified = call.body.systemInstruction.parts.find((p) => /^Verified text from the app follows/.test(p.text));
+  assert.ok(verified, "sent as verified text");
+  assert.match(verified.text, /\[Al-Ikhlas 112:1\]\nآية\nIn the name of Allah/);
+  assert.match(verified.text, /\[Tafsir Ibn Kathir \(abridged\) on Al-Ikhlas 112:1\]\nCommentary for 112:1/);
+  assert.match(call.body.contents[0].parts[0].text, /^Al-Ikhlas 112:1\. Using Ibn Kathir's tafsir from the app/);
+  assert.doesNotMatch(call.body.contents[0].parts[0].text, /Commentary for/, "the person's own message limit isn't used up");
+  assert.equal(await A.page.textContent(".lab-msg.me .lab-bubble"), "/tafsir 112:1");
+  assert.match(await A.page.textContent(lastAi(".ai-src summary")), /Verified text from the app · 2/);
+  await A.page.click(lastAi(".ai-src summary"));
+  assert.equal(await A.page.getAttribute(lastAi(".ai-src-open"), "href"), "#/surah/112/1");
+  assert.match(await A.page.textContent(lastAi(".ai-src")), /Commentary for 112:1/);
+  // Ayah references in the answer link to the Qur'an.
+  assert.equal(await A.page.getAttribute(lastAi(".lab-bubble a.ai-ref"), "href"), "#/surah/112/1");
+
+  // A plain question that mentions an ayah carries its text; a time ("at 5:30") is left alone. Earlier sources stay with the conversation.
+  await tick();
+  await A.page.fill("#lab-input", "What does 2:255 teach? I read it at 5:30 after Fajr");
+  await A.page.press("#lab-input", "Enter");
+  await A.page.waitForFunction(() => document.querySelectorAll(".lab-msg.ai:not(.lab-local) > .lab-bubble:not(.lab-typing)").length === 2);
+  call = chats().pop();
+  const v2 = call.body.systemInstruction.parts.find((p) => /^Verified text from the app follows/.test(p.text)).text;
+  assert.match(v2, /\[Al-Baqarah 2:255\]/);
+  assert.match(v2, /\[Tafsir Ibn Kathir \(abridged\) on Al-Ikhlas 112:1\]/, "the earlier tafsir still goes with follow-ups");
+  assert.doesNotMatch(v2, /5:30/);
+  assert.equal(call.body.contents.slice(-1)[0].parts[0].text, "What does 2:255 teach? I read it at 5:30 after Fajr");
+  assert.match(await A.page.textContent(lastAi(".ai-src summary")), /· 1/);
+  assert.deepEqual(await A.page.$$eval(lastAi(".lab-bubble a.ai-ref"), (a) => a.map((x) => x.textContent + " " + x.getAttribute("href"))), ["2:255 #/surah/2/255"]);
+
+  // Follow-up chips sit under the latest answer only, and ask straight away.
+  assert.equal(await A.page.$$eval(".ai-follow", (f) => f.length), 1);
+  await tick();
+  await A.page.click('.ai-follow [data-ask="Sum it up in 3 points"]');
+  await A.page.waitForFunction(() => document.querySelectorAll(".lab-msg.ai:not(.lab-local) > .lab-bubble:not(.lab-typing)").length === 3);
+  assert.equal(chats().pop().body.contents.slice(-1)[0].parts[0].text, "Sum it up in 3 points");
+  assert.equal(await A.page.$$eval(".ai-follow", (f) => f.length), 1);
+
+  // "Was this helpful?": only the number reaches the server, and tapping again takes it back.
+  await A.page.click(lastAi('[data-rate][data-v="1"]'));
+  await A.page.waitForFunction(() => /glad it helped/.test(document.body.textContent));
+  assert.equal(await A.page.getAttribute(lastAi('[data-rate][data-v="1"]'), "aria-pressed"), "true");
+  assert.deepEqual((await pg.query("select rating from public.ai_usage where rating is not null")).rows, [{ rating: 1 }]);
+  await A.page.click(lastAi('[data-rate][data-v="-1"]'));
+  await A.page.waitForFunction(() => document.querySelector('.lab-msg.ai:not(.lab-local):last-of-type [data-rate][data-v="1"]').getAttribute("aria-pressed") === "false");
+  for (let i = 0; i < 20 && (await pg.query("select rating from public.ai_usage where rating = -1")).rows.length !== 1; i++) await A.page.waitForTimeout(100);
+  assert.deepEqual((await pg.query("select rating from public.ai_usage where rating is not null")).rows, [{ rating: -1 }]);
+
+  // Read aloud with the device's voice; tapping again stops.
+  await A.page.click(lastAi("[data-speak]"));
+  assert.equal(await A.page.textContent(lastAi("[data-speak]")), "Stop");
+  assert.deepEqual(await A.page.evaluate(() => window.__spoken), ["Test reply to: Sum it up in 3 points"]);
+  await A.page.click(lastAi("[data-speak]"));
+  assert.equal(await A.page.textContent(lastAi("[data-speak]")), "Read aloud");
+
+  // Commands: chips narrow as you type, Tab finishes one, and Enter finishes and runs one without arguments.
+  await A.page.fill("#lab-input", "/h");
+  assert.deepEqual(await A.page.$$eval("#lab-cmds .chip:not([hidden])", (c) => c.map((x) => x.textContent)), ["/help", "/hadith"]);
+  await A.page.fill("#lab-input", "/taf");
+  await A.page.press("#lab-input", "Tab");
+  assert.equal(await A.page.inputValue("#lab-input"), "/tafsir ");
+  await A.page.fill("#lab-input", "/hel");
+  await A.page.press("#lab-input", "Enter");
+  await A.page.waitForFunction(() => /\/hadith nawawi 1/.test([...document.querySelectorAll(".lab-local .lab-bubble")].pop().textContent));
+  // /hadith without a number lists the collections; with one it sends the hadith and its grading from the app.
+  await A.page.fill("#lab-input", "/hadith");
+  await A.page.press("#lab-input", "Enter");
+  await A.page.waitForFunction(() => /bukhari — Sahih al-Bukhari \(1–7563\)/.test([...document.querySelectorAll(".lab-local .lab-bubble")].pop().textContent));
+  await tick();
+  await A.page.fill("#lab-input", "/hadith abu dawud 7");
+  await A.page.press("#lab-input", "Enter");
+  await A.page.waitForFunction(() => document.querySelectorAll(".lab-msg.ai:not(.lab-local) > .lab-bubble:not(.lab-typing)").length === 4);
+  const v3 = chats().pop().body.systemInstruction.parts.find((p) => /^Verified text from the app follows/.test(p.text)).text;
+  assert.match(v3, /\[Sunan Abu Dawud 7\] \(grading: Sahih \(Al-Albani\); Daif \(Zubair Ali Zai\)\)\nHadith text abudawud 7/);
+  assert.equal(await A.page.getAttribute(lastAi(".ai-src-open"), "href"), "#/hadith/abudawud/7");
+
+  // Save: the conversation downloads as text on this device, sources included.
+  const [dl] = await Promise.all([A.page.waitForEvent("download"), A.page.click("#ai-save")]);
+  assert.match(dl.suggestedFilename(), /^salaamstreet-ai-\d{4}-\d{2}-\d{2}\.txt$/);
+  const saved = fs.readFileSync(await dl.path(), "utf8");
+  assert.match(saved, /^SalaamStreet AI — conversation, /);
+  assert.match(saved, /You:\n\/tafsir 112:1\n\nSalaamStreet AI:\n/);
+  assert.match(saved, /Verified text from the app — Sunan Abu Dawud 7 \(Sahih \(Al-Albani\)/);
+  assert.match(saved, /Answers can be wrong/);
+
+  if (SHOTS) {
+    await A.page.click(lastAi(".ai-src summary"));
+    await A.page.$eval(lastAi(""), (m) => m.scrollIntoView({ block: "end" }));
+    await shot(A.page, "ai-3-answer-390");
+  }
+
+  // Following an ayah link opens the Qur'an; coming back, the conversation is still there.
+  await A.page.click(".lab-msg.ai .lab-bubble a.ai-ref");
+  await A.page.waitForFunction(() => /#\/surah\/112\/1/.test(location.hash));
+  await A.page.goBack();
+  await A.page.waitForSelector("#lab-app:not([hidden]) .lab-msg");
+  assert.equal(await answers(), 4);
+
+  assert.equal(await A.page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true, "fits a phone");
+  await shot(A.page, "ai-3-390");
+  assert.deepEqual(A.page.errors, []);
+  await A.context.close();
   await pg.close();
 });

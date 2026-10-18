@@ -9,9 +9,9 @@
 // The private AI Testing Lab never looks at plans: only the admin check in
 // core.js lets someone in, so a plan can never stand in for admin access.
 //
-// 3.0 Beta: while billing is off, everyone with an account gets the beta
+// 3.0: while billing is off, everyone with an account gets the free daily
 // allowance (ai_settings.user_daily_limit in the database), not these
-// numbers. Free's 0 is what applies once plans go live, if the beta ends.
+// numbers. Free's 0 here is only a placeholder for if plans ever go live.
 
 export const BILLING_ENABLED = false;
 

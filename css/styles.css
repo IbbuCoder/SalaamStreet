@@ -2066,7 +2066,25 @@ html[data-theme="dark"] .msa-flag-note{color:#fcd34d}
 .lab-cmds .chip{font-family:var(--mono,ui-monospace,monospace);font-size:.8rem}
 .lab-data{display:flex;align-items:center;gap:8px;font-size:.85rem;margin:8px 0 0;cursor:pointer}
 .lab-local .lab-bubble{white-space:pre-line;border:1px dashed var(--text-3)}
-.ai-beta{vertical-align:middle;font-size:.7rem;margin-inline-start:6px}
+/* 3.0: verified text under answers, ayah links, follow-ups, read aloud and ratings */
+.ai-ref{color:var(--primary-strong);font-weight:600;text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:2px}
+.lab-msg.me .ai-ref{color:inherit}
+.ai-src{margin-block-start:6px;border:1px solid var(--border);border-radius:12px;background:var(--surface);font-size:.86rem;max-inline-size:100%}
+.ai-src summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px;padding:6px 10px;color:var(--primary-strong);font-weight:700}
+.ai-src summary::-webkit-details-marker{display:none}
+.ai-src summary::after{content:"▾";margin-inline-start:auto;color:var(--text-3)}
+.ai-src[open] summary::after{content:"▴"}
+.ai-src summary .ic{inline-size:16px;block-size:16px}
+.ai-src-item{padding:8px 10px;border-block-start:1px solid var(--border);display:grid;gap:4px;min-inline-size:0}
+.ai-src-item p{margin:0;overflow-wrap:anywhere}
+.ai-src-item .row-between{gap:8px;flex-wrap:wrap}
+.ai-src-item .arabic{font-size:1.15rem;line-height:1.9;text-align:right}
+.ai-src-open{font-size:.8rem;font-weight:600;color:var(--primary-strong)}
+.ai-rate{display:inline-flex;gap:2px}
+.lab-meta .btn[aria-pressed="true"]{color:var(--primary-strong);background:var(--primary-soft)}
+.lab-suggest.ai-follow{justify-content:flex-start;margin-block-start:8px}
+.lab-cmds .chip[hidden]{display:none}
+@media (max-width:480px){.lab-chat .lab-acts .btn-ghost span{display:none}}
 .ai-quota{margin:0 0 8px}
 .lab-wait .lab-bubble{white-space:normal;border:1px solid var(--gold);display:grid;gap:6px;justify-items:start}
 .lab-wait .lab-bubble p{margin:0}
