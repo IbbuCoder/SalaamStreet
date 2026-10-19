@@ -1563,17 +1563,18 @@ grant execute on function public.msa_student_add(text, text), public.msa_student
     public.msa_admin_list(), public.msa_admin_add(text), public.msa_admin_remove(text) to authenticated;
 
 -- ════════════════════════════════════════════════════════════════════════
---  SalaamStreet AI (3.0 Beta) and the admin's AI Testing Lab
+--  SalaamStreet AI (3.0) and the admin's AI Testing Lab
 --  Used only by the ai-lab Edge Function (backend/functions/ai-lab), which
 --  runs with the service role and checks every request's account: anyone
---  signed in (with a confirmed email) may chat during the beta; only the
+--  signed in (with a confirmed email) may chat; only the
 --  admin may use the Lab's status, settings and stats. Nothing
 --  here is reachable from the app's public key: no table or function is
 --  granted to anon or authenticated.
 --  • ai_settings: one row — the emergency switch, the model, limits and the
 --    prices used for cost estimates. Changed from the Lab page or here.
---  • ai_usage: one row per request — counts, tokens, estimated cost, status.
---    Never the conversation itself.
+--  • ai_usage: one row per request — counts, tokens, estimated cost, status,
+--    and whether the person found the answer helpful (3.0). Never the
+--    conversation itself.
 --  • ai_security_log: refused requests (who and why, never tokens or text).
 --  • ai_queue: the waiting list — who's waiting for the AI while it's busy.
 --  • ai_members: per person — which version of the AI Terms they accepted
@@ -1630,6 +1631,8 @@ create table if not exists public.ai_usage (
     error          text check (error is null or char_length(error) <= 80)
 );
 create index if not exists ai_usage_at on public.ai_usage (at);
+-- 3.0: "Was this helpful?" — 1 (yes) or -1 (no), set by the person who asked. Only the number.
+alter table public.ai_usage add column if not exists rating smallint check (rating is null or rating in (-1, 1));
 create index if not exists ai_usage_user_at on public.ai_usage (user_id, at);
 
 -- The waiting list. A person stays in line while their page keeps checking
@@ -1810,6 +1813,20 @@ begin
 end;
 $$;
 
+/** "Was this helpful?" on one of the person's own answers from the last day
+    (1, -1, or 0 to take it back). Returns ok false for anyone else's. */
+create or replace function public.ai_rate(p_user uuid, p_id bigint, p_rating integer)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare n integer;
+begin
+    if p_user is null or p_id is null or p_rating not in (-1, 0, 1) then raise exception 'bad request' using errcode = '22023'; end if;
+    update public.ai_usage set rating = nullif(p_rating, 0)::smallint
+        where id = p_id and user_id = p_user and kind = 'chat' and status = 'ok' and at > now() - interval '1 day';
+    get diagnostics n = row_count;
+    return jsonb_build_object('ok', n = 1);
+end;
+$$;
+
 /** Leave the waiting list (the person cancelled or left the page). */
 create or replace function public.ai_dequeue(p_user uuid)
 returns void language sql security definer set search_path = public as $$
@@ -1832,6 +1849,8 @@ returns jsonb language sql stable security definer set search_path = public as $
         'waiting_now', (select count(*) from public.ai_queue where seen_at >= now() - interval '30 seconds'),
         'off_topic_today', (select count(*) from public.ai_security_log, day where event in ('off_topic', 'banned') and at >= day.start),
         'banned_now', (select count(*) from public.ai_members where banned_until > now()),
+        'helpful_7d', (select count(*) from public.ai_usage, day where rating = 1 and at >= day.start - interval '6 days'),
+        'unhelpful_7d', (select count(*) from public.ai_usage, day where rating = -1 and at >= day.start - interval '6 days'),
         'resets_at', (select day.start + interval '1 day' from day));
 $$;
 
@@ -1856,13 +1875,13 @@ end;
 $$;
 
 revoke all on function public.ai_reserve(uuid, text, boolean), public.ai_enqueue(uuid), public.ai_user_status(uuid), public.ai_dequeue(uuid),
-    public.ai_accept_terms(uuid, text), public.ai_strike(uuid), public.ai_usage_summary(), public.admin_stats() from public, anon, authenticated;
+    public.ai_accept_terms(uuid, text), public.ai_strike(uuid), public.ai_rate(uuid, bigint, integer), public.ai_usage_summary(), public.admin_stats() from public, anon, authenticated;
 do $$
 begin
     if exists (select 1 from pg_roles where rolname = 'service_role') then
         grant select, insert, update, delete on public.ai_settings, public.ai_usage, public.ai_security_log, public.ai_queue, public.ai_members to service_role;
         grant execute on function public.ai_reserve(uuid, text, boolean), public.ai_enqueue(uuid), public.ai_user_status(uuid), public.ai_dequeue(uuid),
-            public.ai_accept_terms(uuid, text), public.ai_strike(uuid), public.ai_usage_summary(), public.admin_stats() to service_role;
+            public.ai_accept_terms(uuid, text), public.ai_strike(uuid), public.ai_rate(uuid, bigint, integer), public.ai_usage_summary(), public.admin_stats() to service_role;
     end if;
 end;
 $$;

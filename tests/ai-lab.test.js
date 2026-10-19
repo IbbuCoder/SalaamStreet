@@ -646,3 +646,72 @@ test("the retry can use a fallback model", async () => {
   assert.equal(r.body.model, "gemini-backup-1");
   assert.deepEqual(g.calls.map((c) => c.url.split("/models/")[1]), ["gemini-3.5-flash-lite:generateContent", "gemini-backup-1:generateContent"]);
 });
+
+/* ═══════════ 3.0: "Was this helpful?" and verified text from the app ═══════════ */
+
+test("helpful or not: people rate only their own recent answers; the Lab sees 7-day counts, never the text", async () => {
+  const { pg, chat, call } = await setup();
+  await call("admin", { action: "settings", patch: { minute_limit: 100 } });
+  const a = await chat("p1", "What is tawakkul?");
+  assert.equal(a.status, 200, a.text);
+  assert.ok(Number.isSafeInteger(a.body.id) && a.body.id > 0, "the reply carries its usage id");
+  const b = await chat("p2", "What is sabr?");
+
+  assert.deepEqual((await call("p1", { action: "rate", id: a.body.id, rating: 1 })).body, { ok: true, id: a.body.id, rating: 1 });
+  assert.equal((await call("p2", { action: "rate", id: b.body.id, rating: -1 })).status, 200);
+  // Someone else's answer, a missing one, or a bad rating: refused, and nothing changes.
+  const theirs = await call("p2", { action: "rate", id: a.body.id, rating: -1 });
+  assert.equal(theirs.status, 404);
+  assert.equal(theirs.body.error, "not_found");
+  assert.equal((await call("p1", { action: "rate", id: 999999, rating: 1 })).status, 404);
+  for (const bad of [{ id: a.body.id, rating: 5 }, { id: "x", rating: 1 }, { rating: 1 }, { id: -1, rating: 1 }]) {
+    assert.equal((await call("p1", Object.assign({ action: "rate" }, bad))).status, 400, JSON.stringify(bad));
+  }
+  assert.equal((await call(null, { action: "rate", id: a.body.id, rating: 1 })).status, 401);
+  assert.deepEqual((await pg.query("select rating from public.ai_usage order by id")).rows.map((r) => r.rating), [1, -1]);
+
+  let s = (await call("admin", { action: "status" })).body.usage;
+  assert.deepEqual([s.helpful_7d, s.unhelpful_7d], [1, 1]);
+  // 0 takes a rating back.
+  assert.equal((await call("p2", { action: "rate", id: b.body.id, rating: 0 })).status, 200);
+  s = (await call("admin", { action: "status" })).body.usage;
+  assert.deepEqual([s.helpful_7d, s.unhelpful_7d], [1, 0]);
+  // After a day an answer can't be rated any more.
+  await pg.query("update public.ai_usage set at = at - interval '25 hours'");
+  assert.equal((await call("p1", { action: "rate", id: a.body.id, rating: -1 })).status, 404);
+  // Nobody but the service role can call it.
+  await pg.exec("set role authenticated;");
+  try { await assert.rejects(pg.query("select public.ai_rate($1, 1, 1)", [users.p1.id]), /permission denied/); } finally { await pg.exec("reset role;"); }
+});
+
+test("the assistant is told to prefer the app's verified text, quote it exactly and cite ayahs so they can be linked", async () => {
+  const { SYSTEM_PROMPT } = await load();
+  assert.match(SYSTEM_PROMPT, /Verified text from the app/);
+  assert.match(SYSTEM_PROMPT, /quote it exactly, cite the reference it gives/);
+  assert.match(SYSTEM_PROMPT, /Al-Baqarah 2:255/);
+  assert.doesNotMatch(SYSTEM_PROMPT, /\(Beta\)/);
+});
+
+test("verified texts the page attaches go to the assistant as data, after the app data, within their limits", async () => {
+  const { g, call } = await setup();
+  const ask = (sources, extra) => call("admin", Object.assign({ action: "chat", messages: [{ role: "user", text: "Explain 2:255" }], sources }, extra || {}));
+  const r = await ask([{ ref: "Al-Baqarah 2:255", arabic: "ٱللَّهُ لَآ إِلَٰهَ إِلَّا هُوَ", text: "Allah - there is no deity except Him" },
+    { ref: "Sahih al-Bukhari 1", grade: "Sahih (Darussalam)", text: "Actions are by intentions" }], { context: { today: "2026-10-18" } });
+  assert.equal(r.status, 200, r.text);
+  const parts = g.calls[0].body.systemInstruction.parts;
+  assert.equal(parts.length, 3);
+  assert.match(parts[1].text, /"today":"2026-10-18"/, "app data stays second");
+  assert.match(parts[2].text, /^Verified text from the app follows/);
+  assert.match(parts[2].text, /\[Al-Baqarah 2:255\]\nٱللَّهُ لَآ إِلَٰهَ إِلَّا هُوَ\nAllah - there is no deity except Him\n\n\[Sahih al-Bukhari 1\] \(grading: Sahih \(Darussalam\)\)\nActions are by intentions/);
+  assert.equal(g.calls[0].body.contents.length, 1, "never added to the conversation itself");
+  // Without sources nothing extra is sent.
+  await call("admin", { action: "chat", messages: [{ role: "user", text: "Salaam" }] });
+  assert.equal(g.calls[1].body.systemInstruction.parts.length, 1);
+  // Bad shapes and too much text are refused before Google is asked.
+  for (const bad of ["x", [{ ref: "a" }], [{ text: "b" }], [null], Array.from({ length: 9 }, () => ({ ref: "r", text: "t" }))]) {
+    assert.equal((await ask(bad)).status, 400, JSON.stringify(bad).slice(0, 60));
+  }
+  const big = await ask([{ ref: "a", text: "x".repeat(9000) }, { ref: "b", text: "y".repeat(9000) }]);
+  assert.equal(big.status, 413);
+  assert.equal(g.calls.length, 2);
+});

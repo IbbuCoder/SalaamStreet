@@ -224,8 +224,35 @@
   ];
 
   /* ── Version & release notes (newest first) ──────────────────────── */
-  SS.VERSION = "3.0.0-beta";
+  SS.VERSION = "3.0.0";
   SS.CHANGELOG = [
+    {
+      v: "3.0.0", date: "2026-10-18",
+      en: "The AI update", ar: "تحديث الذكاء الاصطناعي",
+      den: "SalaamStreet AI is out of beta. It now answers from the app's own Qur'an, tafsir and hadith wherever it can, shows you that text under its answer, and links every ayah it mentions. Plus follow-up suggestions, read aloud, saving a conversation and telling us when an answer helped. It's still free for everyone with an account.",
+      dar: "خرج مساعد SalaamStreet الذكي من المرحلة التجريبية. صار يجيب من نصوص القرآن والتفسير والحديث في التطبيق نفسه كلما أمكن، ويعرض لك النص تحت إجابته، ويربط كل آية يذكرها. إضافة إلى أسئلة متابعة مقترحة، والقراءة بصوت عالٍ، وحفظ المحادثة، وإخبارنا إن أفادتك الإجابة. ولا يزال مجانيًا لكل من لديه حساب.",
+      groups: [
+        { en: "Answers built on verified text", ar: "إجابات مبنية على نصوص موثّقة", items: [
+          { en: "Mention an ayah like 2:255 and its Arabic and translation from the app go with your question, so it's quoted exactly", ar: "اذكر آية مثل 2:255 فيُرسَل نصها العربي وترجمتها من التطبيق مع سؤالك لتُقتبس كما هي" },
+          { en: "New /tafsir 2:255 explains Tafsir Ibn Kathir for an ayah in plain language, from the app's own tafsir text", ar: "الأمر الجديد ‎/tafsir 2:255 يشرح تفسير ابن كثير للآية بلغة بسيطة، من نص التفسير في التطبيق" },
+          { en: "New /hadith nawawi 1 (or bukhari, muslim, abu dawud…) explains a hadith from the app's 10 collections, with its grading", ar: "الأمر الجديد ‎/hadith nawawi 1 (أو bukhari وmuslim وabu dawud…) يشرح حديثًا من مجموعات التطبيق العشر مع درجته" },
+          { en: "“Verified text from the app” under each answer shows exactly what it was given, with a link to open it in the Qur'an or Hadith", ar: "«نص موثّق من التطبيق» تحت كل إجابة يعرض ما أُعطي بالضبط، مع رابط لفتحه في القرآن أو الحديث" },
+          { en: "Ayah references in answers are links: tap one to read it in the Qur'an, then come back to your conversation", ar: "مراجع الآيات في الإجابات روابط: اضغط إحداها لقراءتها في المصحف ثم عُد إلى محادثتك" },
+          { en: "In the tafsir sheet: “Ask SalaamStreet AI about this ayah”", ar: "في نافذة التفسير: «اسأل مساعد SalaamStreet الذكي عن هذه الآية»" },
+        ] },
+        { en: "Easier to use", ar: "استخدام أسهل", items: [
+          { en: "Follow-up suggestions under the latest answer: explain it more simply, the evidence, a dua for it, or a 3-point summary", ar: "اقتراحات متابعة تحت آخر إجابة: شرح أبسط، أو الدليل، أو دعاء مناسب، أو ملخص في ثلاث نقاط" },
+          { en: "Read aloud: any answer, in your device's own voice", ar: "القراءة بصوت عالٍ: أي إجابة بصوت جهازك" },
+          { en: "Save: download the conversation as a text file — it's kept only on your device", ar: "حفظ: نزّل المحادثة ملفًا نصيًا — يبقى على جهازك فقط" },
+          { en: "Was it helpful? Tap 👍 or 👎 — only the rating is kept, never what you asked", ar: "هل أفادتك؟ اضغط 👍 أو 👎 — يُحفظ التقييم فقط، لا ما سألت عنه" },
+          { en: "Commands finish themselves: type /taf and press Tab, and the chips narrow as you type", ar: "الأوامر تكتمل تلقائيًا: اكتب ‎/taf واضغط Tab، وتضيق الاقتراحات أثناء الكتابة" },
+        ] },
+        { en: "Out of beta", ar: "خارج المرحلة التجريبية", items: [
+          { en: "SalaamStreet AI is no longer a beta — still free for everyone with an account, with a daily allowance", ar: "لم يعد مساعد SalaamStreet الذكي تجريبيًا — ولا يزال مجانيًا لكل من لديه حساب مع عدد يومي من الأسئلة" },
+          { en: "Updated Terms of Use: you'll be asked to agree once more before your next question", ar: "تحديث شروط الاستخدام: سيُطلب منك الموافقة مرة أخرى قبل سؤالك التالي" },
+        ] },
+      ],
+    },
     {
       v: "3.0.0-beta", date: "2026-10-12",
       en: "SalaamStreet AI (Beta)", ar: "مساعد SalaamStreet الذكي (تجريبي)",
@@ -657,9 +684,6 @@
   });
   /* What's planned — honest plans in order, never dates. Nothing here is released yet. */
   SS.ROADMAP = [
-    { v: "3.0.0", icon: "sparkle", en: "The AI update", ar: "تحديث الذكاء الاصطناعي",
-      den: "SalaamStreet AI: an Islamic AI tutor for Qur'an and tafsir study, questions about Islam, learning and planning — honest about its sources and never issuing rulings. Everything free today stays free. Now in beta for everyone with an account; optional plans come later.",
-      dar: "سلام ستريت بالذكاء الاصطناعي: معلّم إسلامي ذكي لدراسة القرآن والتفسير، والأسئلة عن الإسلام، والتعلّم والتخطيط — صادق في مصادره ولا يُصدر فتاوى. كل ما هو مجاني اليوم يبقى مجانيًا. متاح الآن تجريبيًا لكل من لديه حساب، والخطط الاختيارية لاحقًا." },
     { v: "3.1.0", icon: "user", en: "Personalization", ar: "التخصيص",
       den: "A Home screen you arrange yourself: dashboard cards, favourite tools and shortcuts, more notification choices and better mode suggestions.",
       dar: "شاشة رئيسية ترتّبها بنفسك: بطاقات وأدوات مفضلة واختصارات، وخيارات أكثر للتنبيهات، واقتراحات أفضل للأوضاع." },

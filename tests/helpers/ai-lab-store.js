@@ -55,6 +55,7 @@ function pgStore(pg, getUser) {
     userStatus: async (uid) => (await q("select public.ai_user_status($1) as r", [uid])).rows[0].r,
     acceptTerms: async (uid, v) => (await q("select public.ai_accept_terms($1, $2) as r", [uid, v])).rows[0].r,
     strike: async (uid) => (await q("select public.ai_strike($1) as r", [uid])).rows[0].r,
+    rate: async (uid, id, rating) => (await q("select public.ai_rate($1, $2, $3) as r", [uid, id, rating])).rows[0].r,
     finish: async (id, patch) => {
       const keys = Object.keys(patch);
       await q(`update public.ai_usage set ${keys.map((k, i) => `${k} = $${i + 1}`).join(", ")} where id = $${keys.length + 1}`, keys.map((k) => patch[k]).concat([id]));

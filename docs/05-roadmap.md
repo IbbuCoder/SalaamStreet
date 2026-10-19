@@ -98,9 +98,15 @@ laptops and large monitors. Core worship features are, and will stay, free.
   that use your own bookmarks and progress, a daily allowance per person, and a fair waiting list when it's busy.
   Full notes: [`release-notes/3.0.0-beta.md`](release-notes/3.0.0-beta.md)
 
+- **3.0.0 — The AI update:** SalaamStreet AI out of beta, answering from
+  the app's own Qur'an, tafsir and hadith (`/tafsir`, `/hadith`, ayahs
+  mentioned in a question), with ayah links, follow-ups, read aloud, save and
+  👍/👎. Free for everyone with an account; paid plans deferred.
+  Full notes: [`release-notes/3.0.0.md`](release-notes/3.0.0.md)
+
 ## Planned (no release dates; plans may change)
 
-The plan after 3.0 Beta lives in [`ROADMAP.md`](../ROADMAP.md) (with status, dependencies, risks and completion
+The plan after 3.0 lives in [`ROADMAP.md`](../ROADMAP.md) (with status, dependencies, risks and completion
 criteria for each release). The same list appears in the app under About → Updates (`SS.ROADMAP` in
 `js/content.js`).
 

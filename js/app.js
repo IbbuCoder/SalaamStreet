@@ -476,11 +476,11 @@
   }
   SS.navigate = navigate;
 
-  /* SalaamStreet AI (#/ai, 3.0 Beta) and the private AI Testing Lab (#/lab,
+  /* SalaamStreet AI (#/ai, 3.0) and the private AI Testing Lab (#/lab,
      in no menu) share one script, loaded only when one of them opens. Who may
      use them is decided by the server (backend/functions/ai-lab). */
   var aiLoading = null;
-  var AI_REV = "2026-10-13b"; // change whenever js/ai-lab.js changes
+  var AI_REV = "2026-10-18"; // change whenever js/ai-lab.js changes
   function aiScript(view, params) {
     var run = function () { if (currentView === view && SS.aiPage) SS.aiPage(view, params); };
     if (SS.aiPage) return run();

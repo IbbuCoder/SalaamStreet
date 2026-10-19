@@ -775,6 +775,13 @@
     $("tafsir-surah").textContent = surahName(meta) + " · " + f("tafsir.ayahN", { n: ayah });
     $("tafsir-prev").disabled = ayah <= 1;
     $("tafsir-next").disabled = ayah >= meta.ayahs;
+    // 3.0: ask SalaamStreet AI about this ayah (it opens with "/tafsir s:a" in the box; nothing is sent until they do).
+    var askAi = $("tafsir-ai");
+    if (askAi) {
+      askAi.hidden = !(SS.CONFIG && SS.CONFIG.supabaseUrl) || !!(SS.modes && SS.modes.active && SS.modes.active() === "kids");
+      askAi.setAttribute("href", "#/ai/ask/" + encodeURIComponent("/tafsir " + surah + ":" + ayah));
+      askAi.onclick = function () { dlg.close(); };
+    }
     $("tafsir-prev").onclick = function () { showTafsir(tfSurah, tfAyah - 1); };
     $("tafsir-next").onclick = function () { showTafsir(tfSurah, tfAyah + 1); };
     body.setAttribute("aria-busy", "true");
