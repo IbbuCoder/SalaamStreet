@@ -117,12 +117,15 @@
     if (mins < 24 * 60) return f("msa.hoursAgo", { n: Math.round(mins / 60) });
     return dateLabel(iso);
   }
-  /** Escaped text with line breaks kept and web links made tappable. */
+  /** Escaped text with line breaks kept and web links made tappable — with or
+      without "https://" (posters often write just "icnyouth.org/reconnect"). */
+  var LINK_RE = /(^|[^\w@.\/-])((?:https?:\/\/|www\.)[^\s<]+|(?:[a-z0-9-]+\.)+(?:com|org|net|edu|gov|io|co|us|me|app|info|ly|gg|ca|uk)(?:\/[^\s<]*)?(?![\w@-]))/gi;
   function richText(s) {
-    return esc(s).replace(/https?:\/\/[^\s<]+/g, function (u) {
+    return esc(s).replace(LINK_RE, function (m, pre, u) {
       var tail = (u.match(/[).,!?;:'"]+$/) || [""])[0];
       var url = u.slice(0, u.length - tail.length);
-      return '<a href="' + url + '" target="_blank" rel="noopener noreferrer">' + url.replace(/^https?:\/\//, "") + "</a>" + tail;
+      var href = /^https?:\/\//i.test(url) ? url : "https://" + url;
+      return pre + '<a href="' + href + '" target="_blank" rel="noopener noreferrer">' + url.replace(/^https?:\/\//i, "") + "</a>" + tail;
     });
   }
   function dismissed() { var d = SS.store.get(DISMISS_KEY, []); return Array.isArray(d) ? d : []; }
