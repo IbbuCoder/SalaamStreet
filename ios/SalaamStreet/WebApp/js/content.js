@@ -224,8 +224,21 @@
   ];
 
   /* ── Version & release notes (newest first) ──────────────────────── */
-  SS.VERSION = "3.0.3";
+  SS.VERSION = "3.0.4";
   SS.CHANGELOG = [
+    {
+      v: "3.0.4", date: "2026-10-28",
+      en: "MSA announcements for members", ar: "إعلانات الرابطة للأعضاء",
+      den: "NVHS MSA announcements are now for members only. Not a member yet? Sign in with your school email, or — to see them on your personal account — ask Ibrahim Ahmed for the meeting code.",
+      dar: "صارت إعلانات رابطة NVHS للأعضاء فقط. لست عضوًا بعد؟ سجّل الدخول ببريدك المدرسي، أو — لتراها على حسابك الشخصي — اطلب رمز الاجتماع من إبراهيم أحمد.",
+      groups: [
+        { en: "NVHS MSA", ar: "رابطة NVHS", items: [
+          { en: "Announcements and their pictures are only shown to MSA members (and on members' Home)", ar: "تظهر الإعلانات وصورها لأعضاء الرابطة فقط (وفي الصفحة الرئيسية للأعضاء)" },
+          { en: "On a personal account? Ask Ibrahim Ahmed for the 6-digit meeting code in person, by text or by email — each code works for 10 minutes", ar: "على حساب شخصي؟ اطلب رمز الاجتماع المكوّن من ٦ أرقام من إبراهيم أحمد شخصيًا أو برسالة أو بالبريد — كل رمز صالح ١٠ دقائق" },
+          { en: "For MSA admins: the meeting code shows the time it changes (on the ten minutes), not a countdown", ar: "لمسؤولي الرابطة: يعرض رمز الاجتماع وقت تغيّره (كل عشر دقائق)، لا عدًّا تنازليًا" },
+        ] },
+      ],
+    },
     {
       v: "3.0.3", date: "2026-10-28",
       en: "Fairer bans", ar: "حظر أكثر إنصافًا",

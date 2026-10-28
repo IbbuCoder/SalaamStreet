@@ -616,7 +616,7 @@
       "msa.removeImage": "Remove",
       "msa.imageError": "That image couldn't be used. Try a JPEG or PNG photo.",
       "msa.photoNote": "Only post photos of students with their permission. Location data is removed from photos automatically.",
-      "msa.fHome": "Show on everyone's Home",
+      "msa.fHome": "Show on members' Home",
       "msa.fHomeSub": "A slim card at the top of Home. People can hide it.",
       "msa.fPin": "Pin to the top",
       "msa.fExpires": "Show for",
@@ -1503,6 +1503,15 @@
       "ban.signOut": "Sign out",
       "ban.pageBlocked": "This needs your account, which is banned.",
       "account.statusRestricted": "Sync is off while your account is banned",
+      // 3.0.4 — MSA announcements for members only
+      "msa.membersOnlyTitle": "Announcements are for NVHS MSA members",
+      "msa.membersOnlyText": "Join below to see them — with your school email, or with the meeting code.",
+      "msa.personalTitle": "On your personal account?",
+      "msa.personalText": "To see announcements on your main account instead of your school one, ask Ibrahim Ahmed for the 6-digit meeting code — in person, by text or by email. Enter your full name and the code; each code works for 10 minutes.",
+      "msa.textIbrahim": "Text (464) 243-3663",
+      "msa.emailIbrahim": "Email ibrahim.asim.contact@gmail.com",
+      "msa.signInFirst": "Sign in first (with any account), then enter your name and the code here.",
+      "msa.codeUntil": "Current code until {t}",
     },
 
     ar: {
@@ -2115,7 +2124,7 @@
       "msa.removeImage": "إزالة",
       "msa.imageError": "تعذّر استخدام هذه الصورة. جرّب صورة JPEG أو PNG.",
       "msa.photoNote": "لا تنشر صور الطلاب إلا بإذنهم. تُزال بيانات الموقع من الصور تلقائيًا.",
-      "msa.fHome": "اعرضه في الرئيسية للجميع",
+      "msa.fHome": "اعرضه في الرئيسية للأعضاء",
       "msa.fHomeSub": "بطاقة صغيرة أعلى الرئيسية، ويمكن إخفاؤها.",
       "msa.fPin": "تثبيت في الأعلى",
       "msa.fExpires": "مدة العرض",
@@ -3002,6 +3011,15 @@
       "ban.signOut": "تسجيل الخروج",
       "ban.pageBlocked": "هذا يحتاج إلى حسابك، وهو محظور.",
       "account.statusRestricted": "المزامنة متوقفة ما دام حسابك محظورًا",
+      // 3.0.4 — MSA announcements for members only
+      "msa.membersOnlyTitle": "الإعلانات لأعضاء رابطة NVHS فقط",
+      "msa.membersOnlyText": "انضم أدناه لتراها — ببريدك المدرسي أو برمز الاجتماع.",
+      "msa.personalTitle": "على حسابك الشخصي؟",
+      "msa.personalText": "لترى الإعلانات على حسابك الرئيسي بدل حسابك المدرسي، اطلب رمز الاجتماع المكوّن من ٦ أرقام من إبراهيم أحمد — شخصيًا أو برسالة نصية أو بالبريد. أدخل اسمك الكامل والرمز؛ كل رمز صالح ١٠ دقائق.",
+      "msa.textIbrahim": "رسالة نصية: ‎(464) 243-3663",
+      "msa.emailIbrahim": "البريد: ibrahim.asim.contact@gmail.com",
+      "msa.signInFirst": "سجّل الدخول أولًا (بأي حساب)، ثم أدخل اسمك والرمز هنا.",
+      "msa.codeUntil": "الرمز الحالي حتى {t}",
     },
   };
 

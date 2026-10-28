@@ -56,7 +56,7 @@ test("the poster list ships as hashes, never email addresses", async () => {
   assert.equal(r.rows[0].n, 3, "2.11.8: the two owners, plus the test's own poster");
 });
 
-test("a poster posts, edits and deletes; everyone (even signed out) reads", async () => {
+test("a poster posts, edits and deletes; members read (3.0.4: nobody else)", async () => {
   const pg = await db();
   assert.equal(await rpc(pg, POSTER, "msa_is_poster"), true);
   const a = await save(pg, POSTER, { title: "  Bake sale Friday ", body: "Room 1234 after school.\nBring a friend!", image: IMG, on_home: true });
@@ -64,10 +64,13 @@ test("a poster posts, edits and deletes; everyone (even signed out) reads", asyn
   assert.equal(a.has_image, true);
   assert.equal(a.created_by, undefined, "who posted is never sent out");
   const b = await save(pg, POSTER, { title: "Jumu'ah this week", pinned: true });
-  let feed = await rpc(pg, null, "msa_feed");
+  let feed = await rpc(pg, POSTER, "msa_feed");
   assert.deepEqual(feed.map((p) => p.title), ["Jumu'ah this week", "Bake sale Friday"], "pinned first, then newest");
   assert.equal(feed[1].image, undefined, "the feed leaves images out");
-  assert.equal(await rpc(pg, null, "msa_image", { p_id: a.id }), IMG);
+  assert.equal(await rpc(pg, POSTER, "msa_image", { p_id: a.id }), IMG);
+  assert.deepEqual(await rpc(pg, null, "msa_feed"), [], "3.0.4: signed out, nothing");
+  assert.deepEqual(await rpc(pg, OTHER, "msa_feed"), [], "3.0.4: not a member, nothing");
+  assert.equal(await rpc(pg, null, "msa_image", { p_id: a.id }), null);
   assert.equal(await rpc(pg, OTHER, "msa_image", { p_id: b.id }), null);
 
   const edited = await save(pg, POSTER, { id: a.id, title: "Bake sale moved to Monday", body: "Same room." });
@@ -77,7 +80,7 @@ test("a poster posts, edits and deletes; everyone (even signed out) reads", asyn
   assert.equal(noImg.has_image, false);
 
   await rpc(pg, POSTER, "msa_post_delete", { p_id: b.id });
-  feed = await rpc(pg, OTHER, "msa_feed");
+  feed = await rpc(pg, POSTER, "msa_feed");
   assert.deepEqual(feed.map((p) => p.title), ["Bake sale moved to Monday"]);
 });
 
@@ -99,7 +102,7 @@ test("nobody else can post, edit or delete — signed in or not", async () => {
     await assert.rejects(as(pg, uid, `insert into public.msa_admins values (sha256('x'))`), /permission denied/);
     await assert.rejects(rpc(pg, uid, "msa_poster"), /permission denied/);
   }
-  const feed = await rpc(pg, null, "msa_feed");
+  const feed = await rpc(pg, POSTER, "msa_feed");
   assert.deepEqual(feed.map((p) => p.title), ["Meeting"]);
 });
 
@@ -123,9 +126,9 @@ test("input is checked: title, length, image format and size; expired posts disa
   await assert.rejects(save(pg, POSTER, { id: "44444444-4444-4444-4444-444444444444", title: "ghost" }), /no such post/);
   const gone = await save(pg, POSTER, { title: "Yesterday's event", image: IMG, expires_at: new Date(Date.now() - 1000).toISOString() });
   await save(pg, POSTER, { title: "Next week", expires_at: new Date(Date.now() + 7 * 864e5).toISOString() });
-  const feed = await rpc(pg, null, "msa_feed");
+  const feed = await rpc(pg, POSTER, "msa_feed");
   assert.deepEqual(feed.map((p) => p.title), ["Next week"]);
-  assert.equal(await rpc(pg, null, "msa_image", { p_id: gone.id }), null, "an expired post's image is gone too");
+  assert.equal(await rpc(pg, POSTER, "msa_image", { p_id: gone.id }), null, "an expired post's image is gone too");
 });
 
 /* ═══════════ 2.11.6 Membership ═══════════ */
@@ -143,25 +146,25 @@ async function club() {
 const join = (pg, uid, name, code) => rpc(pg, uid, "msa_join", code === undefined ? { p_name: name } : { p_name: name, p_code: code });
 const feedTitles = async (pg, uid) => (await rpc(pg, uid, "msa_feed")).map((p) => p.title);
 
-test("members-only posts reach members, posters and the approver — nobody else", async () => {
+test("3.0.4: every announcement reaches members, posters and the approver — nobody else", async () => {
   const pg = await club();
   await save(pg, POSTER, { title: "Public bake sale" });
   const secret = await save(pg, POSTER, { title: "Meeting in room 1234", members_only: true, image: IMG });
   assert.equal(secret.members_only, true);
-  assert.deepEqual(await feedTitles(pg, null), ["Public bake sale"]);
-  assert.deepEqual(await feedTitles(pg, AMINA), ["Public bake sale"]);
+  assert.deepEqual(await feedTitles(pg, null), []);
+  assert.deepEqual(await feedTitles(pg, AMINA), []);
   assert.equal(await rpc(pg, AMINA, "msa_image", { p_id: secret.id }), null, "the image is members-only too");
   assert.equal((await feedTitles(pg, POSTER)).length, 2);
   assert.equal((await feedTitles(pg, APPROVER)).length, 2);
   // Amina asks; the approver approves; now she sees it.
   assert.equal((await join(pg, AMINA, "amina  YUSUF")).status, "pending");
-  assert.deepEqual(await feedTitles(pg, AMINA), ["Public bake sale"], "waiting isn't membership");
+  assert.deepEqual(await feedTitles(pg, AMINA), [], "waiting isn't membership");
   await rpc(pg, APPROVER, "msa_decide", { p_user: AMINA, p_action: "approve" });
   assert.deepEqual((await feedTitles(pg, AMINA)).sort(), ["Meeting in room 1234", "Public bake sale"]);
   assert.equal(await rpc(pg, AMINA, "msa_image", { p_id: secret.id }), IMG);
   // Membership ends at the end of the school year.
   await pg.query(`update public.msa_members set expires_at = now() - interval '1 second' where user_id = $1`, [AMINA]);
-  assert.deepEqual(await feedTitles(pg, AMINA), ["Public bake sale"]);
+  assert.deepEqual(await feedTitles(pg, AMINA), []);
   assert.equal((await rpc(pg, AMINA, "msa_status")).status, "none");
 });
 

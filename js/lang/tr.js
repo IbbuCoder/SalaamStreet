@@ -661,7 +661,7 @@ SS.i18n.register("tr", {
 "msa.removeImage": "Kaldır",
 "msa.imageError": "Bu görsel kullanılamadı. JPEG veya PNG bir fotoğraf deneyin.",
 "msa.photoNote": "Öğrencilerin fotoğraflarını yalnızca izinleriyle paylaşın. Konum bilgisi fotoğraflardan otomatik olarak silinir.",
-"msa.fHome": "Herkesin ana sayfasında göster",
+"msa.fHome": "Üyelerin ana sayfasında göster",
 "msa.fHomeSub": "Ana sayfanın üstünde küçük bir kart. Gizlenebilir.",
 "msa.fPin": "En üste sabitle",
 "msa.fExpires": "Gösterim süresi",
@@ -1554,5 +1554,13 @@ SS.i18n.register("tr", {
 "ban.continueOffline": "Devam et — çevrimiçi özellikler kapalı",
 "ban.signOut": "Çıkış yap",
 "ban.pageBlocked": "Bu, yasaklı olan hesabınızı gerektiriyor.",
-"account.statusRestricted": "Hesabınız yasaklıyken eşitleme kapalı"
+"account.statusRestricted": "Hesabınız yasaklıyken eşitleme kapalı",
+"msa.membersOnlyTitle": "Duyurular yalnızca NVHS MSA üyeleri içindir",
+"msa.membersOnlyText": "Görmek için aşağıdan katılın — okul e-postanızla ya da toplantı koduyla.",
+"msa.personalTitle": "Kişisel hesabınızda mı?",
+"msa.personalText": "Duyuruları okul hesabınız yerine ana hesabınızda görmek için Ibrahim Ahmed'den 6 haneli toplantı kodunu isteyin — yüz yüze, mesajla veya e-postayla. Tam adınızı ve kodu girin; her kod 10 dakika geçerlidir.",
+"msa.textIbrahim": "Mesaj: (464) 243-3663",
+"msa.emailIbrahim": "E-posta: ibrahim.asim.contact@gmail.com",
+"msa.signInFirst": "Önce giriş yapın (herhangi bir hesapla), sonra adınızı ve kodu buraya girin.",
+"msa.codeUntil": "Geçerli kod {t} saatine kadar"
 });

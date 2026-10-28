@@ -1765,7 +1765,7 @@ test("modes: no horizontal overflow on phone, tablet and desktop, in light and d
 });
 
 /* ═══════════ 2.11 NVHS MSA ═══════════ */
-test("msa: a poster posts an announcement with a photo; everyone sees it on the MSA page and Home; nobody else can post", async () => {
+test("msa: a poster posts an announcement with a photo; members see it on the MSA page and Home (3.0.4: nobody else); nobody else can post", async () => {
   const pg = await familyDb();
   // The real list holds the MSA's own accounts (as hashes); the test adds one of its own the same way.
   await pg.query(`insert into public.msa_admins (email_hash) values (sha256(convert_to('poster@example.org', 'UTF8')))`);
@@ -1797,36 +1797,53 @@ test("msa: a poster posts an announcement with a photo; everyone sees it on the 
   assert.equal(await A.page.getAttribute(".msa-text a", "href"), "https://example.org/give", "links work; the full stop isn't part of them");
   await shot(A.page, "msa-poster-390");
 
-  // ── A guest (no account) sees it on Home and on the MSA page, with no way to edit.
+  // ── A member (here the poster) sees it on Home with its photo, and it opens on the MSA page.
+  await open(A.page, "#/home");
+  await A.page.waitForSelector("#msa-home:not([hidden]) .msa-home-title");
+  assert.equal(await A.page.textContent(".msa-home-title"), "Bake sale this Friday");
+  await A.page.waitForFunction(() => /url\("data:image\/jpeg/.test(document.querySelector(".msa-thumb").style.backgroundImage));
+  await shot(A.page, "msa-home-390");
+  await A.page.click(".msa-home-link");
+  await A.page.waitForFunction(() => location.hash.indexOf("#/msa/") === 0);
+  await A.page.waitForSelector(".msa-post.focus .msa-img img");
+
+  // ── 3.0.4: a guest (no account) sees no announcement — not on Home, not on the MSA page — and how to join.
   const G = await device({ mock });
   await open(G.page, "#/home");
-  await G.page.waitForSelector("#msa-home:not([hidden]) .msa-home-title");
-  assert.equal(await G.page.textContent(".msa-home-title"), "Bake sale this Friday");
-  await G.page.waitForFunction(() => /url\("data:image\/jpeg/.test(document.querySelector(".msa-thumb").style.backgroundImage));
-  await shot(G.page, "msa-home-390");
-  await G.page.click(".msa-home-link");
-  await G.page.waitForFunction(() => location.hash.indexOf("#/msa/") === 0);
-  await G.page.waitForSelector(".msa-post.focus .msa-img img");
+  await G.page.waitForTimeout(800);
+  assert.equal(await G.page.isHidden("#msa-home"), true);
+  await open(G.page, "#/msa");
+  await G.page.waitForSelector("#msa-list .msa-locked");
+  assert.doesNotMatch(await G.page.textContent("#msa-list"), /Bake sale/);
+  assert.match(await G.page.textContent("#msa-list"), /Announcements are for NVHS MSA members/);
   assert.equal(await G.page.$("[data-edit]"), null);
   assert.equal(await G.page.isHidden("#msa-new"), true);
   assert.match(await G.page.textContent("#msa-member"), /Sign in with school email/);
+  const personal = await G.page.textContent(".msa-personal");
+  assert.match(personal, /ask Ibrahim Ahmed for the 6-digit meeting code/);
+  assert.match(personal, /works for 10 minutes/);
+  assert.equal(await G.page.getAttribute('.msa-contact a[href^="sms:"]', "href"), "sms:+14642433663");
+  assert.match(await G.page.getAttribute('.msa-contact a[href^="mailto:"]', "href"), /^mailto:ibrahim\.asim\.contact@gmail\.com\?subject=/);
   await shot(G.page, "msa-guest-390");
-  // Hiding the Home card keeps it hidden.
-  await open(G.page, "#/home");
-  await G.page.waitForSelector("#msa-home:not([hidden])");
-  await G.page.click(".msa-home-x");
-  await G.page.reload();
-  await G.page.waitForFunction(() => !document.getElementById("boot"));
-  await G.page.waitForTimeout(300);
-  assert.equal(await G.page.isHidden("#msa-home"), true);
+  // Even asking the database directly gets nothing.
+  assert.deepEqual(await G.page.evaluate(() => fetch(SS.CONFIG.supabaseUrl + "/rest/v1/rpc/msa_feed", { method: "POST", headers: { apikey: SS.CONFIG.supabaseAnonKey, "content-type": "application/json" }, body: "{}" }).then((r) => r.json())), []);
+  // Hiding the Home card keeps it hidden (a member).
+  await open(A.page, "#/home");
+  await A.page.waitForSelector("#msa-home:not([hidden])");
+  await A.page.click(".msa-home-x");
+  await A.page.reload();
+  await A.page.waitForFunction(() => !document.getElementById("boot"));
+  await A.page.waitForTimeout(300);
+  assert.equal(await A.page.isHidden("#msa-home"), true);
 
   // ── Someone signed in but not on the list: no buttons, and the database refuses them anyway.
   const O = await device({ mock });
   await emailSignIn(O.page, "student@example.com");
   await O.page.waitForFunction(() => SS.account.signedIn());
   await open(O.page, "#/msa");
-  await O.page.waitForSelector(".msa-post");
-  await O.page.waitForTimeout(300);
+  await O.page.waitForSelector("#msa-list .msa-locked");
+  assert.doesNotMatch(await O.page.textContent("#msa-list"), /Bake sale/, "3.0.4: not a member, no announcements");
+  assert.ok(await O.page.$(".msa-personal"), "how to join with a personal account");
   assert.equal(await O.page.isHidden("#msa-new"), true);
   const refused = await O.page.evaluate(() => SS.account.client().then((c) => c.rpc("msa_post_save", { p: { title: "Not allowed" } })).then((r) => r.error && r.error.message));
   assert.match(refused, /not an MSA poster/);
@@ -1872,17 +1889,17 @@ test("msa membership: the live meeting code lets you in, a taken name is flagged
   await A.page.click("#msa-code-wrap summary");
   await A.page.waitForFunction(() => /^\d{3} \d{3}$/.test(document.getElementById("msa-code").textContent));
   const code = (await A.page.textContent("#msa-code")).replace(/\D/g, "");
-  assert.match(await A.page.textContent("#msa-code-left"), /New code in \d+:\d\d/);
+  // 3.0.4: when it changes, as a clock time on the ten minutes (e.g. 4:40), not a countdown.
+  assert.match(await A.page.textContent("#msa-code-left"), /Current code until \d{1,2}:[0-5]0/);
   await shot(A.page, "msa-manage-390");
   await open(A.page, "#/msa");
   await A.page.waitForSelector("#msa-new:not([hidden])");
   await A.page.click("#msa-new");
   await A.page.waitForSelector("#msa-dialog[open] #msa-form");
   await A.page.fill("#msa-f-title", "Meeting moved to room 1234");
-  await A.page.check("#msa-f-mem");
+  assert.equal(await A.page.$("#msa-f-mem"), null, "3.0.4: every announcement is for members, so there's no switch");
   await A.page.click("#msa-f-go");
-  await A.page.waitForSelector(".msa-post .badge-gold");
-  assert.match(await A.page.textContent(".msa-post"), /Members only/);
+  await A.page.waitForSelector(".msa-post");
 
   // ── A guest sees no members-only post, and a join card.
   const G = await device({ mock });
@@ -1973,7 +1990,6 @@ test("msa school accounts: sign in with the school email (not Google) and you're
   await P.page.click("#msa-new");
   await P.page.waitForSelector("#msa-dialog[open] #msa-form");
   await P.page.fill("#msa-f-title", "Members: Friday in room 1234");
-  await P.page.check("#msa-f-mem");
   await P.page.click("#msa-f-go");
   await P.page.waitForSelector(".msa-post");
 
@@ -2582,7 +2598,10 @@ test("admin panel: only an admin sees the link and gets in; overview, users, one
   await A.page.click("#admin-dialog [data-close]");
 
   // Ban from the sheet (3.0.2): a Community Rules reason, a message they see, a private note, the email blocked.
-  await A.page.evaluate((id) => { location.hash = "#/admin/user/" + id; }, TROLL);
+  await A.page.waitForFunction(() => !document.getElementById("admin-dialog").open);
+  await A.page.click('[data-filter="flagged"]');
+  await A.page.waitForSelector(`#adm-users [data-user="${TROLL}"]`);
+  await A.page.click(`#adm-users [data-user="${TROLL}"]`);
   await A.page.waitForSelector('#admin-dialog[open] [data-uact="ban"]');
   await A.page.click('#admin-dialog [data-uact="ban"]');
   await A.page.waitForSelector("#adm-reason-form");
