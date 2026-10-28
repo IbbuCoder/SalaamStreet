@@ -44,6 +44,7 @@ const store = {
   async finish(id: number, patch: Record<string, unknown>) { must(await db.from("ai_usage").update(patch).eq("id", id)); },
   async summary() { return must(await db.rpc("ai_usage_summary")); },
   async stats() { return must(await db.rpc("admin_stats")); },
+  async banned(userId: string) { return must(await db.rpc("account_is_banned", { p_user: userId })); },
   async logRefusal(userId: string | null, event: string, detail: string | null) {
     must(await db.from("ai_security_log").insert({ user_id: userId, event, detail }));
   },

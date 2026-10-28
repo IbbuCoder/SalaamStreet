@@ -2294,3 +2294,9 @@ html[data-theme="dark"] .app-notice.warn{color:#fcd34d}
 .adm-alert-info > .ic:first-child{color:var(--primary-strong)}
 .adm-banner{display:grid;gap:8px}
 .adm-banner textarea{inline-size:100%;resize:vertical}
+
+/* ── 3.0.3: a banned account (js/standing.js) ── */
+.ban-bar{display:flex;align-items:center;gap:10px;inline-size:100%;margin:0 0 12px;padding:10px 14px;border:1px solid color-mix(in srgb,var(--danger) 40%,var(--border));border-radius:var(--radius-sm);background:var(--danger-soft);color:var(--danger);font:inherit;font-weight:700;text-align:start;cursor:pointer}
+.ban-bar[hidden]{display:none}
+.ban-bar span{flex:1;min-inline-size:0}
+.ss-restricted #msa-home{display:none !important}

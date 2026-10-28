@@ -1547,5 +1547,12 @@ SS.i18n.register("id", {
 "reason.fake_accounts": "Akun tambahan atau palsu",
 "reason.hacking": "Meretas atau menyalahgunakan aplikasi",
 "reason.other": "Lainnya",
-"notice.hide": "Sembunyikan"
+"notice.hide": "Sembunyikan",
+"ban.bar": "Akun Anda dibatasi — ketuk untuk melihat alasannya",
+"ban.onlineOff": "Selama akun Anda dilarang, fitur daringnya dimatikan: SalaamStreet AI, NVHS MSA, dan sinkronisasi. Semua yang berfungsi tanpa akun tetap berfungsi.",
+"ban.strictLead": "Sampai larangan ini dicabut, Anda tidak bisa memakai SalaamStreet dengan akun ini. Anda bisa mengajukan banding di bawah, atau keluar.",
+"ban.continueOffline": "Lanjutkan — fitur daring dimatikan",
+"ban.signOut": "Keluar",
+"ban.pageBlocked": "Ini memerlukan akun Anda, yang sedang dilarang.",
+"account.statusRestricted": "Sinkronisasi mati selama akun Anda dilarang"
 });

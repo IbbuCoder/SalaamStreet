@@ -1547,5 +1547,12 @@ SS.i18n.register("tr", {
 "reason.fake_accounts": "Ek veya sahte hesaplar",
 "reason.hacking": "Uygulamayı hacklemek veya kötüye kullanmak",
 "reason.other": "Diğer",
-"notice.hide": "Gizle"
+"notice.hide": "Gizle",
+"ban.bar": "Hesabınız kısıtlandı — nedenini görmek için dokunun",
+"ban.onlineOff": "Hesabınız yasaklıyken çevrimiçi özellikleri kapalıdır: SalaamStreet AI, NVHS MSA ve eşitleme. Hesap gerektirmeyen her şey çalışmaya devam eder.",
+"ban.strictLead": "Bu yasak kaldırılana kadar SalaamStreet'i bu hesapla kullanamazsınız. Aşağıdan itiraz edebilir veya çıkış yapabilirsiniz.",
+"ban.continueOffline": "Devam et — çevrimiçi özellikler kapalı",
+"ban.signOut": "Çıkış yap",
+"ban.pageBlocked": "Bu, yasaklı olan hesabınızı gerektiriyor.",
+"account.statusRestricted": "Hesabınız yasaklıyken eşitleme kapalı"
 });

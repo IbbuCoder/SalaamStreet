@@ -62,6 +62,7 @@ function pgStore(pg, getUser) {
     },
     summary: async () => (await q("select public.ai_usage_summary() as r")).rows[0].r,
     stats: async () => (await q("select public.admin_stats() as r")).rows[0].r,
+    banned: async (uid) => (await q("select public.account_is_banned($1) as r", [uid])).rows[0].r,
     logRefusal: async (uid, event, detail) => { await q("insert into public.ai_security_log (user_id, event, detail) values ($1, $2, $3)", [uid, event, detail]); },
   };
 }

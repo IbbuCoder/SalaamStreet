@@ -13,7 +13,7 @@
    3.0: on a connection that is there but barely working, a cached copy is
    served after a few seconds instead of leaving the page loading; the network
    answer still refreshes the cache when it arrives. */
-var VERSION = "ss-v31";
+var VERSION = "ss-v32";
 var SLOW_MS = 4000;
 var KEEP = /^ss-offline/;
 var SHELL = [

@@ -224,8 +224,22 @@
   ];
 
   /* ── Version & release notes (newest first) ──────────────────────── */
-  SS.VERSION = "3.0.2";
+  SS.VERSION = "3.0.3";
   SS.CHANGELOG = [
+    {
+      v: "3.0.3", date: "2026-10-28",
+      en: "Fairer bans", ar: "حظر أكثر إنصافًا",
+      den: "A banned account can now still sign in: to see why, to appeal, and to keep using everything that works without an account. Only the account's online features are off while it's banned — SalaamStreet AI, the NVHS MSA and sync.",
+      dar: "صار بإمكان الحساب المحظور تسجيل الدخول: ليعرف السبب ويعترض ويواصل استخدام كل ما يعمل دون حساب. وما دام محظورًا تتوقف ميزاته عبر الإنترنت فقط — المساعد الذكي ورابطة NVHS والمزامنة.",
+      groups: [
+        { en: "If an account is banned", ar: "إن حُظر حساب", items: [
+          { en: "You can still sign in, see the reason and appeal at any time from the red bar at the top", ar: "يمكنك تسجيل الدخول ومعرفة السبب والاعتراض في أي وقت من الشريط الأحمر أعلى الصفحة" },
+          { en: "Prayer times, the Qur'an, duas and everything else that works without an account keep working", ar: "تبقى مواقيت الصلاة والقرآن والأدعية وكل ما يعمل دون حساب تعمل" },
+          { en: "SalaamStreet AI, the NVHS MSA and sync are off until the ban ends or is lifted; your data stays on your device", ar: "يتوقف المساعد الذكي ورابطة NVHS والمزامنة حتى ينتهي الحظر أو يُرفع؛ وتبقى بياناتك على جهازك" },
+          { en: "A ban for an offensive name or email is stricter: the app shows only the ban until it's lifted", ar: "الحظر بسبب اسم أو بريد مسيء أشد: لا يعرض التطبيق إلا الحظر حتى يُرفع" },
+        ] },
+      ],
+    },
     {
       v: "3.0.2", date: "2026-10-28",
       en: "Community Rules", ar: "قواعد المجتمع",

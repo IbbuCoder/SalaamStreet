@@ -410,6 +410,11 @@
       view = parts.shift() || "home";
     }
     if (VIEWS.indexOf(view) === -1) view = "home";
+    // 3.0.3: a banned account can't open pages that need it (SalaamStreet AI, the MSA, Family, Admin): the ban shows instead.
+    if (SS.standing && SS.standing.guard && SS.standing.guard(view)) {
+      try { history.replaceState(null, "", "#/home"); } catch (e) { /* file:// */ }
+      view = "home"; parts = [];
+    }
     // Kids Mode (2.10) keeps a child's device inside the Kids area.
     if (SS.modes && SS.modes.kidLocked() && view !== "kids") {
       try { history.replaceState(null, "", "#/kids"); } catch (e) { /* file:// */ }
@@ -509,7 +514,7 @@
      loads only when it opens; the server (backend/functions/admin) decides
      who may use it. */
   var adminLoading = null;
-  var ADMIN_REV = "2026-10-28b"; // change whenever js/admin.js changes
+  var ADMIN_REV = "2026-10-28c"; // change whenever js/admin.js changes
   SS.views.admin = function (params) {
     var run = function () { if (currentView === "admin" && SS.adminPage) SS.adminPage(params); };
     if (SS.adminPage) return run();
