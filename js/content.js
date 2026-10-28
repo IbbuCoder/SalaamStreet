@@ -224,8 +224,27 @@
   ];
 
   /* ── Version & release notes (newest first) ──────────────────────── */
-  SS.VERSION = "3.0.0";
+  SS.VERSION = "3.0.1";
   SS.CHANGELOG = [
+    {
+      v: "3.0.1", date: "2026-10-28",
+      en: "Keeping SalaamStreet safe", ar: "الحفاظ على أمان SalaamStreet",
+      den: "Behind the scenes: a private Admin Panel lets the SalaamStreet team deal quickly with abusive accounts, on the website and in the iPhone app. Sign-ups with offensive names are caught for review, and every admin action is recorded. Nothing changes for you, and your AI conversations and synced notes stay private — the team only sees counts.",
+      dar: "خلف الكواليس: لوحة إدارة خاصة تتيح لفريق SalaamStreet التعامل بسرعة مع الحسابات المسيئة، على الموقع وفي تطبيق iPhone. تُرصد التسجيلات بأسماء مسيئة لمراجعتها، ويُسجَّل كل إجراء إداري. لا يتغير شيء بالنسبة لك، وتبقى محادثاتك مع المساعد الذكي وملاحظاتك المتزامنة خاصة — يرى الفريق الأعداد فقط.",
+      groups: [
+        { en: "A safer community", ar: "مجتمع أكثر أمانًا", items: [
+          { en: "New accounts whose email or name contains a slur are flagged for the team to review, or refused outright", ar: "تُعلَّم الحسابات الجديدة التي يحتوي بريدها أو اسمها على إهانة لمراجعة الفريق، أو تُرفض مباشرة" },
+          { en: "The team can ban, sign out or remove accounts that break the rules, and pause SalaamStreet AI for someone misusing it", ar: "يمكن للفريق حظر الحسابات المخالفة أو تسجيل خروجها أو حذفها، وإيقاف المساعد الذكي مؤقتًا لمن يسيء استخدامه" },
+          { en: "Every admin action is recorded, so it's clear who did what and when", ar: "يُسجَّل كل إجراء إداري، فيتضح من فعل ماذا ومتى" },
+        ] },
+        { en: "Your privacy", ar: "خصوصيتك", items: [
+          { en: "Admins see counts only — never your AI conversations, bookmarks or notes", ar: "يرى المسؤولون الأعداد فقط — لا محادثاتك مع المساعد الذكي ولا إشاراتك المرجعية أو ملاحظاتك" },
+        ] },
+        { en: "iPhone app", ar: "تطبيق iPhone", items: [
+          { en: "SalaamStreet AI can be reached from the iPhone app as well as the website", ar: "يمكن الوصول إلى مساعد SalaamStreet الذكي من تطبيق iPhone كما من الموقع" },
+        ] },
+      ],
+    },
     {
       v: "3.0.0", date: "2026-10-18",
       en: "The AI update", ar: "تحديث الذكاء الاصطناعي",

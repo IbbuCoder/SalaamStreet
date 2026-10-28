@@ -23,7 +23,8 @@
     the address itself isn't written here. Override with the AI_ADMIN_EMAIL_SHA256
     secret (comma-separated hashes of lower-cased addresses). */
 export const DEFAULT_ADMIN_SHA256 = ["0359ef19e11b6941875be3039743b7d627855fa162b587982a5142cf558e6276"];
-export const DEFAULT_ORIGINS = ["https://salaamstreet.com", "https://www.salaamstreet.com", "https://ibbucoder.github.io"];
+export const DEFAULT_ORIGINS = ["https://salaamstreet.com", "https://www.salaamstreet.com", "https://ibbucoder.github.io",
+  "app://salaamstreet"]; // 3.1: the iPhone app (ios/ serves the website at app://salaamstreet/)
 const GEMINI_BASE = "https://generativelanguage.googleapis.com";
 const MAX_BODY = 200000; // bytes
 const MAX_TURNS = 40;

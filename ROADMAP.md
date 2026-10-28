@@ -1,6 +1,6 @@
 # SalaamStreet Roadmap
 
-What we plan to build after **3.0.0 — The AI update**, in order. This is a plan, not a
+What we plan to build after **3.0.1 — Keeping SalaamStreet safe**, in order. This is a plan, not a
 promise: nothing planned below exists in the app yet, and there are no dates —
 releases ship when they're ready and tested. The same list appears in the app
 under About → Updates (`SS.ROADMAP` in `js/content.js`); keep the two in step.
@@ -29,6 +29,7 @@ under About → Updates (`SS.ROADMAP` in `js/content.js`); keep the two in step.
 | 2.11.8 | Steadier Qibla camera, MSA admins | ✅ Completed |
 | 3.0 Beta | SalaamStreet AI (Beta) | ✅ Completed |
 | 3.0 | The AI update | ✅ Completed (paid plans ⏸ Deferred) |
+| 3.0.1 | Admin Panel | ✅ Completed |
 | 3.1 | Personalization | 📋 Planned |
 | 3.2 | Qur'an Experience | 📋 Planned |
 | 3.3 | Community: mosque pages | 📋 Planned |
@@ -201,6 +202,17 @@ plans resume:** a public list of exactly what's free and what's paid;
 nothing that was free gets a new limit; allowances enforced on the server;
 payments handled by a trusted provider (we never see card details); cancelling
 is easy and keeps your data.
+
+## 3.0.1 — Admin Panel · ✅ Completed
+
+A private Admin Panel (`#/admin`) on the website and in the iPhone app:
+overview, users (ban, unban, sign out everywhere, flag, pause SalaamStreet AI,
+delete), flags and sign-up screening, SalaamStreet AI's switches, the NVHS
+MSA's posts, the admin list and a log of every admin action.
+**Completion criteria (met):** only admins signed in with Google get in, and
+the server and the database both check; admins never act on themselves or
+each other; every action is logged; admins see counts, never anyone's
+content. Notes: [`docs/release-notes/3.0.1.md`](docs/release-notes/3.0.1.md).
 
 ## 3.1 — Personalization · 📋 Planned
 
@@ -383,6 +395,11 @@ scheduled.
 ---
 
 ## Changes to the plan
+
+- **3.0.1 added an Admin Panel** (October 2026), not in the original plan:
+  an account with a slur in its email signed up and the only way to deal
+  with it was SQL. It ships as a patch so 3.1 stays Personalization. Notes:
+  [`docs/release-notes/3.0.1.md`](docs/release-notes/3.0.1.md).
 
 - **3.0.0 shipped without paid plans** (October 2026). SalaamStreet AI left
   beta as a free feature for everyone with an account, with verified-text

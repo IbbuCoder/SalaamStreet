@@ -17,6 +17,10 @@ on:
         description: "Deploy the ai-lab Edge Function"
         type: boolean
         default: true
+      deploy_admin:
+        description: "Deploy the admin Edge Function (the Admin Panel, 3.0.1)"
+        type: boolean
+        default: true
       email_templates:
         description: "Install the branded sign-in emails (backend/email-templates)"
         type: boolean
@@ -84,7 +88,7 @@ jobs:
           echo "Sign-in emails updated."
 
       - uses: supabase/setup-cli@v1
-        if: ${{ inputs.deploy_ai_lab }}
+        if: ${{ inputs.deploy_ai_lab || inputs.deploy_admin }}
         with:
           version: latest
 
@@ -96,3 +100,14 @@ jobs:
           cp -r backend/functions/ai-lab supabase/functions/ai-lab
           supabase functions deploy ai-lab --project-ref "$PROJECT_REF" --no-verify-jwt
           echo "ai-lab is deployed. Open https://salaamstreet.com/#/lab"
+
+      - name: Deploy the admin Edge Function
+        if: ${{ inputs.deploy_admin }}
+        run: |
+          mkdir -p supabase/functions
+          [ -f supabase/config.toml ] || printf 'project_id = "salaamstreet"\n' > supabase/config.toml
+          printf '\n[functions.admin]\nverify_jwt = false\n' >> supabase/config.toml
+          rm -rf supabase/functions/admin
+          cp -r backend/functions/admin supabase/functions/admin
+          supabase functions deploy admin --project-ref "$PROJECT_REF" --no-verify-jwt
+          echo "admin is deployed. Open https://salaamstreet.com/#/admin (or Settings → Admin Panel)"

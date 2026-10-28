@@ -1885,3 +1885,620 @@ begin
     end if;
 end;
 $$;
+
+-- ════════════════════════════════════════════════════════════════════════
+--  3.0.1 — Admin Panel (#/admin; on the website and in the iPhone app)
+--  One place for the people who run SalaamStreet to see the app's numbers,
+--  find accounts, deal with abuse and keep a record of what they did.
+--  Only the admin Edge Function (backend/functions/admin) calls these, with
+--  the service role, after checking the person's session. Every function
+--  also checks, itself, that p_admin is on the admin list (defence in depth).
+--  Nothing here is reachable with the app's public key.
+--  • app_admins: SHA-256 hashes of the admins' lower-cased emails (this file
+--    is public). Starts with the owner; more are added in the panel.
+--  • admin_settings: one row — whether flagged sign-ups are refused outright.
+--  • admin_words: words that flag a new account's email or name (checked on
+--    every sign-up). Starts with a short list of slurs; edited in the panel.
+--  • admin_flags: accounts waiting for an admin to look at them.
+--  • admin_audit: every admin action — who, when, to which account.
+-- ════════════════════════════════════════════════════════════════════════
+create table if not exists public.app_admins (
+    email_hash bytea primary key check (octet_length(email_hash) = 32),
+    email      text check (email is null or char_length(email) <= 320), -- filled in the first time they open the panel
+    added_at   timestamptz not null default now(),
+    added_by   uuid
+);
+insert into public.app_admins (email_hash) values
+    ('\x0359ef19e11b6941875be3039743b7d627855fa162b587982a5142cf558e6276') -- the owner
+on conflict (email_hash) do nothing;
+
+create table if not exists public.admin_settings (
+    id            boolean primary key default true check (id),
+    block_signups boolean not null default false, -- refuse sign-ups that match a word (otherwise only flag them)
+    words_seeded  boolean not null default false,
+    updated_at    timestamptz not null default now(),
+    updated_by    uuid
+);
+insert into public.admin_settings (id) values (true) on conflict (id) do nothing;
+
+create table if not exists public.admin_words (
+    word     text primary key check (word ~ '^[a-z]{3,40}$'),
+    added_at timestamptz not null default now()
+);
+-- Seeded once, so a word an admin removes stays removed when this file is run again.
+-- Words are matched anywhere inside a name, so ones hiding in ordinary names are left
+-- out ("paki" is in Pakistani, "nazi" in Nazia and Nazir, "rape" in grape).
+do $$
+begin
+    if not (select words_seeded from public.admin_settings where id) then
+        insert into public.admin_words (word) values
+            ('nigger'), ('nigga'), ('faggot'), ('kike'), ('chink'), ('wetback'), ('raghead'), ('towelhead'),
+            ('tranny'), ('fuck'), ('porn'), ('hitler')
+        on conflict (word) do nothing;
+        update public.admin_settings set words_seeded = true where id;
+    end if;
+end;
+$$;
+
+create table if not exists public.admin_flags (
+    user_id     uuid primary key references auth.users(id) on delete cascade,
+    source      text not null default 'signup' check (source in ('signup', 'admin')),
+    word        text,
+    note        text check (note is null or char_length(note) <= 200),
+    status      text not null default 'open' check (status in ('open', 'dismissed')),
+    flagged_at  timestamptz not null default now(),
+    reviewed_at timestamptz,
+    reviewed_by uuid
+);
+
+create table if not exists public.admin_audit (
+    id        bigint generated always as identity primary key,
+    at        timestamptz not null default now(),
+    admin_id  uuid,
+    action    text not null check (char_length(action) <= 40),
+    target_id uuid,
+    target    text check (target is null or char_length(target) <= 120), -- masked email, e.g. na***@example.org
+    detail    text check (detail is null or char_length(detail) <= 200)
+);
+create index if not exists admin_audit_at on public.admin_audit (at desc);
+create index if not exists admin_audit_target on public.admin_audit (target_id, at desc);
+
+alter table public.app_admins     enable row level security;
+alter table public.admin_settings enable row level security;
+alter table public.admin_words    enable row level security;
+alter table public.admin_flags    enable row level security;
+alter table public.admin_audit    enable row level security;
+revoke all on public.app_admins, public.admin_settings, public.admin_words, public.admin_flags, public.admin_audit from anon, authenticated;
+
+/** "name@example.org" → "na***@example.org" (for the audit log, which outlives deleted accounts). */
+create or replace function public.admin_mask(p_email text)
+returns text language sql immutable set search_path = public as $$
+    select case when p_email is null or btrim(p_email) = '' then null
+        when position('@' in p_email) = 0 then left(btrim(p_email), 2) || '***'
+        else left(split_part(lower(btrim(p_email)), '@', 1), 2) || '***@' || split_part(lower(btrim(p_email)), '@', 2) end;
+$$;
+
+/** Letters only, lower case, common look-alikes undone ("n1gg@" → "nigga"). */
+create or replace function public.admin_norm(p_text text)
+returns text language sql immutable set search_path = public as $$
+    select regexp_replace(translate(lower(coalesce(p_text, '')), '013457@$!|', 'oieastasii'), '[^a-z]', '', 'g');
+$$;
+
+/** The first listed word in an email's name part or a sign-up name, or null. */
+create or replace function public.admin_screen(p_email text, p_meta jsonb)
+returns text language plpgsql stable security definer set search_path = public as $$
+declare hay text; w text;
+begin
+    hay := public.admin_norm(split_part(coalesce(p_email, ''), '@', 1)) || ' ' ||
+           public.admin_norm(coalesce(p_meta->>'full_name', '')) || ' ' ||
+           public.admin_norm(coalesce(p_meta->>'name', '')) || ' ' ||
+           public.admin_norm(coalesce(p_meta->>'display_name', ''));
+    select word into w from public.admin_words where position(word in hay) > 0 order by length(word) desc, word limit 1;
+    return w;
+end;
+$$;
+
+/** On every sign-up (and email or name change): flag a match for an admin
+    to look at, or — with "refuse" on — stop the sign-up. Never breaks a
+    sign-up for any other reason. */
+create or replace function public.admin_screen_user()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare w text; block boolean := false;
+begin
+    begin
+        w := public.admin_screen(new.email, new.raw_user_meta_data);
+        select block_signups into block from public.admin_settings where id;
+    exception when others then
+        return new;
+    end;
+    if w is null then return new; end if;
+    if tg_op = 'INSERT' and coalesce(block, false) then
+        raise exception 'This email address or name can''t be used on SalaamStreet.' using errcode = '22023';
+    end if;
+    begin
+        insert into public.admin_flags (user_id, source, word) values (new.id, 'signup', w) on conflict (user_id) do nothing;
+    exception when others then
+        null;
+    end;
+    return new;
+end;
+$$;
+drop trigger if exists on_auth_user_screen on auth.users;
+create trigger on_auth_user_screen
+    after insert or update of email, raw_user_meta_data on auth.users
+    for each row execute function public.admin_screen_user();
+revoke all on function public.admin_screen_user() from public, anon, authenticated;
+
+-- Accounts made before 3.0.1 are checked once, too.
+insert into public.admin_flags (user_id, source, word)
+    select id, 'signup', public.admin_screen(email, raw_user_meta_data) from auth.users
+    where public.admin_screen(email, raw_user_meta_data) is not null
+on conflict (user_id) do nothing;
+
+/** Is this account an admin? Decided from the account's own email in auth.users. */
+create or replace function public.admin_check(p_user uuid)
+returns boolean language plpgsql stable security definer set search_path = public as $$
+declare mail text;
+begin
+    select lower(btrim(email)) into mail from auth.users where id = p_user;
+    return coalesce(mail, '') <> '' and exists (select 1 from public.app_admins where email_hash = sha256(convert_to(mail, 'UTF8')));
+end;
+$$;
+
+create or replace function public.admin_require(p_admin uuid)
+returns void language plpgsql stable security definer set search_path = public as $$
+begin
+    if p_admin is null or not public.admin_check(p_admin) then raise exception 'forbidden' using errcode = '42501'; end if;
+end;
+$$;
+
+create or replace function public.admin_log(p_admin uuid, p_action text, p_target uuid, p_detail text)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+    insert into public.admin_audit (admin_id, action, target_id, target, detail)
+        values (p_admin, left(p_action, 40), p_target,
+            (select public.admin_mask(coalesce(email, phone)) from auth.users where id = p_target), left(p_detail, 200));
+    delete from public.admin_audit where at < now() - interval '2 years';
+end;
+$$;
+
+/** Someone who isn't an admin tried an admin action (kept with the log). */
+create or replace function public.admin_denied(p_user uuid, p_action text)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+    insert into public.admin_audit (admin_id, action, detail) values (p_user, 'denied', left('tried: ' || coalesce(p_action, '?'), 200));
+end;
+$$;
+
+/** Opening the panel: confirms the admin and remembers their email for the Admins list. */
+create or replace function public.admin_hello(p_admin uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare mail text;
+begin
+    perform public.admin_require(p_admin);
+    select lower(btrim(email)) into mail from auth.users where id = p_admin;
+    update public.app_admins set email = mail where email_hash = sha256(convert_to(mail, 'UTF8')) and email is distinct from mail;
+    return jsonb_build_object('admin', true, 'email', mail,
+        'open_flags', (select count(*) from public.admin_flags where status = 'open'));
+end;
+$$;
+
+/** Overview: the app's numbers, sign-ups by day, and what needs attention. */
+create or replace function public.admin_overview(p_admin uuid)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare d0 timestamptz := date_trunc('day', now() at time zone 'UTC') at time zone 'UTC';
+begin
+    perform public.admin_require(p_admin);
+    return public.admin_stats() || jsonb_build_object(
+        'new_today', (select count(*) from auth.users where created_at >= d0),
+        'active_today', (select count(*) from auth.users where last_sign_in_at >= d0),
+        'active_30d', (select count(*) from auth.users where last_sign_in_at > now() - interval '30 days'),
+        'never_signed_in', (select count(*) from auth.users where last_sign_in_at is null),
+        'banned', (select count(*) from auth.users where banned_until > now()),
+        'open_flags', (select count(*) from public.admin_flags where status = 'open'),
+        'admins', (select count(*) from public.app_admins),
+        'signups_14d', (select coalesce(jsonb_agg(jsonb_build_object('day', to_char(d, 'YYYY-MM-DD'), 'n',
+                (select count(*) from auth.users where created_at >= d and created_at < d + interval '1 day')) order by d), '[]'::jsonb)
+            from generate_series(d0 - interval '13 days', d0, interval '1 day') d),
+        'recent', (select coalesce(jsonb_agg(x order by x.created_at desc), '[]'::jsonb) from (
+            select u.id, u.email, u.phone, u.created_at, u.last_sign_in_at, coalesce(u.raw_app_meta_data->>'provider', 'email') as provider,
+                exists (select 1 from public.admin_flags f where f.user_id = u.id and f.status = 'open') as flagged
+            from auth.users u order by u.created_at desc limit 5) x),
+        'ai', public.ai_usage_summary(),
+        'ai_enabled', (select enabled and beta_open from public.ai_settings where id),
+        'block_signups', (select block_signups from public.admin_settings where id),
+        'at', now());
+end;
+$$;
+
+/** One row of the Users list. */
+create or replace function public.admin_user_row(u auth.users)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+begin
+    return jsonb_build_object('id', u.id, 'email', u.email, 'phone', u.phone,
+        'name', (select display_name from public.profiles where id = u.id),
+        'provider', coalesce(u.raw_app_meta_data->>'provider', 'email'),
+        'providers', coalesce(u.raw_app_meta_data->'providers', '[]'::jsonb),
+        'created_at', u.created_at, 'last_sign_in_at', u.last_sign_in_at,
+        'confirmed', u.email_confirmed_at is not null or u.phone_confirmed_at is not null,
+        'banned_until', case when u.banned_until > now() then u.banned_until end,
+        'flagged', exists (select 1 from public.admin_flags f where f.user_id = u.id and f.status = 'open'),
+        'admin', coalesce(u.email, '') <> '' and exists (select 1 from public.app_admins a where a.email_hash = sha256(convert_to(lower(btrim(u.email)), 'UTF8'))));
+end;
+$$;
+
+/** Users: search (email, phone, name or id) and filter, newest first, 50 at a time. */
+create or replace function public.admin_users(p_admin uuid, p_search text, p_filter text, p_offset integer)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare q text := lower(btrim(coalesce(p_search, ''))); f text := coalesce(p_filter, 'all'); total integer; rows jsonb;
+begin
+    perform public.admin_require(p_admin);
+    if f not in ('all', 'flagged', 'banned', 'new', 'never', 'unconfirmed', 'admins') or char_length(q) > 200 then
+        raise exception 'bad request' using errcode = '22023';
+    end if;
+    with m as (
+        select u.* from auth.users u
+        where (q = '' or lower(coalesce(u.email, '')) like '%' || q || '%' or coalesce(u.phone, '') like '%' || q || '%'
+               or u.id::text = q or exists (select 1 from public.profiles p where p.id = u.id and lower(coalesce(p.display_name, '')) like '%' || q || '%'))
+          and case f
+            when 'flagged' then exists (select 1 from public.admin_flags fl where fl.user_id = u.id and fl.status = 'open')
+            when 'banned' then u.banned_until > now()
+            when 'new' then u.created_at > now() - interval '7 days'
+            when 'never' then u.last_sign_in_at is null
+            when 'unconfirmed' then u.email_confirmed_at is null and u.phone_confirmed_at is null
+            when 'admins' then coalesce(u.email, '') <> '' and exists (select 1 from public.app_admins a where a.email_hash = sha256(convert_to(lower(btrim(u.email)), 'UTF8')))
+            else true end
+    )
+    select (select count(*) from m),
+           coalesce((select jsonb_agg(public.admin_user_row(x) order by x.created_at desc)
+               from (select * from m order by created_at desc offset greatest(coalesce(p_offset, 0), 0) limit 50) x), '[]'::jsonb)
+      into total, rows;
+    return jsonb_build_object('total', total, 'users', rows, 'offset', greatest(coalesce(p_offset, 0), 0));
+end;
+$$;
+
+/** Everything about one account an admin may need — what they use, never what they wrote. */
+create or replace function public.admin_user(p_admin uuid, p_id uuid)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare u auth.users; mail text; m public.ai_members; res jsonb;
+begin
+    perform public.admin_require(p_admin);
+    select * into u from auth.users where id = p_id;
+    if u.id is null then return null; end if;
+    mail := lower(btrim(coalesce(u.email, '')));
+    select * into m from public.ai_members where user_id = u.id;
+    res := public.admin_user_row(u) || jsonb_build_object(
+        'locale', (select locale from public.profiles where id = u.id),
+        'email_confirmed_at', u.email_confirmed_at,
+        'sync', jsonb_build_object(
+            'items', (select count(*) from public.sync_records where user_id = u.id and not deleted),
+            'last', (select max(server_at) from public.sync_records where user_id = u.id)),
+        'family_children', (select count(*) from public.family_children where parent_id = u.id),
+        'msa', (select jsonb_build_object('name', name, 'status', status, 'via', via, 'joined', created_at)
+            from public.msa_members where user_id = u.id),
+        'msa_admin', mail <> '' and exists (select 1 from public.msa_admins where email_hash = sha256(convert_to(mail, 'UTF8'))),
+        'msa_posts', (select count(*) from public.msa_posts where created_by = u.id),
+        'ai', jsonb_build_object(
+            'questions', (select count(*) from public.ai_usage where user_id = u.id and kind = 'chat'),
+            'questions_7d', (select count(*) from public.ai_usage where user_id = u.id and kind = 'chat' and at > now() - interval '7 days'),
+            'last', (select max(at) from public.ai_usage where user_id = u.id and kind = 'chat'),
+            'helpful', (select count(*) from public.ai_usage where user_id = u.id and rating = 1),
+            'unhelpful', (select count(*) from public.ai_usage where user_id = u.id and rating = -1),
+            'refused_30d', (select count(*) from public.ai_security_log where user_id = u.id and at > now() - interval '30 days'),
+            'terms_version', m.terms_version, 'terms_accepted_at', m.terms_accepted_at,
+            'strikes', case when m.last_strike_at > now() - interval '30 days' then m.strikes else 0 end,
+            'paused_until', case when m.banned_until > now() then m.banned_until end,
+            'pauses', coalesce(m.bans, 0)),
+        'flag', (select jsonb_build_object('source', source, 'word', word, 'note', note, 'status', status, 'flagged_at', flagged_at, 'reviewed_at', reviewed_at)
+            from public.admin_flags where user_id = u.id),
+        'history', (select coalesce(jsonb_agg(jsonb_build_object('at', a.at, 'action', a.action, 'detail', a.detail,
+                'by', (select public.admin_mask(email) from auth.users where id = a.admin_id)) order by a.at desc), '[]'::jsonb)
+            from (select * from public.admin_audit where target_id = u.id order by at desc limit 20) a));
+    return res;
+end;
+$$;
+
+/** Admins can't act on themselves or on other admins. */
+create or replace function public.admin_target(p_admin uuid, p_id uuid)
+returns auth.users language plpgsql stable security definer set search_path = public as $$
+declare u auth.users;
+begin
+    perform public.admin_require(p_admin);
+    select * into u from auth.users where id = p_id;
+    if u.id is null then raise exception 'not found' using errcode = 'P0002'; end if;
+    if u.id = p_admin then raise exception 'not yourself' using errcode = '42501'; end if;
+    if public.admin_check(u.id) then raise exception 'an admin' using errcode = '42501'; end if;
+    return u;
+end;
+$$;
+
+/** Sign the account out on every device (their sessions end at once; any open page loses access within the hour). */
+create or replace function public.admin_sign_out(p_admin uuid, p_id uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare u auth.users; n integer := 0;
+begin
+    u := public.admin_target(p_admin, p_id);
+    delete from auth.sessions where user_id = u.id;
+    get diagnostics n = row_count;
+    perform public.admin_log(p_admin, 'sign_out', u.id, n || ' session(s) ended');
+    return jsonb_build_object('ok', true, 'sessions', n);
+end;
+$$;
+
+/** Ban: they can't sign in (for p_days, or until unbanned when null) and are signed out everywhere. */
+create or replace function public.admin_ban(p_admin uuid, p_id uuid, p_days integer, p_reason text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare u auth.users; v_until timestamptz;
+begin
+    u := public.admin_target(p_admin, p_id);
+    if p_days is not null and (p_days < 1 or p_days > 3650) then raise exception 'bad request' using errcode = '22023'; end if;
+    v_until := now() + coalesce(make_interval(days => p_days), interval '100 years');
+    update auth.users set banned_until = v_until where id = u.id;
+    delete from auth.sessions where user_id = u.id;
+    delete from public.ai_queue where user_id = u.id;
+    update public.admin_flags set status = 'dismissed', reviewed_at = now(), reviewed_by = p_admin where user_id = u.id and status = 'open';
+    perform public.admin_log(p_admin, 'ban', u.id,
+        coalesce(p_days || ' day(s)', 'until unbanned') || coalesce(' — ' || nullif(btrim(p_reason), ''), ''));
+    return jsonb_build_object('ok', true, 'banned_until', v_until);
+end;
+$$;
+
+create or replace function public.admin_unban(p_admin uuid, p_id uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare u auth.users;
+begin
+    u := public.admin_target(p_admin, p_id);
+    update auth.users set banned_until = null where id = u.id;
+    perform public.admin_log(p_admin, 'unban', u.id, null);
+    return jsonb_build_object('ok', true);
+end;
+$$;
+
+/** Delete the account and everything that belongs to it (like "Delete my account"). p_confirm must be its email (or phone). */
+create or replace function public.admin_delete_user(p_admin uuid, p_id uuid, p_confirm text, p_reason text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare u auth.users;
+begin
+    u := public.admin_target(p_admin, p_id);
+    if lower(btrim(coalesce(p_confirm, ''))) is distinct from lower(btrim(coalesce(u.email, u.phone, ''))) or btrim(coalesce(p_confirm, '')) = '' then
+        raise exception 'confirm' using errcode = '22023';
+    end if;
+    perform public.admin_log(p_admin, 'delete', u.id, coalesce(nullif(btrim(p_reason), ''), 'account deleted'));
+    delete from public.ai_members where user_id = u.id;
+    delete from public.ai_queue where user_id = u.id;
+    delete from auth.users where id = u.id;
+    return jsonb_build_object('ok', true);
+end;
+$$;
+
+/** Flags: dismiss (looked at, fine), reopen, or flag an account by hand with a note. */
+create or replace function public.admin_flag(p_admin uuid, p_id uuid, p_action text, p_note text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare u auth.users;
+begin
+    perform public.admin_require(p_admin);
+    select * into u from auth.users where id = p_id;
+    if u.id is null then raise exception 'not found' using errcode = 'P0002'; end if;
+    if p_action = 'dismiss' then
+        update public.admin_flags set status = 'dismissed', reviewed_at = now(), reviewed_by = p_admin where user_id = u.id;
+    elsif p_action = 'reopen' then
+        update public.admin_flags set status = 'open', reviewed_at = null, reviewed_by = null where user_id = u.id;
+    elsif p_action = 'add' then
+        insert into public.admin_flags (user_id, source, note) values (u.id, 'admin', left(nullif(btrim(p_note), ''), 200))
+            on conflict (user_id) do update set status = 'open', note = coalesce(excluded.note, public.admin_flags.note), reviewed_at = null, reviewed_by = null;
+    else
+        raise exception 'bad request' using errcode = '22023';
+    end if;
+    perform public.admin_log(p_admin, 'flag_' || p_action, u.id, nullif(btrim(coalesce(p_note, '')), ''));
+    return jsonb_build_object('ok', true);
+end;
+$$;
+
+/** The Flags tab: open flags, recently reviewed ones, and people with SalaamStreet AI warnings or pauses. */
+create or replace function public.admin_flags_list(p_admin uuid)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+begin
+    perform public.admin_require(p_admin);
+    return jsonb_build_object(
+        'open', (select coalesce(jsonb_agg(public.admin_user_row(u) || jsonb_build_object('word', f.word, 'note', f.note, 'source', f.source, 'flagged_at', f.flagged_at)
+                order by f.flagged_at desc), '[]'::jsonb)
+            from public.admin_flags f join auth.users u on u.id = f.user_id where f.status = 'open'),
+        'reviewed', (select coalesce(jsonb_agg(x order by x.reviewed_at desc), '[]'::jsonb) from (
+            select f.user_id as id, u.email, u.phone, f.word, f.note, f.reviewed_at from public.admin_flags f join auth.users u on u.id = f.user_id
+            where f.status = 'dismissed' order by f.reviewed_at desc nulls last limit 20) x),
+        'ai', (select coalesce(jsonb_agg(x order by x.paused_until desc nulls last, x.strikes desc), '[]'::jsonb) from (
+            select m.user_id as id, u.email, u.phone,
+                case when m.last_strike_at > now() - interval '30 days' then m.strikes else 0 end as strikes,
+                case when m.banned_until > now() then m.banned_until end as paused_until, m.bans as pauses
+            from public.ai_members m join auth.users u on u.id = m.user_id
+            where m.banned_until > now() or (m.strikes > 0 and m.last_strike_at > now() - interval '30 days')
+            limit 50) x));
+end;
+$$;
+
+/** SalaamStreet AI for one person: pause (p_days) or restore (clears the pause and the warnings). */
+create or replace function public.admin_ai_member(p_admin uuid, p_id uuid, p_action text, p_days integer)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare u auth.users;
+begin
+    u := public.admin_target(p_admin, p_id);
+    if p_action = 'pause' then
+        if p_days is null or p_days < 1 or p_days > 3650 then raise exception 'bad request' using errcode = '22023'; end if;
+        insert into public.ai_members (user_id) values (u.id) on conflict (user_id) do nothing;
+        update public.ai_members set banned_until = now() + make_interval(days => p_days), bans = bans + 1 where user_id = u.id;
+        delete from public.ai_queue where user_id = u.id;
+        perform public.admin_log(p_admin, 'ai_pause', u.id, p_days || ' day(s)');
+    elsif p_action = 'restore' then
+        update public.ai_members set banned_until = null, strikes = 0, last_strike_at = null where user_id = u.id;
+        perform public.admin_log(p_admin, 'ai_restore', u.id, null);
+    else
+        raise exception 'bad request' using errcode = '22023';
+    end if;
+    return jsonb_build_object('ok', true);
+end;
+$$;
+
+/** Sign-up screening: the word list and the "refuse" switch. */
+create or replace function public.admin_screening(p_admin uuid)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+begin
+    perform public.admin_require(p_admin);
+    return jsonb_build_object('block_signups', (select block_signups from public.admin_settings where id),
+        'words', (select coalesce(jsonb_agg(word order by word), '[]'::jsonb) from public.admin_words));
+end;
+$$;
+
+create or replace function public.admin_screening_set(p_admin uuid, p_block boolean, p_add text, p_remove text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare w text;
+begin
+    perform public.admin_require(p_admin);
+    if p_block is not null then
+        update public.admin_settings set block_signups = p_block, updated_at = now(), updated_by = p_admin where id;
+        perform public.admin_log(p_admin, 'screening', null, case when p_block then 'refuse matching sign-ups' else 'only flag matching sign-ups' end);
+    end if;
+    if p_add is not null then
+        w := public.admin_norm(p_add);
+        if w !~ '^[a-z]{3,40}$' then raise exception 'bad word' using errcode = '22023'; end if;
+        if (select count(*) from public.admin_words) >= 500 then raise exception 'too many words' using errcode = '54000'; end if;
+        insert into public.admin_words (word) values (w) on conflict (word) do nothing;
+        perform public.admin_log(p_admin, 'word_add', null, null);
+        -- Flag existing accounts that match the new word.
+        insert into public.admin_flags (user_id, source, word)
+            select id, 'signup', w from auth.users where position(w in
+                public.admin_norm(split_part(coalesce(email, ''), '@', 1)) || ' ' || public.admin_norm(coalesce(raw_user_meta_data->>'full_name', '')) || ' ' ||
+                public.admin_norm(coalesce(raw_user_meta_data->>'name', ''))) > 0
+        on conflict (user_id) do nothing;
+    end if;
+    if p_remove is not null then
+        delete from public.admin_words where word = public.admin_norm(p_remove);
+        perform public.admin_log(p_admin, 'word_remove', null, null);
+    end if;
+    return public.admin_screening(p_admin);
+end;
+$$;
+
+/** The admin list: emails are shown for admins who have opened the panel; the rest by hash. */
+create or replace function public.admin_admins(p_admin uuid)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+begin
+    perform public.admin_require(p_admin);
+    return (select coalesce(jsonb_agg(jsonb_build_object('id', encode(a.email_hash, 'hex'),
+            'email', coalesce(a.email, (select lower(btrim(u.email)) from auth.users u
+                where coalesce(u.email, '') <> '' and sha256(convert_to(lower(btrim(u.email)), 'UTF8')) = a.email_hash limit 1)),
+            'added_at', a.added_at, 'me', a.email_hash = (select sha256(convert_to(lower(btrim(email)), 'UTF8')) from auth.users where id = p_admin))
+        order by a.added_at), '[]'::jsonb) from public.app_admins a);
+end;
+$$;
+
+create or replace function public.admin_admins_set(p_admin uuid, p_add_email text, p_remove_id text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare mail text := lower(btrim(coalesce(p_add_email, ''))); h bytea;
+begin
+    perform public.admin_require(p_admin);
+    if p_add_email is not null then
+        if mail !~ '^[^@\s]+@[^@\s]+\.[^@\s]+$' or char_length(mail) > 320 then raise exception 'bad email' using errcode = '22023'; end if;
+        if (select count(*) from public.app_admins) >= 20 then raise exception 'too many admins' using errcode = '54000'; end if;
+        insert into public.app_admins (email_hash, email, added_by) values (sha256(convert_to(mail, 'UTF8')), mail, p_admin)
+            on conflict (email_hash) do update set email = excluded.email;
+        perform public.admin_log(p_admin, 'admin_add', (select id from auth.users where lower(btrim(email)) = mail limit 1), public.admin_mask(mail));
+    end if;
+    if p_remove_id is not null then
+        if lower(p_remove_id) !~ '^[0-9a-f]{64}$' then raise exception 'bad request' using errcode = '22023'; end if;
+        h := decode(lower(p_remove_id), 'hex');
+        if h = (select sha256(convert_to(lower(btrim(email)), 'UTF8')) from auth.users where id = p_admin) then
+            raise exception 'not yourself' using errcode = '42501';
+        end if;
+        if (select count(*) from public.app_admins) <= 1 then raise exception 'last admin' using errcode = '42501'; end if;
+        perform public.admin_log(p_admin, 'admin_remove', null, (select public.admin_mask(email) from public.app_admins where email_hash = h));
+        delete from public.app_admins where email_hash = h;
+    end if;
+    return public.admin_admins(p_admin);
+end;
+$$;
+
+/** The SalaamStreet AI tab: the main switches and today's numbers (the Lab has the rest). */
+create or replace function public.admin_ai(p_admin uuid)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+begin
+    perform public.admin_require(p_admin);
+    return (select jsonb_build_object('enabled', enabled, 'beta_open', beta_open, 'user_daily_limit', user_daily_limit,
+        'daily_limit', daily_limit, 'minute_limit', minute_limit, 'model', model, 'updated_at', updated_at)
+        from public.ai_settings where id) || jsonb_build_object('usage', public.ai_usage_summary());
+end;
+$$;
+
+create or replace function public.admin_ai_set(p_admin uuid, p_patch jsonb)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+    perform public.admin_require(p_admin);
+    update public.ai_settings set
+        enabled = coalesce((p_patch->>'enabled')::boolean, enabled),
+        beta_open = coalesce((p_patch->>'beta_open')::boolean, beta_open),
+        user_daily_limit = coalesce((p_patch->>'user_daily_limit')::integer, user_daily_limit),
+        daily_limit = coalesce((p_patch->>'daily_limit')::integer, daily_limit),
+        updated_at = now(), updated_by = p_admin
+    where id;
+    perform public.admin_log(p_admin, 'ai_settings', null, left(p_patch::text, 200));
+    return public.admin_ai(p_admin);
+end;
+$$;
+
+/** The NVHS MSA tab: numbers and the latest announcements (the MSA's own admins run it day to day). */
+create or replace function public.admin_msa(p_admin uuid)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+begin
+    perform public.admin_require(p_admin);
+    return jsonb_build_object(
+        'members', (select count(*) from public.msa_members where status = 'approved'),
+        'pending', (select count(*) from public.msa_members where status in ('pending', 'flagged')),
+        'admins', (select count(*) from public.msa_admins),
+        'roster', (select count(*) from public.msa_roster),
+        'posts', (select coalesce(jsonb_agg(x order by x.pinned desc, x.created_at desc), '[]'::jsonb) from (
+            select p.id, p.title, p.created_at, p.pinned, p.on_home, p.expires_at, p.image is not null as has_image,
+                (select public.admin_mask(email) from auth.users where id = p.created_by) as author
+            from public.msa_posts p order by p.created_at desc limit 30) x));
+end;
+$$;
+
+create or replace function public.admin_msa_delete_post(p_admin uuid, p_post uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare t text;
+begin
+    perform public.admin_require(p_admin);
+    delete from public.msa_posts where id = p_post returning title into t;
+    if t is null then raise exception 'not found' using errcode = 'P0002'; end if;
+    perform public.admin_log(p_admin, 'msa_post_delete', null, left(t, 200));
+    return jsonb_build_object('ok', true);
+end;
+$$;
+
+/** The activity log, newest first, 50 at a time. */
+create or replace function public.admin_audit_list(p_admin uuid, p_offset integer)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+begin
+    perform public.admin_require(p_admin);
+    return jsonb_build_object('total', (select count(*) from public.admin_audit),
+        'entries', (select coalesce(jsonb_agg(jsonb_build_object('id', a.id, 'at', a.at, 'action', a.action, 'target', a.target, 'target_id', a.target_id,
+                'detail', a.detail, 'by', (select public.admin_mask(email) from auth.users where id = a.admin_id)) order by a.at desc), '[]'::jsonb)
+            from (select * from public.admin_audit order by at desc offset greatest(coalesce(p_offset, 0), 0) limit 50) a));
+end;
+$$;
+
+do $$
+declare fns text := 'public.admin_mask(text), public.admin_norm(text), public.admin_screen(text, jsonb), public.admin_check(uuid), public.admin_require(uuid),
+    public.admin_log(uuid, text, uuid, text), public.admin_denied(uuid, text), public.admin_hello(uuid), public.admin_overview(uuid),
+    public.admin_user_row(auth.users), public.admin_users(uuid, text, text, integer), public.admin_user(uuid, uuid), public.admin_target(uuid, uuid),
+    public.admin_sign_out(uuid, uuid), public.admin_ban(uuid, uuid, integer, text), public.admin_unban(uuid, uuid),
+    public.admin_delete_user(uuid, uuid, text, text), public.admin_flag(uuid, uuid, text, text), public.admin_flags_list(uuid),
+    public.admin_ai_member(uuid, uuid, text, integer), public.admin_screening(uuid), public.admin_screening_set(uuid, boolean, text, text),
+    public.admin_admins(uuid), public.admin_admins_set(uuid, text, text), public.admin_ai(uuid), public.admin_ai_set(uuid, jsonb),
+    public.admin_msa(uuid), public.admin_msa_delete_post(uuid, uuid), public.admin_audit_list(uuid, integer)';
+begin
+    execute 'revoke all on function ' || fns || ' from public, anon, authenticated';
+    if exists (select 1 from pg_roles where rolname = 'service_role') then
+        execute 'grant execute on function ' || fns || ' to service_role';
+        grant select, insert, update, delete on public.app_admins, public.admin_settings, public.admin_words, public.admin_flags, public.admin_audit to service_role;
+    end if;
+end;
+$$;

@@ -2497,3 +2497,137 @@ test("SalaamStreet AI 3.0: verified text from the app, ayah links, follow-ups, r
   await A.context.close();
   await pg.close();
 });
+
+/* ═══════════ Admin Panel (3.0.1) ═══════════
+   The page talks to the REAL admin server code (core.js, with its Postgres
+   functions in PGlite) through the Supabase mock. */
+test("admin panel: only an admin sees the link and gets in; overview, users, one account, ban, flags and the log", async () => {
+  const crypto = require("crypto");
+  const { adminDb, adminStore } = require("./helpers/admin-store");
+  const { createHandler } = await import(path.join(ROOT, "backend/functions/admin/core.js"));
+  const ADMIN_EMAIL = "google-user@example.com";
+  const TROLL = "b0000000-0000-0000-0000-000000000002";
+  const pg = await adminDb();
+  await pg.query("insert into public.app_admins (email_hash) values ($1)", [crypto.createHash("sha256").update(ADMIN_EMAIL).digest()]);
+  await pg.query(`insert into auth.users (id, email, raw_app_meta_data, email_confirmed_at, created_at, last_sign_in_at) values
+    ($1, 'n1gger.lol@gmail.com', '{"provider":"email"}', now(), now() - interval '1 day', now()),
+    (gen_random_uuid(), 'fatima@example.com', '{"provider":"google"}', now(), now() - interval '3 days', now() - interval '2 hours'),
+    (gen_random_uuid(), 'yusuf@example.com', '{"provider":"apple"}', null, now() - interval '9 days', null)`, [TROLL]);
+  await pg.query("insert into auth.sessions (user_id) values ($1)", [TROLL]);
+  const mock = createMock();
+  const store = adminStore(pg, async (t) => {
+    const u = mock.userForToken(t);
+    // Supabase keeps the signed-in account in auth.users; the mock keeps it in memory.
+    if (u) await pg.query(`insert into auth.users (id, email, raw_app_meta_data, email_confirmed_at, last_sign_in_at) values ($1, $2, $3, now(), now())
+      on conflict (id) do nothing`, [u.id, u.email, JSON.stringify(u.app_metadata)]);
+    return u;
+  });
+  mock.functions.admin = createHandler({ env: (k) => (k === "ADMIN_ALLOWED_ORIGINS" ? base.replace(/\/$/, "") : undefined), store, log: { warn() {} } });
+
+  const A = await device({ mock, context: { viewport: { width: 1280, height: 900 } } });
+  A.page.on("dialog", (d) => d.accept());
+  await open(A.page, "#/settings");
+  assert.equal(await A.page.isHidden("#st-admin"), true, "guests never see the link");
+  assert.equal(await A.page.evaluate(() => !!window.SS.adminPage), false, "its script isn't loaded on other pages");
+
+  await A.page.evaluate(() => { location.hash = "#/admin"; });
+  await A.page.waitForSelector("#adm-signin");
+  await A.page.click("#adm-signin");
+  await A.page.click('#acct-dialog[open] [data-method="google"]');
+  await A.page.waitForFunction(() => window.SS && SS.account && SS.account.signedIn(), null, { timeout: 10000 });
+  if (!/#\/admin/.test(A.page.url())) await A.page.evaluate(() => { location.hash = "#/admin"; });
+  await A.page.waitForSelector("#adm-app:not([hidden]) .adm-chart", { timeout: 10000 });
+  assert.equal(await A.page.title(), "Admin Panel — SalaamStreet");
+  const overview = await A.page.textContent("#adm-panel");
+  assert.match(overview, /1 account flagged/);
+  assert.match(overview, /Accounts\s*4/);
+  assert.match(overview, /Never signed in\s*1/);
+  assert.equal(await A.page.textContent('[data-count="flags"]'), "1");
+  await shot(A.page, "admin-1-overview-1280");
+
+  // Users: search and filters; one account opens in a sheet with what it uses and the actions.
+  await A.page.click('[data-tab="users"]');
+  await A.page.waitForSelector("#adm-users .adm-user");
+  assert.match(await A.page.textContent("#adm-total"), /^4 accounts/);
+  await A.page.click('[data-filter="flagged"]');
+  await A.page.waitForFunction(() => /^1 account/.test(document.getElementById("adm-total").textContent));
+  await A.page.click('[data-filter="all"]');
+  await A.page.fill("#adm-q", "fatima");
+  await A.page.press("#adm-q", "Enter");
+  await A.page.waitForFunction(() => /^1 account matching/.test(document.getElementById("adm-total").textContent));
+  await A.page.fill("#adm-q", "");
+  await A.page.press("#adm-q", "Enter");
+  await A.page.waitForFunction(() => /^4 accounts/.test(document.getElementById("adm-total").textContent));
+  await A.page.click(`#adm-users [data-user="${TROLL}"]`);
+  await A.page.waitForSelector('#admin-dialog[open] [data-uact="ban"]');
+  const sheet = await A.page.textContent("#admin-dialog");
+  assert.match(sheet, /Flagged .*contains “n••••r”/, "screened words are masked");
+  assert.match(sheet, /Questions\s*0 in all/);
+  await shot(A.page, "admin-2-user-1280");
+  // Your own account and other admins can't be acted on.
+  await A.page.click("#admin-dialog [data-close]");
+  await A.page.click('[data-filter="admins"]');
+  await A.page.waitForFunction(() => /^1 account/.test(document.getElementById("adm-total").textContent));
+  await A.page.click("#adm-users .adm-user");
+  await A.page.waitForFunction(() => /your own account/.test(document.getElementById("admin-dialog").textContent));
+  assert.equal(await A.page.$$eval('#admin-dialog [data-uact="ban"], #admin-dialog [data-uact="delete"]', (b) => b.length), 0);
+  await A.page.click("#admin-dialog [data-close]");
+
+  // Ban from the sheet: signed out everywhere, the flag dealt with, recorded in the log.
+  await A.page.evaluate((id) => { location.hash = "#/admin/user/" + id; }, TROLL);
+  await A.page.waitForSelector('#admin-dialog[open] [data-uact="ban"]');
+  await A.page.fill("#adm-ban-why", "abusive email");
+  await A.page.click('#admin-dialog [data-uact="ban"]');
+  await A.page.waitForSelector('#admin-dialog [data-uact="unban"]');
+  const row = (await pg.query("select banned_until > now() + interval '50 years' as forever from auth.users where id = $1", [TROLL])).rows[0];
+  assert.equal(row.forever, true);
+  assert.equal((await pg.query("select count(*)::int as n from auth.sessions where user_id = $1", [TROLL])).rows[0].n, 0);
+  assert.match(await A.page.textContent("#admin-dialog"), /History.*Banned.*abusive email/s);
+  await A.page.click("#admin-dialog [data-close]");
+
+  // Flags: nothing left to review; the word list is masked until shown.
+  await A.page.click('[data-tab="flags"]');
+  await A.page.waitForFunction(() => /Nothing to review/.test(document.getElementById("adm-panel").textContent));
+  assert.equal(await A.page.isHidden('[data-count="flags"]'), true);
+  assert.ok(!/nigger/.test(await A.page.textContent(".adm-words")), "masked");
+  await shot(A.page, "admin-4-flags-1280");
+  await A.page.click('[data-act="show-words"]');
+  await A.page.waitForFunction(() => /nigger/.test(document.querySelector(".adm-words").textContent));
+  await A.page.click('[data-act="show-words"]');
+
+  // The log, and the app remembers the account is an admin: Settings shows the link.
+  await A.page.click('[data-tab="log"]');
+  await A.page.waitForFunction(() => /Banned · n1\*\*\*@gmail\.com — until unbanned — abusive email/.test(document.getElementById("adm-panel").textContent));
+  await A.page.setViewportSize({ width: 390, height: 844 });
+  await A.page.evaluate(() => { location.hash = "#/admin/overview"; });
+  await A.page.waitForSelector("#adm-panel .adm-chart");
+  assert.equal(await A.page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true, "fits a phone");
+  await shot(A.page, "admin-3-overview-390");
+  if (SHOTS) {
+    await A.page.evaluate((id) => { location.hash = "#/admin/user/" + id; }, TROLL);
+    await A.page.waitForSelector('#admin-dialog[open] [data-uact="unban"]');
+    await A.page.$eval("#admin-dialog .modal-scroll", (el) => { el.scrollTop = el.scrollHeight; });
+    await shot(A.page, "admin-5-user-390");
+    await A.page.click("#admin-dialog [data-close]");
+  }
+  await A.page.evaluate(() => { location.hash = "#/settings"; });
+  await A.page.waitForSelector("#st-admin:not([hidden])");
+  assert.deepEqual(A.page.errors, []);
+  await A.context.close();
+
+  // Someone who isn't an admin: no link, and the panel says no.
+  await pg.query("delete from public.app_admins");
+  await pg.query("insert into public.app_admins (email_hash) values (sha256('owner@example.com'))");
+  const B = await device({ mock });
+  await open(B.page, "#/admin");
+  await B.page.click("#adm-signin");
+  await B.page.click('#acct-dialog[open] [data-method="google"]');
+  await B.page.waitForFunction(() => window.SS && SS.account && SS.account.signedIn(), null, { timeout: 10000 });
+  if (!/#\/admin/.test(B.page.url())) await B.page.evaluate(() => { location.hash = "#/admin"; });
+  await B.page.waitForFunction(() => /can.t use the Admin Panel/.test((document.getElementById("adm-gate") || {}).textContent || ""));
+  await B.page.evaluate(() => { location.hash = "#/settings"; });
+  await B.page.waitForTimeout(500);
+  assert.equal(await B.page.isHidden("#st-admin"), true);
+  await B.context.close();
+  await pg.close();
+});

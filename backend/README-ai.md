@@ -233,7 +233,7 @@ Other switches (Supabase → Edge Functions → Secrets):
   you can't sign in). Remove it to turn back on.
 - `AI_TIMEOUT_MS` — how long to wait for Gemini (default 45000).
 - `AI_ALLOWED_ORIGINS` — sites allowed to call the function from a browser
-  (default salaamstreet.com, www, and ibbucoder.github.io).
+  (default salaamstreet.com, www, ibbucoder.github.io and, since 3.1, the iPhone app `app://salaamstreet`).
 - `AI_ADMIN_EMAIL_SHA256` — replaces the admin list: comma-separated SHA-256
   of lower-cased emails. Get one with
   `printf '%s' 'name@example.com' | shasum -a 256`.

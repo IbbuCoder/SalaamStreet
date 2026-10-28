@@ -381,7 +381,7 @@
 
   /* ── Router ─────────────────────────────────────────────────── */
   var VIEWS = ["home", "prayer", "qibla", "quran", "surah", "hadith", "duas", "dhikr", "calendar", "settings",
-    "adhkar", "names", "mosques", "learn", "about", "account", "stories", "modes", "mode", "family", "kids", "msa", "lab", "ai", "offline"];
+    "adhkar", "names", "mosques", "learn", "about", "account", "stories", "modes", "mode", "family", "kids", "msa", "lab", "ai", "offline", "admin"];
   // Which nav item to highlight for views that aren't themselves nav items.
   var NAV_ALIAS = { surah: "quran", mode: "modes" };
   // Destinations that live in the phone "More" sheet light up the More tab.
@@ -454,6 +454,7 @@
       : SS.i18n.getLocale() === "en" ? HOME_TITLE : "SalaamStreet — " + SS.i18n.t("app.tagline");
     try {
       if (SS.views[r.view]) SS.views[r.view](r.params);
+      if (r.view === "settings") adminLink();
     } catch (err) {
       // Never let one view break the shell.
       if (window.console) console.error(err);
@@ -502,6 +503,60 @@
   SS.views.ai = function (params) { aiScript("ai", params); };
   SS.leave = SS.leave || {};
   SS.leave.ai = SS.leave.lab = function () { if (SS.aiLeave) SS.aiLeave(); };
+
+  /* The Admin Panel (#/admin, 3.0.1): linked from Settings for admins only, on
+     the website and in the iPhone app (which has no address bar). js/admin.js
+     loads only when it opens; the server (backend/functions/admin) decides
+     who may use it. */
+  var adminLoading = null;
+  var ADMIN_REV = "2026-10-28"; // change whenever js/admin.js changes
+  SS.views.admin = function (params) {
+    var run = function () { if (currentView === "admin" && SS.adminPage) SS.adminPage(params); };
+    if (SS.adminPage) return run();
+    if (!adminLoading) {
+      adminLoading = new Promise(function (resolve, reject) {
+        var s = document.createElement("script");
+        s.src = "js/admin.js?r=" + ADMIN_REV;
+        s.onload = resolve;
+        s.onerror = reject;
+        document.head.appendChild(s);
+      });
+    }
+    adminLoading.then(run, function () {
+      adminLoading = null;
+      $("admin-root").innerHTML = '<p class="muted">Couldn\u2019t load the Admin Panel. Check your connection and reload.</p>';
+    });
+  };
+  SS.leave.admin = function () { if (SS.adminLeave) SS.adminLeave(); };
+
+  /** Settings → "Admin Panel" for admins. Asked per account (admin "me") and remembered on the device:
+      a yes for a day, a no for 6 hours (so someone just made an admin sees it the same day). */
+  var ADMIN_CHECK = "ss.adminCheck";
+  function adminLink() {
+    var el = $("st-admin");
+    if (!el) return;
+    var cfg = SS.CONFIG || {}, user = SS.account && SS.account.signedIn() && SS.account.user();
+    if (!user || !cfg.supabaseUrl) { el.hidden = true; return; }
+    var c = null;
+    try { c = JSON.parse(localStorage.getItem(ADMIN_CHECK) || "null"); } catch (e) { c = null; }
+    if (c && c.uid === user.id && Date.now() - c.at < (c.admin ? 864e5 : 216e5)) { el.hidden = !c.admin; return; }
+    el.hidden = true;
+    SS.account.client().then(function (cl) { return cl.auth.getSession(); }).then(function (r) {
+      var tok = r.data && r.data.session && r.data.session.access_token;
+      if (!tok) return null;
+      return fetch(cfg.supabaseUrl.replace(/\/+$/, "") + "/functions/v1/admin", {
+        method: "POST", body: JSON.stringify({ action: "me" }),
+        headers: { authorization: "Bearer " + tok, apikey: cfg.supabaseAnonKey, "content-type": "application/json" },
+      }).then(function (res) {
+        // Only a definite answer is remembered (not a network hiccup or an undeployed function).
+        if (res.status !== 200 && res.status !== 403) return;
+        var yes = res.status === 200;
+        try { localStorage.setItem(ADMIN_CHECK, JSON.stringify({ uid: user.id, admin: yes, at: Date.now() })); } catch (e) { /* private mode */ }
+        if (SS.account.user() && SS.account.user().id === user.id) el.hidden = !yes;
+      });
+    }).catch(function () { /* offline: try next time */ });
+  }
+  document.addEventListener("ss:auth", function () { if (currentView === "settings") adminLink(); });
 
   /* ── Small global behaviours ────────────────────────────────── */
   function wireScrollState() {

@@ -10,11 +10,12 @@ SalaamStreet began as an Islamic-themed Shopify shop that Ibrahim built when he 
 
 **Our promise:** everything you need — prayer times, Qibla, Qur'an, duas, dhikr, the prayer tracker, Arabic learning and (when it arrives) sync — stays free forever. Any future paid extras (subscription or one-time) will only be for things that genuinely cost money to provide.
 
-Current version: **3.0.0 — The AI update** (see `SS.VERSION` / `SS.CHANGELOG` in `js/content.js`).
+Current version: **3.0.1 — Keeping SalaamStreet safe** (the Admin Panel) (see `SS.VERSION` / `SS.CHANGELOG` in `js/content.js`).
 
 ## Features
 
 - **iPhone app (3.0.0 Beta)** — the website itself, bundled in an iOS app ([`ios/`](ios/README.md)), plus what only an iPhone can do: recitation that keeps playing with the phone locked (Lock Screen controls), reminders with an "I prayed" button, a prayer countdown on the Lock Screen and in the Dynamic Island, Home Screen and Lock Screen widgets, Siri and Shortcuts, Control Centre, Spotlight and haptics
+- **Admin Panel (3.0.1)** — a private page for the people who run SalaamStreet, at `#/admin` on the website and in the iPhone app (Settings → Admin Panel, shown only to admins). Overview of accounts, sign-ups by day, sign-in methods and SalaamStreet AI today; search and filter every account and open one to see what it uses (counts only, never anyone's AI conversations or notes) and ban, unban, sign out everywhere, flag, pause SalaamStreet AI or delete it; sign-up screening that flags (or refuses) emails and names containing slurs; SalaamStreet AI's main switches; the NVHS MSA's latest posts; the admin list; and a log of every admin action. The server decides everything: each request is checked against the admin list (signed in with Google) by an Edge Function and again by the database. Setup: [`backend/README-backend.md`](backend/README-backend.md#301--admin-panel)
 - **Offline page (3.0)** — `#/offline` (on the website and in the iPhone app): download the Qur'an text and translations, recitation, Tafsir Ibn Kathir and hadith collections; see what's built in and what needs a connection; manage storage. Details: [`docs/07-offline.md`](docs/07-offline.md)
 - **SalaamStreet AI (3.0)** — an Islamic assistant for everyone with a free account, at `#/ai` (SalaamStreet AI in the menus). It only answers Islamic questions, never invents verses or hadith, and refers rulings to scholars. It answers from the app's own verified text where it can: ayahs mentioned in a question ("2:255"), `/tafsir 2:255` (Tafsir Ibn Kathir) and `/hadith nawawi 1` (the 10 hadith collections) are sent with the question and shown under the answer, and ayah references in answers link to the Qur'an. Other commands (`/bookmarks`, `/ayah`, `/progress`, `/plan`, `/dua`, `/quiz`, `/reflect`) use your own app data when you allow it. Follow-up suggestions, read aloud, Save (a text file on your device) and 👍/👎 (only the number is stored); "Ask SalaamStreet AI" in the tafsir sheet. Each person has a daily allowance; when it's busy, people wait in a fair line and their question is sent automatically. Conversations aren't stored. Setup and limits: [`backend/README-ai.md`](backend/README-ai.md)
 - **NVHS MSA (2.11)** — the Neuqua Valley High School Muslim Student Association's announcements, with pictures, for everyone (no account needed to read); important ones also show as one slim, hideable card on Home. Only the MSA's own accounts can post, edit, pin and delete, checked by the database on every write. **Members (2.11.6):** students join with their name and the 6-digit meeting code (changes every 10 minutes, shown only to the MSA's approver), or by asking; the approver checks requests against a roster kept only in the database; a name that already belongs to a member is flagged for an in-person check; posters can mark announcements members-only. **2.11.7:** students on the roster who sign in with their school email (emailed code, not Google) are accepted automatically. **2.11.8:** one list of MSA admins — only they post, and they manage members; admins add students (with the email they sign in with) and other admins on the Manage page, which also has “approve all on the list”, who joined this week and a CSV download. Setup: [`backend/README-backend.md`](backend/README-backend.md#31--nvhs-msa-announcements)
@@ -100,6 +101,7 @@ Safe-area insets (iPhone notch / home indicator), 16px form inputs (no iOS zoom)
 │   ├── config.js         Supabase URL + key for optional accounts (empty = guest-only)
 │   ├── sync.js           Cross-device sync engine
 │   ├── account.js        Sign-in, account linking, sync wiring, Account dashboard
+│   ├── admin.js          3.0.1 Admin Panel (#/admin), loaded only when an admin opens it
 │   ├── vendor/supabase.js  supabase-js (MIT), loaded only when someone uses accounts
 │   ├── vendor/pdfjs/     Mozilla pdf.js (Apache-2.0), loaded only for the Qur'an PDF
 │   ├── modes.js          2.10 Modes: registry, active mode, #/modes picker, Home mode panel, suggestions, Quiet Mode
@@ -118,7 +120,7 @@ Safe-area insets (iPhone notch / home indicator), 16px form inputs (no iOS zoom)
 ├── ios/                  iPhone app: the website in a WKWebView + native features — see ios/README.md
 ├── tools/build-ios-webapp.js  Copies the website (and its fonts) into the iPhone app — run after website changes
 ├── tools/build-ios-assets.js  Draws the iPhone app's icon, launch logo and Lock Screen artwork
-├── backend/              Supabase schema, setup guides, functions/send-reminders (closed-app reminders) and functions/ai-lab (private AI Testing Lab)
+├── backend/              Supabase schema, setup guides, functions/send-reminders (closed-app reminders), functions/ai-lab (SalaamStreet AI + the private AI Testing Lab) and functions/admin (the Admin Panel)
 ├── tests/                Unit, database (PGlite) and browser (Playwright) tests
 └── docs/                 Product, architecture and design notes
 ```
@@ -156,6 +158,7 @@ npm run lint         # ESLint
 - `tests/praytimes.test.js` — on-device prayer times vs the adhan library (8 cities, 4 seasons, every method)
 - `tests/push.test.js` — the reminder server: what's due when, sent once, in the device's language
 - `tests/ai-lab.test.js` — the private AI Testing Lab's server in a real Postgres: admin-only access checked on every request, limits, emergency switches, Gemini errors, no secrets in the website ([`backend/README-ai.md`](backend/README-ai.md))
+- `tests/admin.test.js` — the Admin Panel's server in a real Postgres: only an admin's Google account gets in (and the database checks again), sign-up screening, ban / sign out / delete with the log, never on yourself or another admin, the admin list, the iPhone app's origin
 - `tests/ios-bridge.test.js` — the iPhone app's bridge on the real website in Chromium (prayer times in the location's time zone, reminders, "I prayed", the recitation queue) and that the app's copy of the website is current
 - `tests/offline.test.js` — the Offline page and downloads in Chromium with real IndexedDB/Cache API: storage, read-path fallback, resume after a dropped connection or closed tab, quota errors, PDF card hidden while the file is missing
 - `tests/e2e.test.js` — the app in Chromium: startup theme, Tafsir, Qibla compass/camera, guest mode, every sign-in method driven through the real supabase-js client against a mock Supabase API, and the Offline Qur'an (text, audio across surahs, the PDF viewer offline), and every 2.10 mode: switching and persistence, Travel without location and offline, Hajj & Umrah progress, Mosque and Quiet Mode, suggestions, the full parent/child flow against the real database functions, and layout in light and dark

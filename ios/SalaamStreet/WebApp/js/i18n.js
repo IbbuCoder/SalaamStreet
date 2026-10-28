@@ -23,6 +23,7 @@
       "tafsir.source": "Source: Tafsir Ibn Kathir via the open tafsir_api.",
       "tafsir.prevAyah": "Previous ayah", "tafsir.nextAyah": "Next ayah", "tafsir.ayahN": "Ayah {n}",
       "tafsir.error": "Couldn't load the tafsir for this ayah.",
+      "tafsir.askAi": "Ask SalaamStreet AI about this ayah",
 
       "cal.title": "Islamic Calendar", "cal.sub": "Today's Hijri date and key Islamic dates.",
       "cal.today": "Today", "cal.hijri": "Hijri", "cal.gregorian": "Gregorian",
@@ -576,7 +577,6 @@
       "nav.msa": "NVHS MSA",
       "nav.ai": "SalaamStreet AI",
       "ai.title": "SalaamStreet AI",
-      "ai.beta": "Beta",
       "msa.title": "NVHS MSA",
       "msa.club": "NVHS MSA",
       "msa.clubFull": "Neuqua Valley High School Muslim Student Association",
@@ -1463,6 +1463,7 @@
       "tafsir.source": "المصدر: تفسير ابن كثير عبر tafsir_api المفتوح.",
       "tafsir.prevAyah": "الآية السابقة", "tafsir.nextAyah": "الآية التالية", "tafsir.ayahN": "الآية {n}",
       "tafsir.error": "تعذّر تحميل تفسير هذه الآية.",
+      "tafsir.askAi": "اسأل مساعد SalaamStreet الذكي عن هذه الآية",
 
       "cal.title": "التقويم الهجري", "cal.sub": "تاريخ اليوم الهجري وأهم المناسبات الإسلامية.",
       "cal.today": "اليوم", "cal.hijri": "هجري", "cal.gregorian": "ميلادي",
@@ -2016,7 +2017,6 @@
       "nav.msa": "رابطة الطلاب المسلمين (NVHS)",
       "nav.ai": "مساعد SalaamStreet الذكي",
       "ai.title": "مساعد SalaamStreet الذكي",
-      "ai.beta": "تجريبي",
       "msa.title": "رابطة الطلاب المسلمين (NVHS)",
       "msa.club": "رابطة NVHS",
       "msa.clubFull": "رابطة الطلاب المسلمين في مدرسة نيوكوا فالي الثانوية",
