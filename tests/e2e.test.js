@@ -2598,7 +2598,10 @@ test("admin panel: only an admin sees the link and gets in; overview, users, one
   await A.page.click("#admin-dialog [data-close]");
 
   // Ban from the sheet (3.0.2): a Community Rules reason, a message they see, a private note, the email blocked.
-  await A.page.evaluate((id) => { location.hash = "#/admin/user/" + id; }, TROLL);
+  await A.page.waitForFunction(() => !document.getElementById("admin-dialog").open);
+  await A.page.click('[data-filter="flagged"]');
+  await A.page.waitForSelector(`#adm-users [data-user="${TROLL}"]`);
+  await A.page.click(`#adm-users [data-user="${TROLL}"]`);
   await A.page.waitForSelector('#admin-dialog[open] [data-uact="ban"]');
   await A.page.click('#admin-dialog [data-uact="ban"]');
   await A.page.waitForSelector("#adm-reason-form");
