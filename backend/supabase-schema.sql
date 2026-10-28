@@ -2079,7 +2079,8 @@ begin
     select lower(btrim(email)) into mail from auth.users where id = p_admin;
     update public.app_admins set email = mail where email_hash = sha256(convert_to(mail, 'UTF8')) and email is distinct from mail;
     return jsonb_build_object('admin', true, 'email', mail,
-        'open_flags', (select count(*) from public.admin_flags where status = 'open'));
+        'open_flags', (select count(*) from public.admin_flags where status = 'open'),
+        'open_appeals', (select count(*) from public.account_appeals where status = 'open'));
 end;
 $$;
 
@@ -2096,6 +2097,11 @@ begin
         'never_signed_in', (select count(*) from auth.users where last_sign_in_at is null),
         'banned', (select count(*) from auth.users where banned_until > now()),
         'open_flags', (select count(*) from public.admin_flags where status = 'open'),
+        'open_appeals', (select count(*) from public.account_appeals where status = 'open'),
+        'blocked_emails', (select count(*) from public.blocked_emails),
+        'warnings_7d', (select count(*) from public.account_warnings where created_at > now() - interval '7 days'),
+        'rules_accepted', (select count(*) from public.profiles where rules_version is not null),
+        'notice', public.app_notice_get(),
         'admins', (select count(*) from public.app_admins),
         'signups_14d', (select coalesce(jsonb_agg(jsonb_build_object('day', to_char(d, 'YYYY-MM-DD'), 'n',
                 (select count(*) from auth.users where created_at >= d and created_at < d + interval '1 day')) order by d), '[]'::jsonb)
@@ -2123,6 +2129,9 @@ begin
         'confirmed', u.email_confirmed_at is not null or u.phone_confirmed_at is not null,
         'banned_until', case when u.banned_until > now() then u.banned_until end,
         'flagged', exists (select 1 from public.admin_flags f where f.user_id = u.id and f.status = 'open'),
+        'ban_reason', case when u.banned_until > now() then (select reason from public.account_bans b where b.user_id = u.id) end,
+        'warnings', (select count(*) from public.account_warnings w where w.user_id = u.id),
+        'appeal_open', exists (select 1 from public.account_appeals ap where ap.user_id = u.id and ap.status = 'open'),
         'admin', coalesce(u.email, '') <> '' and exists (select 1 from public.app_admins a where a.email_hash = sha256(convert_to(lower(btrim(u.email)), 'UTF8'))));
 end;
 $$;
@@ -2191,6 +2200,15 @@ begin
             'pauses', coalesce(m.bans, 0)),
         'flag', (select jsonb_build_object('source', source, 'word', word, 'note', note, 'status', status, 'flagged_at', flagged_at, 'reviewed_at', reviewed_at)
             from public.admin_flags where user_id = u.id),
+        'ban', (select jsonb_build_object('reason', b.reason, 'message', b.message, 'note', b.note, 'until', b.until, 'banned_at', b.banned_at,
+                'email_blocked', b.email_blocked, 'by', (select public.admin_mask(email) from auth.users where id = b.banned_by))
+            from public.account_bans b where b.user_id = u.id and u.banned_until > now()),
+        'email_blocked', mail <> '' and exists (select 1 from public.blocked_emails e where e.email_hash = sha256(convert_to(mail, 'UTF8'))),
+        'warning_list', (select coalesce(jsonb_agg(jsonb_build_object('reason', w.reason, 'message', w.message, 'at', w.created_at, 'seen_at', w.seen_at)
+                order by w.created_at desc), '[]'::jsonb) from public.account_warnings w where w.user_id = u.id),
+        'appeals', (select coalesce(jsonb_agg(jsonb_build_object('id', ap.id, 'text', ap.text, 'status', ap.status, 'reply', ap.reply, 'at', ap.created_at)
+                order by ap.created_at desc), '[]'::jsonb) from public.account_appeals ap where ap.user_id = u.id),
+        'rules_version', (select rules_version from public.profiles where id = u.id),
         'history', (select coalesce(jsonb_agg(jsonb_build_object('at', a.at, 'action', a.action, 'detail', a.detail,
                 'by', (select public.admin_mask(email) from auth.users where id = a.admin_id)) order by a.at desc), '[]'::jsonb)
             from (select * from public.admin_audit where target_id = u.id order by at desc limit 20) a));
@@ -2225,30 +2243,52 @@ begin
 end;
 $$;
 
-/** Ban: they can't sign in (for p_days, or until unbanned when null) and are signed out everywhere. */
-create or replace function public.admin_ban(p_admin uuid, p_id uuid, p_days integer, p_reason text)
+/** Ban (3.0.2): one of the Community Rules reasons, an optional message the
+    person sees and a private note for admins. They can't sign in, every
+    request from their account is refused at once (public.am_blocked), and
+    their device shows the ban, its reason and an Appeal button. Their
+    sign-in tokens are kept (not deleted) so that device can still prove who
+    it was to read the ban and appeal (public.account_notice). p_block also
+    stops the email making a new account. p_days null = until unbanned. */
+drop function if exists public.admin_ban(uuid, uuid, integer, text);
+create or replace function public.admin_ban(p_admin uuid, p_id uuid, p_days integer, p_reason text, p_message text, p_note text, p_block boolean)
 returns jsonb language plpgsql security definer set search_path = public as $$
-declare u auth.users; v_until timestamptz;
+declare u auth.users; v_until timestamptz; mail text;
 begin
     u := public.admin_target(p_admin, p_id);
     if p_days is not null and (p_days < 1 or p_days > 3650) then raise exception 'bad request' using errcode = '22023'; end if;
+    if p_reason is null or not (p_reason = any (public.ban_reasons())) then raise exception 'bad reason' using errcode = '22023'; end if;
+    if p_reason = 'other' and nullif(btrim(coalesce(p_message, '')), '') is null then raise exception 'other needs message' using errcode = '22023'; end if;
     v_until := now() + coalesce(make_interval(days => p_days), interval '100 years');
     update auth.users set banned_until = v_until where id = u.id;
-    delete from auth.sessions where user_id = u.id;
+    insert into public.account_bans (user_id, reason, message, note, until, banned_by, email_blocked)
+        values (u.id, p_reason, left(nullif(btrim(p_message), ''), 500), left(nullif(btrim(p_note), ''), 500), v_until, p_admin, coalesce(p_block, false))
+    on conflict (user_id) do update set reason = excluded.reason, message = excluded.message, note = excluded.note,
+        until = excluded.until, banned_at = now(), banned_by = excluded.banned_by, email_blocked = excluded.email_blocked;
+    mail := lower(btrim(coalesce(u.email, '')));
+    if coalesce(p_block, false) and mail <> '' then
+        insert into public.blocked_emails (email_hash, masked, reason, added_by, from_ban)
+            values (sha256(convert_to(mail, 'UTF8')), public.admin_mask(mail), p_reason, p_admin, u.id)
+        on conflict (email_hash) do nothing;
+    end if;
     delete from public.ai_queue where user_id = u.id;
+    update public.account_appeals set status = 'denied', reply = coalesce(reply, 'Replaced by a new ban.'), decided_at = now(), decided_by = p_admin
+        where user_id = u.id and status = 'open';
     update public.admin_flags set status = 'dismissed', reviewed_at = now(), reviewed_by = p_admin where user_id = u.id and status = 'open';
     perform public.admin_log(p_admin, 'ban', u.id,
-        coalesce(p_days || ' day(s)', 'until unbanned') || coalesce(' — ' || nullif(btrim(p_reason), ''), ''));
+        public.ban_reason_label(p_reason) || ' · ' || coalesce(p_days || ' day(s)', 'until unbanned') ||
+        case when coalesce(p_block, false) then ' · email blocked' else '' end || coalesce(' — ' || nullif(btrim(p_note), ''), ''));
     return jsonb_build_object('ok', true, 'banned_until', v_until);
 end;
 $$;
 
+/** Unban: they can sign in again; the ban's email block (if any) is lifted too. */
 create or replace function public.admin_unban(p_admin uuid, p_id uuid)
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare u auth.users;
 begin
     u := public.admin_target(p_admin, p_id);
-    update auth.users set banned_until = null where id = u.id;
+    perform public.account_lift_ban(u.id, p_admin);
     perform public.admin_log(p_admin, 'unban', u.id, null);
     return jsonb_build_object('ok', true);
 end;
@@ -2489,7 +2529,7 @@ do $$
 declare fns text := 'public.admin_mask(text), public.admin_norm(text), public.admin_screen(text, jsonb), public.admin_check(uuid), public.admin_require(uuid),
     public.admin_log(uuid, text, uuid, text), public.admin_denied(uuid, text), public.admin_hello(uuid), public.admin_overview(uuid),
     public.admin_user_row(auth.users), public.admin_users(uuid, text, text, integer), public.admin_user(uuid, uuid), public.admin_target(uuid, uuid),
-    public.admin_sign_out(uuid, uuid), public.admin_ban(uuid, uuid, integer, text), public.admin_unban(uuid, uuid),
+    public.admin_sign_out(uuid, uuid), public.admin_ban(uuid, uuid, integer, text, text, text, boolean), public.admin_unban(uuid, uuid),
     public.admin_delete_user(uuid, uuid, text, text), public.admin_flag(uuid, uuid, text, text), public.admin_flags_list(uuid),
     public.admin_ai_member(uuid, uuid, text, integer), public.admin_screening(uuid), public.admin_screening_set(uuid, boolean, text, text),
     public.admin_admins(uuid), public.admin_admins_set(uuid, text, text), public.admin_ai(uuid), public.admin_ai_set(uuid, jsonb),
@@ -2500,5 +2540,445 @@ begin
         execute 'grant execute on function ' || fns || ' to service_role';
         grant select, insert, update, delete on public.app_admins, public.admin_settings, public.admin_words, public.admin_flags, public.admin_audit to service_role;
     end if;
+end;
+$$;
+
+-- ════════════════════════════════════════════════════════════════════════
+--  3.0.2 — Bans people can see, warnings, appeals and the Community Rules
+--  • A ban has a reason from the Community Rules (ban_reasons), an optional
+--    message the person sees and a private note. Every request from a banned
+--    account — or from a session an admin ended — is refused at once
+--    (am_blocked, in the sync policies, MSA and the Edge Functions), and the
+--    person's device shows the ban with its reason and an Appeal button.
+--  • A banned person's device proves who it was with the sign-in token it
+--    kept (account_notice / account_appeal), so it can read the ban and
+--    appeal even though it can no longer sign in. Nobody else can look up a
+--    ban.
+--  • Warnings: shown to the person the next time they open SalaamStreet.
+--  • Appeals: one open at a time, up to 3 per ban; admins answer them.
+--  • Blocked emails can't make a new account (also after deletion).
+--  • The Community Rules: everyone with an account agrees once per version
+--    (profiles.rules_version), before signing in and on their next visit.
+--  • app_notice: one short banner admins can show on everyone's Home.
+-- ════════════════════════════════════════════════════════════════════════
+
+/** The Community Rules' ban reasons (the app shows them in every language). */
+create or replace function public.ban_reasons()
+returns text[] language sql immutable set search_path = public as $$
+    select array['offensive_name', 'ai_abuse', 'ai_rules', 'impersonation', 'msa_post', 'fake_accounts', 'hacking', 'other'];
+$$;
+/** English labels, for the log. */
+create or replace function public.ban_reason_label(p_reason text)
+returns text language sql immutable set search_path = public as $$
+    select case p_reason
+        when 'offensive_name' then 'Offensive name or email'
+        when 'ai_abuse' then 'Hateful, sexual or disrespectful use of SalaamStreet AI'
+        when 'ai_rules' then 'Repeatedly breaking SalaamStreet AI''s rules'
+        when 'impersonation' then 'Impersonation'
+        when 'msa_post' then 'Inappropriate MSA posts'
+        when 'fake_accounts' then 'Extra or fake accounts'
+        when 'hacking' then 'Hacking or abusing the app'
+        when 'other' then 'Other'
+        else coalesce(p_reason, '?') end;
+$$;
+
+create table if not exists public.account_bans (
+    user_id       uuid primary key references auth.users(id) on delete cascade,
+    reason        text not null,
+    message       text check (message is null or char_length(message) <= 500), -- shown to the person
+    note          text check (note is null or char_length(note) <= 500),       -- admins only
+    until         timestamptz not null,
+    banned_at     timestamptz not null default now(),
+    banned_by     uuid,
+    email_blocked boolean not null default false
+);
+create table if not exists public.account_warnings (
+    id         bigint generated always as identity primary key,
+    user_id    uuid not null references auth.users(id) on delete cascade,
+    reason     text not null,
+    message    text check (message is null or char_length(message) <= 500),
+    created_at timestamptz not null default now(),
+    created_by uuid,
+    seen_at    timestamptz
+);
+create index if not exists account_warnings_user on public.account_warnings (user_id, created_at desc);
+create table if not exists public.account_appeals (
+    id         bigint generated always as identity primary key,
+    user_id    uuid not null references auth.users(id) on delete cascade,
+    ban_at     timestamptz not null,                      -- which ban (account_bans.banned_at)
+    text       text not null check (char_length(btrim(text)) between 10 and 1000),
+    status     text not null default 'open' check (status in ('open', 'accepted', 'denied')),
+    reply      text check (reply is null or char_length(reply) <= 500),
+    created_at timestamptz not null default now(),
+    decided_at timestamptz,
+    decided_by uuid
+);
+create unique index if not exists account_appeals_one_open on public.account_appeals (user_id) where status = 'open';
+create table if not exists public.blocked_emails (
+    email_hash bytea primary key check (octet_length(email_hash) = 32),
+    masked     text,
+    reason     text,
+    added_at   timestamptz not null default now(),
+    added_by   uuid,
+    from_ban   uuid -- the account whose ban added it (lifted with the ban)
+);
+create table if not exists public.app_notice (
+    id         boolean primary key default true check (id),
+    text       text check (text is null or char_length(text) <= 280),
+    tone       text not null default 'info' check (tone in ('info', 'warn', 'celebrate')),
+    active     boolean not null default false,
+    until      timestamptz,
+    updated_at timestamptz not null default now(),
+    updated_by uuid
+);
+insert into public.app_notice (id) values (true) on conflict (id) do nothing;
+alter table public.profiles add column if not exists rules_version text check (rules_version is null or char_length(rules_version) <= 20);
+alter table public.profiles add column if not exists rules_accepted_at timestamptz;
+
+alter table public.account_bans     enable row level security;
+alter table public.account_warnings enable row level security;
+alter table public.account_appeals  enable row level security;
+alter table public.blocked_emails   enable row level security;
+alter table public.app_notice       enable row level security;
+revoke all on public.account_bans, public.account_warnings, public.account_appeals, public.blocked_emails, public.app_notice from anon, authenticated;
+
+/** The session id in the caller's sign-in token (null when there is none). */
+create or replace function public.jwt_session_id()
+returns uuid language plpgsql stable set search_path = public as $$
+begin
+    return nullif(nullif(current_setting('request.jwt.claims', true), '')::jsonb->>'session_id', '')::uuid;
+exception when others then
+    return null;
+end;
+$$;
+
+/** Is the signed-in account banned, or is this a session an admin ended?
+    Used by the sync policies and the MSA and AI checks, so a ban or
+    "sign out everywhere" takes effect at once, not when the token expires. */
+create or replace function public.am_blocked()
+returns boolean language plpgsql stable security definer set search_path = public as $$
+declare uid uuid := auth.uid(); sid uuid;
+begin
+    if uid is null then return false; end if;
+    begin
+        if exists (select 1 from auth.users where id = uid and banned_until > now()) then return true; end if;
+    exception when undefined_column then null; -- a database without Supabase Auth's ban column (tests)
+    end;
+    sid := public.jwt_session_id();
+    if sid is not null then
+        begin
+            return not exists (select 1 from auth.sessions where id = sid);
+        exception when undefined_table then return false;
+        end;
+    end if;
+    return false;
+end;
+$$;
+grant execute on function public.am_blocked(), public.jwt_session_id() to authenticated, anon;
+
+-- Sync: a banned account (or an ended session) can't read or write anything.
+drop policy if exists "own profile read"   on public.profiles;
+drop policy if exists "own profile insert" on public.profiles;
+drop policy if exists "own profile update" on public.profiles;
+create policy "own profile read"   on public.profiles for select to authenticated using (auth.uid() = id and not (select public.am_blocked()));
+create policy "own profile insert" on public.profiles for insert to authenticated with check (auth.uid() = id and not (select public.am_blocked()));
+create policy "own profile update" on public.profiles for update to authenticated using (auth.uid() = id and not (select public.am_blocked())) with check (auth.uid() = id);
+drop policy if exists "own records" on public.sync_records;
+create policy "own records" on public.sync_records
+    for all to authenticated using (auth.uid() = user_id and not (select public.am_blocked())) with check (auth.uid() = user_id and not (select public.am_blocked()));
+
+-- MSA: a blocked account has no email as far as the MSA is concerned (can't post, approve or manage).
+create or replace function public.msa_my_email()
+returns text language plpgsql stable security definer set search_path = public as $$
+begin
+    if public.am_blocked() then return ''; end if;
+    return (select lower(btrim(email)) from auth.users where id = auth.uid());
+end;
+$$;
+
+/** A blocked email can't make a new account (or move an account to it). */
+create or replace function public.account_block_check()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare mail text := lower(btrim(coalesce(new.email, '')));
+begin
+    if mail <> '' and exists (select 1 from public.blocked_emails where email_hash = sha256(convert_to(mail, 'UTF8'))) then
+        raise exception 'This email address can''t be used on SalaamStreet.' using errcode = '22023';
+    end if;
+    return new;
+end;
+$$;
+drop trigger if exists on_auth_user_block_check on auth.users;
+create trigger on_auth_user_block_check
+    before insert or update of email on auth.users
+    for each row execute function public.account_block_check();
+revoke all on function public.account_block_check() from public, anon, authenticated;
+
+/** Lift a ban (unban, or an accepted appeal). */
+create or replace function public.account_lift_ban(p_id uuid, p_admin uuid)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+    update auth.users set banned_until = null where id = p_id;
+    delete from public.blocked_emails where from_ban = p_id;
+    delete from public.account_bans where user_id = p_id;
+end;
+$$;
+
+/** What a banned account sees: the reason, the message, until when, and its appeal. */
+create or replace function public.account_ban_info(p_id uuid)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare b public.account_bans; u timestamptz; ap public.account_appeals; n integer;
+begin
+    select banned_until into u from auth.users where id = p_id;
+    if u is null or u <= now() then return jsonb_build_object('banned', false); end if;
+    select * into b from public.account_bans where user_id = p_id;
+    select * into ap from public.account_appeals where user_id = p_id and ban_at >= coalesce(b.banned_at, '-infinity') order by created_at desc limit 1;
+    select count(*) into n from public.account_appeals where user_id = p_id and ban_at >= coalesce(b.banned_at, '-infinity');
+    return jsonb_build_object('banned', true, 'reason', coalesce(b.reason, 'other'), 'message', b.message,
+        'until', case when u > now() + interval '50 years' then null else u end, 'banned_at', b.banned_at,
+        'appeal', case when ap.id is null then null else jsonb_build_object('status', ap.status, 'reply', ap.reply, 'at', ap.created_at) end,
+        'appeals_left', greatest(0, 3 - n), 'can_appeal', b.user_id is not null and (ap.id is null or ap.status <> 'open') and n < 3);
+end;
+$$;
+
+/** The device that was signed in: its saved sign-in token says which account it was. */
+create or replace function public.account_from_token(p_token text)
+returns uuid language plpgsql stable security definer set search_path = public as $$
+declare uid text;
+begin
+    if p_token is null or p_token !~ '^[A-Za-z0-9_-]{8,128}$' then return null; end if;
+    begin
+        select user_id into uid from auth.refresh_tokens where token = p_token and created_at > now() - interval '120 days' limit 1;
+    exception when undefined_table then return null;
+    end;
+    return nullif(uid, '')::uuid;
+end;
+$$;
+
+/** For a device whose account was banned (it can no longer sign in): the ban, from the token it kept. */
+create or replace function public.account_notice(p_token text)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare uid uuid := public.account_from_token(p_token);
+begin
+    if uid is null then return jsonb_build_object('banned', false, 'known', false); end if;
+    return public.account_ban_info(uid) || jsonb_build_object('known', true);
+end;
+$$;
+
+/** Appeal a ban: from the signed-in account, or from the device's saved token. */
+create or replace function public.account_appeal(p_token text, p_text text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare uid uuid := coalesce(auth.uid(), public.account_from_token(p_token)); info jsonb; b public.account_bans;
+begin
+    if uid is null then raise exception 'not signed in' using errcode = '28000'; end if;
+    info := public.account_ban_info(uid);
+    if not (info->>'banned')::boolean then raise exception 'not banned' using errcode = '22023'; end if;
+    if not coalesce((info->>'can_appeal')::boolean, false) then raise exception 'appeal limit' using errcode = '54000'; end if;
+    if char_length(btrim(coalesce(p_text, ''))) not between 10 and 1000 then raise exception 'appeal length' using errcode = '22023'; end if;
+    select * into b from public.account_bans where user_id = uid;
+    insert into public.account_appeals (user_id, ban_at, text) values (uid, b.banned_at, btrim(p_text));
+    insert into public.admin_audit (admin_id, action, target_id, target, detail)
+        values (uid, 'appeal', uid, (select public.admin_mask(coalesce(email, phone)) from auth.users where id = uid), left(btrim(p_text), 200));
+    return public.account_ban_info(uid);
+end;
+$$;
+
+/** The signed-in person's standing: ban, ended session, unseen warnings and which Community Rules they agreed to. */
+create or replace function public.account_status()
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare uid uuid := auth.uid(); sid uuid := public.jwt_session_id(); ended boolean := false;
+begin
+    if uid is null then raise exception 'not signed in' using errcode = '28000'; end if;
+    if sid is not null then
+        begin
+            ended := not exists (select 1 from auth.sessions where id = sid);
+        exception when undefined_table then ended := false;
+        end;
+    end if;
+    return public.account_ban_info(uid) || jsonb_build_object(
+        'session_ended', ended,
+        'warnings', (select coalesce(jsonb_agg(jsonb_build_object('id', id, 'reason', reason, 'message', message, 'at', created_at) order by created_at), '[]'::jsonb)
+            from public.account_warnings where user_id = uid and seen_at is null),
+        'rules_version', (select rules_version from public.profiles where id = uid));
+end;
+$$;
+
+create or replace function public.account_warning_seen(p_id bigint)
+returns void language sql security definer set search_path = public as $$
+    update public.account_warnings set seen_at = now() where id = p_id and user_id = auth.uid() and seen_at is null;
+$$;
+
+/** Agree to this version of the Community Rules (recorded with the date). */
+create or replace function public.account_accept_rules(p_version text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare uid uuid := auth.uid();
+begin
+    if uid is null then raise exception 'not signed in' using errcode = '28000'; end if;
+    if p_version is null or p_version !~ '^[0-9A-Za-z.-]{1,20}$' then raise exception 'bad request' using errcode = '22023'; end if;
+    insert into public.profiles (id, rules_version, rules_accepted_at) values (uid, p_version, now())
+        on conflict (id) do update set rules_version = excluded.rules_version, rules_accepted_at = excluded.rules_accepted_at;
+    return jsonb_build_object('ok', true, 'rules_version', p_version);
+end;
+$$;
+
+/** The banner on everyone's Home, if one is showing. */
+create or replace function public.app_notice_get()
+returns jsonb language sql stable security definer set search_path = public as $$
+    select case when active and coalesce(btrim(text), '') <> '' and (until is null or until > now())
+        then jsonb_build_object('text', text, 'tone', tone, 'until', until, 'updated_at', updated_at) end
+    from public.app_notice where id;
+$$;
+
+revoke all on function public.ban_reasons(), public.ban_reason_label(text), public.account_lift_ban(uuid, uuid), public.account_ban_info(uuid),
+    public.account_from_token(text) from public, anon, authenticated;
+revoke all on function public.account_notice(text), public.account_appeal(text, text), public.account_status(), public.account_warning_seen(bigint),
+    public.account_accept_rules(text), public.app_notice_get() from public;
+grant execute on function public.account_notice(text), public.account_appeal(text, text), public.app_notice_get() to anon, authenticated;
+grant execute on function public.account_status(), public.account_warning_seen(bigint), public.account_accept_rules(text) to authenticated;
+
+/* ── The Admin Panel's side ─────────────────────────────────────── */
+
+/** Warn: the person sees it (reason and message) the next time they open SalaamStreet. */
+create or replace function public.admin_warn(p_admin uuid, p_id uuid, p_reason text, p_message text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare u auth.users;
+begin
+    u := public.admin_target(p_admin, p_id);
+    if p_reason is null or not (p_reason = any (public.ban_reasons())) then raise exception 'bad reason' using errcode = '22023'; end if;
+    if p_reason = 'other' and nullif(btrim(coalesce(p_message, '')), '') is null then raise exception 'other needs message' using errcode = '22023'; end if;
+    insert into public.account_warnings (user_id, reason, message, created_by) values (u.id, p_reason, left(nullif(btrim(p_message), ''), 500), p_admin);
+    perform public.admin_log(p_admin, 'warn', u.id, public.ban_reason_label(p_reason) || coalesce(' — ' || nullif(btrim(p_message), ''), ''));
+    return jsonb_build_object('ok', true);
+end;
+$$;
+
+/** Appeals, open ones first. */
+create or replace function public.admin_appeals(p_admin uuid, p_status text)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+begin
+    perform public.admin_require(p_admin);
+    if coalesce(p_status, 'open') not in ('open', 'decided') then raise exception 'bad request' using errcode = '22023'; end if;
+    return (select coalesce(jsonb_agg(x order by x.created_at desc), '[]'::jsonb) from (
+        select ap.id, ap.text, ap.status, ap.reply, ap.created_at, ap.decided_at,
+            (select public.admin_mask(email) from auth.users where id = ap.decided_by) as decided_by,
+            public.admin_user_row(u) as user,
+            (select jsonb_build_object('reason', b.reason, 'message', b.message, 'note', b.note, 'until', b.until, 'banned_at', b.banned_at,
+                'by', (select public.admin_mask(email) from auth.users where id = b.banned_by)) from public.account_bans b where b.user_id = ap.user_id) as ban
+        from public.account_appeals ap join auth.users u on u.id = ap.user_id
+        where case when coalesce(p_status, 'open') = 'open' then ap.status = 'open' else ap.status <> 'open' end
+        order by ap.created_at desc limit 100) x);
+end;
+$$;
+
+/** Answer an appeal: accept (lifts the ban) or deny, with a reply the person sees. */
+create or replace function public.admin_appeal_decide(p_admin uuid, p_appeal bigint, p_accept boolean, p_reply text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare ap public.account_appeals;
+begin
+    perform public.admin_require(p_admin);
+    select * into ap from public.account_appeals where id = p_appeal;
+    if ap.id is null then raise exception 'not found' using errcode = 'P0002'; end if;
+    if ap.status <> 'open' then raise exception 'already decided' using errcode = '22023'; end if;
+    update public.account_appeals set status = case when p_accept then 'accepted' else 'denied' end,
+        reply = left(nullif(btrim(p_reply), ''), 500), decided_at = now(), decided_by = p_admin where id = ap.id;
+    if p_accept then perform public.account_lift_ban(ap.user_id, p_admin); end if;
+    perform public.admin_log(p_admin, case when p_accept then 'appeal_accept' else 'appeal_deny' end, ap.user_id, nullif(btrim(p_reply), ''));
+    return jsonb_build_object('ok', true);
+end;
+$$;
+
+/** Blocked emails: list, block one by hand, or unblock. */
+create or replace function public.admin_blocked(p_admin uuid)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+begin
+    perform public.admin_require(p_admin);
+    return (select coalesce(jsonb_agg(jsonb_build_object('id', encode(email_hash, 'hex'), 'masked', masked, 'reason', reason, 'added_at', added_at,
+            'by', (select public.admin_mask(email) from auth.users where id = added_by), 'from_ban', from_ban is not null) order by added_at desc), '[]'::jsonb)
+        from public.blocked_emails);
+end;
+$$;
+create or replace function public.admin_blocked_set(p_admin uuid, p_add_email text, p_reason text, p_remove_id text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare mail text := lower(btrim(coalesce(p_add_email, '')));
+begin
+    perform public.admin_require(p_admin);
+    if p_add_email is not null then
+        if mail !~ '^[^@\s]+@[^@\s]+\.[^@\s]+$' or char_length(mail) > 320 then raise exception 'bad email' using errcode = '22023'; end if;
+        if exists (select 1 from public.app_admins where email_hash = sha256(convert_to(mail, 'UTF8'))) then raise exception 'an admin' using errcode = '42501'; end if;
+        insert into public.blocked_emails (email_hash, masked, reason, added_by)
+            values (sha256(convert_to(mail, 'UTF8')), public.admin_mask(mail), coalesce(p_reason, 'other'), p_admin)
+        on conflict (email_hash) do nothing;
+        perform public.admin_log(p_admin, 'email_block', (select id from auth.users where lower(btrim(email)) = mail limit 1), public.admin_mask(mail));
+    end if;
+    if p_remove_id is not null then
+        if lower(p_remove_id) !~ '^[0-9a-f]{64}$' then raise exception 'bad request' using errcode = '22023'; end if;
+        perform public.admin_log(p_admin, 'email_unblock', null, (select masked from public.blocked_emails where email_hash = decode(lower(p_remove_id), 'hex')));
+        delete from public.blocked_emails where email_hash = decode(lower(p_remove_id), 'hex');
+    end if;
+    return public.admin_blocked(p_admin);
+end;
+$$;
+
+/** The Home banner. */
+create or replace function public.admin_notice_set(p_admin uuid, p_text text, p_tone text, p_active boolean, p_until timestamptz)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+    perform public.admin_require(p_admin);
+    if coalesce(p_tone, 'info') not in ('info', 'warn', 'celebrate') or char_length(coalesce(p_text, '')) > 280 then
+        raise exception 'bad request' using errcode = '22023';
+    end if;
+    if coalesce(p_active, false) and nullif(btrim(coalesce(p_text, '')), '') is null then raise exception 'bad request' using errcode = '22023'; end if;
+    update public.app_notice set text = nullif(btrim(p_text), ''), tone = coalesce(p_tone, 'info'), active = coalesce(p_active, false),
+        until = p_until, updated_at = now(), updated_by = p_admin where id;
+    perform public.admin_log(p_admin, case when coalesce(p_active, false) then 'banner_on' else 'banner_off' end, null, left(nullif(btrim(p_text), ''), 200));
+    return (select jsonb_build_object('text', text, 'tone', tone, 'active', active, 'until', until, 'updated_at', updated_at) from public.app_notice where id);
+end;
+$$;
+create or replace function public.admin_notice(p_admin uuid)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+begin
+    perform public.admin_require(p_admin);
+    return (select jsonb_build_object('text', text, 'tone', tone, 'active', active, 'until', until, 'updated_at', updated_at,
+        'showing', public.app_notice_get() is not null) from public.app_notice where id);
+end;
+$$;
+
+/** Users as a list for a CSV download (up to 10,000, same search and filter). */
+create or replace function public.admin_users_export(p_admin uuid, p_search text, p_filter text)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare r jsonb; n integer := 0; total integer; res jsonb := '[]'::jsonb;
+begin
+    perform public.admin_require(p_admin);
+    loop
+        r := public.admin_users(p_admin, p_search, p_filter, n);
+        res := res || (r->'users');
+        total := (r->>'total')::integer;
+        n := n + 50;
+        exit when n >= total or n >= 10000;
+    end loop;
+    return res;
+end;
+$$;
+
+do $$
+declare fns text := 'public.admin_warn(uuid, uuid, text, text), public.admin_appeals(uuid, text), public.admin_appeal_decide(uuid, bigint, boolean, text),
+    public.admin_blocked(uuid), public.admin_blocked_set(uuid, text, text, text), public.admin_notice_set(uuid, text, text, boolean, timestamptz),
+    public.admin_notice(uuid), public.admin_users_export(uuid, text, text), public.ban_reasons(), public.ban_reason_label(text),
+    public.account_lift_ban(uuid, uuid), public.account_ban_info(uuid), public.account_from_token(text)';
+begin
+    execute 'revoke all on function ' || fns || ' from public, anon, authenticated';
+    if exists (select 1 from pg_roles where rolname = 'service_role') then
+        execute 'grant execute on function ' || fns || ' to service_role';
+        grant select, insert, update, delete on public.account_bans, public.account_warnings, public.account_appeals, public.blocked_emails, public.app_notice to service_role;
+    end if;
+end;
+$$;
+
+-- Bans made before 3.0.2 (no reason recorded) get one, so their device can show it.
+do $$
+begin
+    insert into public.account_bans (user_id, reason, until, banned_at)
+        select u.id, 'other', u.banned_until, now() from auth.users u where u.banned_until > now()
+    on conflict (user_id) do nothing;
+exception when undefined_column then null; -- a database without Supabase Auth's ban column (tests)
 end;
 $$;

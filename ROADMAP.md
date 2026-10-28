@@ -1,6 +1,6 @@
 # SalaamStreet Roadmap
 
-What we plan to build after **3.0.1 — Keeping SalaamStreet safe**, in order. This is a plan, not a
+What we plan to build after **3.0.2 — Community Rules**, in order. This is a plan, not a
 promise: nothing planned below exists in the app yet, and there are no dates —
 releases ship when they're ready and tested. The same list appears in the app
 under About → Updates (`SS.ROADMAP` in `js/content.js`); keep the two in step.
@@ -30,6 +30,7 @@ under About → Updates (`SS.ROADMAP` in `js/content.js`); keep the two in step.
 | 3.0 Beta | SalaamStreet AI (Beta) | ✅ Completed |
 | 3.0 | The AI update | ✅ Completed (paid plans ⏸ Deferred) |
 | 3.0.1 | Admin Panel | ✅ Completed |
+| 3.0.2 | Community Rules, bans you can see, appeals | ✅ Completed |
 | 3.1 | Personalization | 📋 Planned |
 | 3.2 | Qur'an Experience | 📋 Planned |
 | 3.3 | Community: mosque pages | 📋 Planned |
@@ -213,6 +214,13 @@ MSA's posts, the admin list and a log of every admin action.
 the server and the database both check; admins never act on themselves or
 each other; every action is logged; admins see counts, never anyone's
 content. Notes: [`docs/release-notes/3.0.1.md`](docs/release-notes/3.0.1.md).
+
+## 3.0.2 — Community Rules · ✅ Completed
+
+Community Rules everyone agrees to; warnings and bans with a reason and
+message the person sees; bans and "sign out everywhere" that work at once;
+appeals; blocked emails, bulk actions, CSV downloads and a Home banner in the
+Admin Panel. Notes: [`docs/release-notes/3.0.2.md`](docs/release-notes/3.0.2.md).
 
 ## 3.1 — Personalization · 📋 Planned
 

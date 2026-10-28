@@ -224,8 +224,29 @@
   ];
 
   /* ── Version & release notes (newest first) ──────────────────────── */
-  SS.VERSION = "3.0.1";
+  SS.VERSION = "3.0.2";
   SS.CHANGELOG = [
+    {
+      v: "3.0.2", date: "2026-10-28",
+      en: "Community Rules", ar: "قواعد المجتمع",
+      den: "SalaamStreet now has Community Rules that everyone with an account agrees to. If an account breaks them, the team can send a warning or ban it — and a banned account is told exactly why and can appeal. Bans now take effect straight away, on every device.",
+      dar: "صار لـ SalaamStreet قواعد مجتمع يوافق عليها كل من لديه حساب. وإن خالفها حساب، يمكن للفريق إرسال تحذير أو حظره — ويُبلَّغ الحساب المحظور بالسبب بدقة ويمكنه الاعتراض. ويسري الحظر الآن فورًا على كل الأجهزة.",
+      groups: [
+        { en: "Community Rules", ar: "قواعد المجتمع", items: [
+          { en: "Seven short rules, on the Terms page: respectful names, using SalaamStreet AI respectfully and for what it's for, no impersonation, appropriate MSA posts, one account per person, no hacking", ar: "سبع قواعد قصيرة في صفحة الشروط: أسماء محترمة، واستخدام المساعد الذكي باحترام وفيما وُضع له، ولا انتحال، ومنشورات لائقة في الرابطة، وحساب واحد لكل شخص، ولا اختراق" },
+          { en: "Tick “I agree” before signing in; if you already have an account you'll be asked once", ar: "ضع علامة «أوافق» قبل تسجيل الدخول؛ وإن كان لديك حساب فسيُطلب منك ذلك مرة واحدة" },
+        ] },
+        { en: "Fair warnings and bans", ar: "تحذيرات وحظر بإنصاف", items: [
+          { en: "A warning shows the rule that was broken and a message from the team", ar: "يعرض التحذير القاعدة التي خولفت ورسالة من الفريق" },
+          { en: "A ban shows its reason, the team's message and when it ends — and works at once, on every device", ar: "يعرض الحظر سببه ورسالة الفريق وموعد انتهائه — ويسري فورًا على كل الأجهزة" },
+          { en: "Think a ban is a mistake? Appeal it from the ban screen; the team reads every appeal and replies", ar: "تظن أن الحظر خطأ؟ اعترض عليه من شاشة الحظر؛ يقرأ الفريق كل اعتراض ويرد عليه" },
+          { en: "Banned or not, prayer times, the Qur'an and everything else stay free without an account", ar: "سواء حُظرت أم لا، تبقى مواقيت الصلاة والقرآن وكل شيء آخر مجانية دون حساب" },
+        ] },
+        { en: "Also", ar: "وأيضًا", items: [
+          { en: "Occasional notices from the team at the top of Home (you can hide them)", ar: "إشعارات من الفريق أحيانًا أعلى الصفحة الرئيسية (يمكنك إخفاؤها)" },
+        ] },
+      ],
+    },
     {
       v: "3.0.1", date: "2026-10-28",
       en: "Keeping SalaamStreet safe", ar: "الحفاظ على أمان SalaamStreet",

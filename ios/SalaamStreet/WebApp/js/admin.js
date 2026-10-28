@@ -13,6 +13,13 @@
    • MSA — the NVHS MSA's numbers and latest posts (take one down if needed).
    • Admins — who can open this panel (each signs in with Google).
    • Log — every admin action: who, when, to which account.
+   3.0.2:
+   • Bans and warnings give a Community Rules reason (shown to the person,
+     with an optional message) and a private note; a ban can also block the
+     email from making a new account. Banned people see why and can appeal.
+   • Appeals — answer them (lift the ban or deny, with a reply).
+   • Blocked emails (in Flags), bulk actions and CSV downloads (Users, Log),
+     the Home banner (Banner), and the panel refreshes itself every 30 s.
 
    • Hiding the page is NOT the protection: every request carries the
      person's own Supabase session token and the server decides
@@ -29,9 +36,15 @@
   var CFG = SS.CONFIG || {};
 
   var TABS = [
-    ["overview", "Overview", "grid"], ["users", "Users", "users"], ["flags", "Flags", "info"], ["ai", "AI", "sparkle"],
-    ["msa", "MSA", "mosque"], ["admins", "Admins", "lock"], ["log", "Log", "scroll"],
+    ["overview", "Overview", "grid"], ["users", "Users", "users"], ["flags", "Flags", "info"], ["appeals", "Appeals", "chat"],
+    ["ai", "AI", "sparkle"], ["msa", "MSA", "mosque"], ["banner", "Banner", "bell"], ["admins", "Admins", "lock"], ["log", "Log", "scroll"],
   ];
+  /** The Community Rules' ban reasons (public.ban_reasons(); the person sees them in their own language). */
+  var REASONS = [["offensive_name", "Offensive name or email"], ["ai_abuse", "Hateful, sexual or disrespectful use of SalaamStreet AI"],
+    ["ai_rules", "Repeatedly breaking SalaamStreet AI's rules"], ["impersonation", "Impersonation"], ["msa_post", "Inappropriate MSA posts"],
+    ["fake_accounts", "Extra or fake accounts"], ["hacking", "Hacking or abusing the app"], ["other", "Other (write the reason in the message)"]];
+  function reasonLabel(code) { for (var i = 0; i < REASONS.length; i++) if (REASONS[i][0] === code) return REASONS[i][1].replace(/ \(write.*\)$/, ""); return code || "—"; }
+  var REFRESH_MS = 30000;
   var FILTERS = [["all", "All"], ["flagged", "Flagged"], ["banned", "Banned"], ["new", "New (7 days)"], ["never", "Never signed in"],
     ["unconfirmed", "Unconfirmed"], ["admins", "Admins"]];
   var ACTION_LABEL = {
@@ -40,9 +53,12 @@
     screening: "Changed sign-up screening", word_add: "Added a screened word", word_remove: "Removed a screened word",
     admin_add: "Added an admin", admin_remove: "Removed an admin", ai_settings: "Changed AI settings",
     msa_post_delete: "Took down an MSA post", denied: "Refused (not an admin)",
+    warn: "Warned", appeal: "Appealed a ban", appeal_accept: "Accepted an appeal (ban lifted)", appeal_deny: "Turned down an appeal",
+    email_block: "Blocked an email", email_unblock: "Unblocked an email", banner_on: "Showed the Home banner", banner_off: "Hid the Home banner",
   };
 
-  var st = { ready: false, me: null, tab: "overview", users: null, q: { search: "", filter: "all" }, log: null, showWords: false, openId: "" };
+  var st = { ready: false, me: null, tab: "overview", users: null, q: { search: "", filter: "all" }, log: null, showWords: false, openId: "",
+    sel: {}, appeals: "open", timer: 0 };
 
   /* ── Server ───────────────────────────────────────────────────── */
   function fnUrl() { return CFG.supabaseUrl.replace(/\/+$/, "") + "/functions/v1/admin"; }
@@ -118,7 +134,9 @@
   function stat(label, value, cls) { return "<div" + (cls ? ' class="' + cls + '"' : "") + "><dt>" + esc(label) + "</dt><dd>" + esc(value) + "</dd></div>"; }
   function badges(u) {
     return (u.admin ? badge("badge-ok", "Admin") : "") + (u.flagged ? badge("badge-warn", "Flagged") : "") +
-      (u.banned_until ? badge("badge-danger", "Banned · " + until(u.banned_until)) : "") +
+      (u.banned_until ? badge("badge-danger", "Banned · " + until(u.banned_until) + (u.ban_reason ? " · " + reasonLabel(u.ban_reason) : "")) : "") +
+      (u.appeal_open ? badge("badge-warn", "Appealing") : "") +
+      (u.warnings ? badge("badge-muted", u.warnings + " warning" + (u.warnings === 1 ? "" : "s")) : "") +
       (u.confirmed === false ? badge("badge-muted", "Unconfirmed") : "");
   }
   function userRow(u, extra) {
@@ -186,9 +204,9 @@
     showErr(r.message || "Something went wrong. Try again.");
   }
   /** Settings shows the Admin Panel link only to admins (js/app.js reads this). */
-  function remember(isAdmin) {
+  function remember(isAdmin, count) {
     var u = SS.account && SS.account.user();
-    try { localStorage.setItem("ss.adminCheck", JSON.stringify({ uid: u ? u.id : "", admin: !!isAdmin, at: Date.now() })); } catch (e) { /* private mode */ }
+    try { localStorage.setItem("ss.adminCheck", JSON.stringify({ uid: u ? u.id : "", admin: !!isAdmin, at: Date.now(), count: count || 0 })); } catch (e) { /* private mode */ }
   }
   function start() {
     if (!CFG.supabaseUrl || !CFG.supabaseAnonKey) { gate("none", "Accounts aren't set up on this copy of SalaamStreet, so the Admin Panel can't be used here."); return; }
@@ -203,9 +221,9 @@
         return;
       }
       st.me = r; st.ready = true;
-      remember(true);
+      remember(true, (r.open_flags || 0) + (r.open_appeals || 0));
       gate("ok");
-      counts({ flags: r.open_flags });
+      counts({ flags: r.open_flags, appeals: r.open_appeals });
       draw();
     });
   }
@@ -226,8 +244,22 @@
     });
     var p = $("adm-panel");
     p.innerHTML = '<div class="card"><p class="muted">Loading…</p></div>';
-    ({ overview: drawOverview, users: drawUsers, flags: drawFlags, ai: drawAi, msa: drawMsa, admins: drawAdmins, log: drawLog }[st.tab] || drawOverview)();
+    if (st.tab !== "users") st.sel = {};
+    (VIEWS[st.tab] || drawOverview)();
     if (st.openId) openUser(st.openId);
+    autoRefresh();
+  }
+  var VIEWS = {};
+  /** Overview, Flags and Appeals refresh themselves while the page is open — never while you're typing or an account is open. */
+  function autoRefresh() {
+    clearInterval(st.timer);
+    if (["overview", "flags", "appeals"].indexOf(st.tab) === -1) return;
+    st.timer = setInterval(function () {
+      if (SS.currentView() !== "admin") return clearInterval(st.timer);
+      var a = document.activeElement, d = $("admin-dialog");
+      if (document.hidden || (d && d.open) || (a && /INPUT|TEXTAREA|SELECT/.test(a.tagName) && $("adm-panel").contains(a))) return;
+      (VIEWS[st.tab] || drawOverview)(true);
+    }, REFRESH_MS);
   }
   function card(title, body, extra) {
     return '<section class="card adm-card"><div class="card-title"><h2>' + esc(title) + "</h2>" + (extra || "") + "</div>" + body + "</section>";
@@ -238,7 +270,8 @@
     api("overview").then(function (r) {
       if (st.tab !== "overview") return;
       if (!r.ok) return failed(r);
-      counts({ flags: r.open_flags });
+      counts({ flags: r.open_flags, appeals: r.open_appeals });
+      remember(true, (r.open_flags || 0) + (r.open_appeals || 0));
       var ai = r.ai || {}, prov = r.by_provider || {};
       var max = Math.max.apply(null, (r.signups_14d || []).map(function (d) { return d.n; }).concat([1]));
       var bars = (r.signups_14d || []).map(function (d) {
@@ -250,9 +283,13 @@
       $("adm-panel").innerHTML =
         (r.open_flags ? '<a class="card adm-alert" href="#/admin/flags">' + icon("info") + "<span><b>" + int(r.open_flags) + " account" + (r.open_flags === 1 ? "" : "s") +
           " flagged</b><br><span class=\"muted\">Their email or name contains a screened word, or an admin flagged them. Review them.</span></span>" + icon("chev-r") + "</a>" : "") +
+        (r.open_appeals ? '<a class="card adm-alert" href="#/admin/appeals">' + icon("chat") + "<span><b>" + int(r.open_appeals) + " appeal" + (r.open_appeals === 1 ? "" : "s") +
+          " waiting</b><br><span class=\"muted\">Banned people asking for their ban to be lifted. Answer them.</span></span>" + icon("chev-r") + "</a>" : "") +
+        (r.notice ? '<a class="card adm-alert adm-alert-info" href="#/admin/banner">' + icon("bell") + "<span><b>The Home banner is showing</b><br><span class=\"muted\">" + esc(r.notice.text) + "</span></span>" + icon("chev-r") + "</a>" : "") +
         card("Accounts", '<dl class="lab-stats">' + stat("Accounts", int(r.accounts)) + stat("New today", int(r.new_today)) + stat("New · 7 days", int(r.new_7d)) +
           stat("Signed in today", int(r.active_today)) + stat("Signed in · 7 days", int(r.active_7d)) + stat("Signed in · 30 days", int(r.active_30d)) +
-          stat("Never signed in", int(r.never_signed_in)) + stat("Banned", int(r.banned)) + stat("Admins", int(r.admins)) + "</dl>",
+          stat("Never signed in", int(r.never_signed_in)) + stat("Banned", int(r.banned)) + stat("Blocked emails", int(r.blocked_emails)) +
+          stat("Warnings · 7 days", int(r.warnings_7d)) + stat("Agreed to the Rules", int(r.rules_accepted)) + stat("Admins", int(r.admins)) + "</dl>",
           '<span class="muted lab-small">Updated ' + esc(ago(r.at)) + "</span>" + refreshBtn("overview")) +
         card("Sign-ups · last 14 days", '<div class="adm-chart" role="img" aria-label="Sign-ups per day for the last 14 days">' + bars + "</div>") +
         card("How people sign in", '<dl class="lab-stats">' + (how || stat("No accounts yet", "")) + "</dl>") +
@@ -281,9 +318,16 @@
           '<div class="adm-filters" role="group" aria-label="Filter">' + FILTERS.map(function (f) {
             return '<button class="chip" type="button" data-act="filter" data-filter="' + f[0] + '" aria-pressed="' + (st.q.filter === f[0]) + '">' + esc(f[1]) + "</button>";
           }).join("") + "</div>" +
-          '<p class="muted lab-small" id="adm-total" role="status"></p><div class="adm-list" id="adm-users"></div>' +
+          '<div class="row-between adm-users-bar"><p class="muted lab-small" id="adm-total" role="status"></p>' +
+            '<button class="btn btn-ghost btn-sm" type="button" data-act="export-users">' + icon("download") + "<span>Download CSV</span></button></div>" +
+          '<div class="adm-bulk" id="adm-bulk" hidden><b id="adm-bulk-n"></b>' +
+            '<button class="btn btn-sm btn-outline" type="button" data-act="bulk-warn">' + icon("info") + "<span>Warn</span></button>" +
+            '<button class="btn btn-sm btn-danger" type="button" data-act="bulk-ban">' + icon("lock") + "<span>Ban</span></button>" +
+            '<button class="btn btn-sm btn-outline" type="button" data-act="bulk-dismiss">' + icon("check") + "<span>Dismiss flags</span></button>" +
+            '<button class="btn btn-sm btn-ghost" type="button" data-act="bulk-clear">Clear</button></div>' +
+          '<div class="adm-list" id="adm-users"></div>' +
           '<button class="btn btn-outline btn-sm" type="button" id="adm-more" data-act="more" hidden>Load more</button></section>';
-      st.users = null;
+      st.users = null; st.sel = {};
     }
     var offset = more && st.users ? st.users.users.length : 0;
     api("users", { search: st.q.search, filter: st.q.filter, offset: offset }).then(function (r) {
@@ -291,22 +335,41 @@
       if (!r.ok) return failed(r);
       st.users = { total: r.total, users: (more && st.users ? st.users.users : []).concat(r.users || []) };
       $("adm-total").textContent = int(r.total) + (r.total === 1 ? " account" : " accounts") + (st.q.search ? " matching “" + st.q.search + "”" : "");
-      $("adm-users").innerHTML = st.users.users.map(function (u) { return userRow(u); }).join("") || '<p class="muted">Nobody here.</p>';
+      $("adm-users").innerHTML = st.users.users.map(function (u) {
+        var can = !u.admin && !(st.me && u.email && u.email.toLowerCase() === st.me.email);
+        return '<div class="adm-sel-row">' + (can ? '<label class="adm-sel"><input type="checkbox" data-sel="' + esc(u.id) + '"' + (st.sel[u.id] ? " checked" : "") +
+          ' aria-label="Select ' + esc(who(u)) + '" /></label>' : '<span class="adm-sel"></span>') + userRow(u) + "</div>";
+      }).join("") || '<p class="muted">Nobody here.</p>';
       $("adm-more").hidden = st.users.users.length >= r.total;
+      drawBulk();
     });
+  }
+  function selected() { return Object.keys(st.sel).filter(function (k) { return st.sel[k]; }); }
+  function drawBulk() {
+    var n = selected().length, bar = $("adm-bulk");
+    if (!bar) return;
+    bar.hidden = !n;
+    $("adm-bulk-n").textContent = n + " selected";
   }
 
   function drawFlags() {
-    Promise.all([api("flags"), api("screening")]).then(function (rs) {
+    Promise.all([api("flags"), api("screening"), api("blocked")]).then(function (rs) {
       if (st.tab !== "flags") return;
-      var r = rs[0], s = rs[1];
+      var r = rs[0], s = rs[1], bl = rs[2];
       if (!r.ok) return failed(r);
       if (!s.ok) return failed(s);
+      if (!bl.ok) return failed(bl);
       counts({ flags: (r.open || []).length });
+      var blocked = (bl.blocked || []).map(function (x) {
+        return '<div class="adm-post"><div class="adm-post-main"><b>' + esc(x.masked || "(hidden)") + "</b>" +
+          '<span class="muted adm-user-sub">' + esc(reasonLabel(x.reason) + " · " + (x.from_ban ? "with a ban" : "by hand") + " · " + ago(x.added_at) + (x.by ? " · by " + x.by : "")) + "</span></div>" +
+          '<button class="btn btn-outline btn-sm" type="button" data-act="unblock" data-id="' + esc(x.id) + '" data-email="' + esc(x.masked || "") + '">Unblock</button></div>';
+      }).join("");
       var open = (r.open || []).map(function (u) {
         var why = u.word ? "contains “" + mask(u.word) + "”" : u.note ? "flagged by an admin: " + u.note : "flagged by an admin";
         return '<div class="adm-flag">' + userRow(u, esc(why)) + '<div class="adm-flag-acts">' +
-          '<button class="btn btn-danger btn-sm" type="button" data-act="ban-forever" data-id="' + esc(u.id) + '" data-email="' + esc(who(u)) + '">' + icon("lock") + "<span>Ban</span></button>" +
+          '<button class="btn btn-danger btn-sm" type="button" data-act="ban-one" data-id="' + esc(u.id) + '" data-email="' + esc(who(u)) + '" data-word="' + (u.word ? "1" : "") + '">' + icon("lock") + "<span>Ban</span></button>" +
+          '<button class="btn btn-outline btn-sm" type="button" data-act="warn-one" data-id="' + esc(u.id) + '" data-email="' + esc(who(u)) + '">' + icon("info") + "<span>Warn</span></button>" +
           '<button class="btn btn-outline btn-sm" type="button" data-act="flag" data-op="dismiss" data-id="' + esc(u.id) + '">' + icon("check") + "<span>It's fine</span></button></div></div>";
       }).join("");
       var ai = (r.ai || []).map(function (m) {
@@ -340,8 +403,73 @@
             '<button class="btn btn-sm" type="submit">' + icon("plus") + "<span>Add</span></button>" +
             '<button class="btn btn-ghost btn-sm" type="button" data-act="show-words">' + (st.showWords ? "Hide words" : "Show words") + "</button></form>" +
           '<p class="muted lab-small">Adding a word also flags existing accounts that match it.</p>') +
+        card("Blocked emails", (blocked ? '<div class="adm-list">' + blocked + "</div>" : '<p class="muted">No blocked emails.</p>') +
+          '<form class="adm-inline" id="adm-block-form"><label class="visually-hidden" for="adm-block-email">Email to block</label>' +
+            '<input class="input input-sm" id="adm-block-email" type="email" placeholder="name@example.com" autocomplete="off" required />' +
+            '<label class="visually-hidden" for="adm-block-reason">Reason</label>' + reasonSelect("adm-block-reason", "fake_accounts") +
+            '<button class="btn btn-sm" type="submit">' + icon("lock") + "<span>Block</span></button></form>" +
+          '<p class="muted lab-small">A blocked email can\u2019t make a SalaamStreet account (also after an account is deleted). Only a hash and a masked copy are kept. Banning with \u201cblock this email\u201d adds it here; unbanning takes it off.</p>') +
         (done ? card("Recently reviewed", '<div class="adm-list">' + done + "</div>") : "");
     });
+  }
+
+  function drawAppeals() {
+    api("appeals", { status: st.appeals }).then(function (r) {
+      if (st.tab !== "appeals") return;
+      if (!r.ok) return failed(r);
+      var list = r.appeals || [];
+      if (st.appeals === "open") counts({ appeals: list.length });
+      var rows = list.map(function (ap) {
+        var b = ap.ban || {};
+        return '<article class="adm-appeal">' + userRow(ap.user) +
+          '<dl class="adm-dl"><div><dt>Banned for</dt><dd>' + esc(b.reason ? reasonLabel(b.reason) : "—") + "</dd></div>" +
+            (b.message ? dd("They were told", b.message) : "") + (b.note ? dd("Private note", b.note) : "") +
+            dd("Ban", (b.banned_at ? ago(b.banned_at) : "—") + (b.by ? " by " + b.by : "") + " · " + (b.until ? (new Date(b.until).getTime() - Date.now() > 50 * 365 * 864e5 ? "until unbanned" : "ends " + when(b.until)) : "lifted")) + "</dl>" +
+          '<blockquote class="adm-quote"><span class="muted adm-user-sub">Their appeal · ' + esc(ago(ap.created_at)) + "</span><br>" + esc(ap.text) + "</blockquote>" +
+          (ap.status === "open"
+            ? '<form class="adm-decide" data-appeal="' + esc(ap.id) + '"><label class="visually-hidden" for="adm-reply-' + esc(ap.id) + '">Reply</label>' +
+                '<textarea class="input" id="adm-reply-' + esc(ap.id) + '" rows="2" maxlength="500" placeholder="Reply they\u2019ll see (optional)"></textarea>' +
+                '<div class="adm-flag-acts"><button class="btn btn-sm" type="button" data-act="appeal-accept" data-id="' + esc(ap.id) + '">' + icon("check") + "<span>Lift the ban</span></button>" +
+                '<button class="btn btn-sm btn-danger" type="button" data-act="appeal-deny" data-id="' + esc(ap.id) + '">' + icon("x") + "<span>Turn down</span></button></div></form>"
+            : '<p class="muted lab-small">' + esc((ap.status === "accepted" ? "Accepted — ban lifted" : "Turned down") + " · " + ago(ap.decided_at) + (ap.decided_by ? " by " + ap.decided_by : "")) +
+                (ap.reply ? " · reply: “" + esc(ap.reply) + "”" : "") + "</p>") +
+          "</article>";
+      }).join("");
+      $("adm-panel").innerHTML = card(st.appeals === "open" ? "Appeals waiting" : "Answered appeals",
+        '<div class="adm-filters" role="group" aria-label="Show"><button class="chip" type="button" data-act="appeals-show" data-show="open" aria-pressed="' + (st.appeals === "open") + '">Waiting</button>' +
+          '<button class="chip" type="button" data-act="appeals-show" data-show="decided" aria-pressed="' + (st.appeals !== "open") + '">Answered</button></div>' +
+        (rows ? '<div class="adm-list">' + rows + "</div>" : '<p class="muted">' + (st.appeals === "open" ? "No appeals waiting. \u2728" : "No answered appeals yet.") + "</p>") +
+        '<p class="muted lab-small">Banned people appeal from the ban screen on a device that was signed in (up to 3 times per ban, one at a time). Lifting the ban also unblocks the email if the ban blocked it. Your reply is shown on their ban screen.</p>',
+        refreshBtn("appeals"));
+    });
+  }
+
+  function drawBanner() {
+    api("notice").then(function (r) {
+      if (st.tab !== "banner") return;
+      if (!r.ok) return failed(r);
+      var n = r.notice || {};
+      var untilVal = "";
+      if (n.until) { try { var d = new Date(n.until); untilVal = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16); } catch (e) { untilVal = ""; } }
+      $("adm-panel").innerHTML = card("Home banner",
+        '<div class="lab-badges">' + (n.showing ? badge("badge-ok", "Showing on everyone\u2019s Home") : badge("badge-muted", "Not showing")) + "</div>" +
+        '<form class="adm-banner" id="adm-banner-form">' +
+          '<label class="field-l" for="adm-banner-text"><b>Text</b> <span class="tiny">(up to 280 characters)</span></label>' +
+          '<textarea class="input" id="adm-banner-text" rows="3" maxlength="280" placeholder="For example: Eid Mubarak from everyone at SalaamStreet!">' + esc(n.text || "") + "</textarea>" +
+          '<div class="lab-set-grid"><div class="field"><label for="adm-banner-tone">Style</label><select class="input input-sm" id="adm-banner-tone">' +
+            [["info", "Information"], ["warn", "Important"], ["celebrate", "Celebration"]].map(function (o) { return '<option value="' + o[0] + '"' + (n.tone === o[0] ? " selected" : "") + ">" + o[1] + "</option>"; }).join("") +
+          '</select></div><div class="field"><label for="adm-banner-until">Hide automatically after (optional)</label><input class="input input-sm" id="adm-banner-until" type="datetime-local" value="' + esc(untilVal) + '" /></div></div>' +
+          '<div class="lab-kill row-between"><div><b>Show it</b><p class="muted">Everyone sees it at the top of Home (website and iPhone app), in every language as written. They can hide it.</p></div>' +
+            '<label class="switch"><input type="checkbox" id="adm-banner-on"' + (n.active ? " checked" : "") + ' aria-label="Show the banner" /><span class="trk"></span><span class="th"></span></label></div>' +
+          '<div class="lab-set-foot"><button class="btn btn-sm" type="submit">Save banner</button><span class="muted" id="adm-banner-out" role="status"></span></div></form>' +
+        (n.updated_at ? '<p class="muted lab-small">Changed ' + esc(ago(n.updated_at)) + ". It can take up to 10 minutes to reach devices that already have SalaamStreet open.</p>" : ""), refreshBtn("banner"));
+    });
+  }
+
+  function reasonSelect(id, value) {
+    return '<select class="input input-sm" id="' + id + '">' + REASONS.map(function (r) {
+      return '<option value="' + r[0] + '"' + (r[0] === value ? " selected" : "") + ">" + esc(r[1]) + "</option>";
+    }).join("") + "</select>";
   }
 
   function drawAi() {
@@ -404,7 +532,7 @@
           '<form class="adm-inline" id="adm-admin-form"><label class="visually-hidden" for="adm-admin-email">Admin’s email</label>' +
             '<input class="input input-sm" id="adm-admin-email" type="email" placeholder="name@gmail.com" autocomplete="off" required />' +
             '<button class="btn btn-sm" type="submit">' + icon("plus") + "<span>Add admin</span></button></form>" +
-          '<p class="muted lab-small">Admins can see every account’s email and use everything on this page. They open it by signing in with <b>Google</b> using this email (Settings shows them an Admin Panel link). ' +
+          '<p class="muted lab-small">Admins can see every account’s email and use everything on this page. They open it by signing in with <b>Google</b> using this email (the More menu and the sidebar show them an Admin Panel link). ' +
             "Only a SHA-256 hash of the email is used to check. You can’t remove yourself, and there’s always at least one admin. The AI Testing Lab (#/lab) stays the owner’s.</p>", refreshBtn("admins"));
     });
   }
@@ -423,7 +551,8 @@
       }).join("");
       $("adm-panel").innerHTML = card("Activity log", (rows ? '<ol class="adm-log">' + rows + "</ol>" : '<p class="muted">Nothing yet.</p>') +
         (st.log.entries.length < r.total ? '<button class="btn btn-outline btn-sm" type="button" data-act="log-more">Load more</button>' : ""),
-        '<span class="muted lab-small">' + int(r.total) + " entries · kept 2 years</span>" + refreshBtn("log"));
+        '<span class="muted lab-small">' + int(r.total) + " entries · kept 2 years</span>" +
+        '<button class="btn btn-ghost btn-sm" type="button" data-act="export-log" title="Download CSV" aria-label="Download CSV">' + icon("download") + "</button>" + refreshBtn("log"));
     });
   }
 
@@ -453,11 +582,15 @@
       '<div class="modal-scroll"><div class="lab-badges">' + badges(u) + (u.ai && u.ai.paused_until ? badge("badge-warn", "AI paused · " + until(u.ai.paused_until)) : "") + "</div>" +
       (flag && flag.status === "open" ? '<p class="adm-flagbox">' + icon("info") + "<span><b>Flagged " + esc(ago(flag.flagged_at)) + ":</b> " +
         esc(flag.word ? "the email or name contains “" + mask(flag.word) + "”" : flag.note || "by an admin") + "</span></p>" : "") +
+      (u.ban ? '<div class="adm-banbox"><b>' + icon("lock") + "<span>Banned " + esc(ago(u.ban.banned_at) + (u.ban.by ? " by " + u.ban.by : "")) + "</span></b>" +
+        '<dl class="adm-dl">' + dd("Reason", reasonLabel(u.ban.reason)) + (u.ban.message ? dd("They see", u.ban.message) : "") + (u.ban.note ? dd("Private note", u.ban.note) : "") +
+        dd("Ends", new Date(u.ban.until).getTime() - Date.now() > 50 * 365 * 864e5 ? "When unbanned" : when(u.ban.until)) + dd("Email", u.email_blocked ? "Blocked" : "Not blocked") + "</dl></div>" : "") +
       '<h3 class="adm-h3">Account</h3><dl class="adm-dl">' +
         dd("Name", u.name || "—") + dd("Signs in with", (u.providers && u.providers.length ? u.providers : [u.provider]).map(provider).join(", ")) +
         dd("Joined", when(u.created_at)) + dd("Last sign-in", u.last_sign_in_at ? when(u.last_sign_in_at) + " (" + ago(u.last_sign_in_at) + ")" : "Never") +
         dd("Email confirmed", u.email_confirmed_at ? when(u.email_confirmed_at) : u.confirmed ? "Phone confirmed" : "No") +
         dd("Language", u.locale || "—") + dd("Banned", u.banned_until ? "Until " + (until(u.banned_until) === "until unbanned" ? "unbanned" : when(u.banned_until)) : "No") +
+        dd("Community Rules", u.rules_version ? "Agreed (" + u.rules_version + ")" : "Not yet") + (u.email_blocked && !u.ban ? dd("Email", "Blocked") : "") +
         '<div><dt>Account id</dt><dd><code class="adm-id">' + esc(u.id) + '</code> <button class="btn btn-ghost btn-sm" type="button" data-uact="copy-id">' + icon("copy") + "<span>Copy</span></button></dd></div></dl>" +
       '<h3 class="adm-h3">Uses</h3><dl class="adm-dl">' +
         dd("Synced items", int(sync.items) + (sync.last ? " · last " + ago(sync.last) : "")) + dd("Family: children", int(u.family_children)) +
@@ -468,7 +601,15 @@
         dd("Rated", "👍 " + int(ai.helpful) + " · 👎 " + int(ai.unhelpful)) + dd("Refused · 30 days", int(ai.refused_30d)) +
         dd("Warnings", int(ai.strikes) + " of 3" + (ai.pauses ? " · paused " + ai.pauses + "× in all" : "")) +
         dd("Terms", ai.terms_version ? "Accepted " + when(ai.terms_accepted_at) : "Not yet") + "</dl>" +
-      '<p class="muted lab-small">Counts only. SalaamStreet never stores anyone’s AI conversations, and this page never shows synced notes or bookmarks.</p>';
+      '<p class="muted lab-small">Counts only. SalaamStreet never stores anyone’s AI conversations, and this page never shows synced notes or bookmarks.</p>' +
+      ((u.warning_list && u.warning_list.length) ? '<h3 class="adm-h3">Warnings</h3><ol class="adm-log">' + u.warning_list.map(function (w) {
+        return '<li class="adm-log-row"><span class="adm-log-when">' + esc(when(w.at)) + "</span><span><b>" + esc(reasonLabel(w.reason)) + "</b>" +
+          (w.message ? ' <span class="muted">— ' + esc(w.message) + "</span>" : "") + '<br><span class="muted adm-user-sub">' + esc(w.seen_at ? "Seen " + ago(w.seen_at) : "Not seen yet") + "</span></span></li>";
+      }).join("") + "</ol>" : "") +
+      ((u.appeals && u.appeals.length) ? '<h3 class="adm-h3">Appeals</h3><ol class="adm-log">' + u.appeals.map(function (ap) {
+        return '<li class="adm-log-row"><span class="adm-log-when">' + esc(when(ap.at)) + "</span><span><b>" + esc(ap.status === "open" ? "Waiting" : ap.status === "accepted" ? "Accepted" : "Turned down") + "</b> — " + esc(ap.text) +
+          (ap.reply ? '<br><span class="muted adm-user-sub">Reply: ' + esc(ap.reply) + "</span>" : "") + "</span></li>";
+      }).join("") + "</ol>" : "");
     if (locked) {
       html += '<p class="adm-flagbox">' + icon("lock") + "<span>" + (me ? "This is your own account." : "This account is an admin.") +
         " Admins can’t be banned, signed out or deleted here" + (me ? "." : " — remove them from the admin list first.") + "</span></p>";
@@ -476,10 +617,8 @@
       html += '<h3 class="adm-h3">Actions</h3><div class="adm-actions">' +
         (u.banned_until
           ? '<button class="btn btn-outline" type="button" data-uact="unban">' + icon("check") + "<span>Unban</span></button>"
-          : '<div class="adm-ban"><label class="visually-hidden" for="adm-ban-days">Ban for</label><select class="input input-sm" id="adm-ban-days">' +
-              '<option value="1">1 day</option><option value="7">7 days</option><option value="30">30 days</option><option value="" selected>Until unbanned</option></select>' +
-              '<input class="input input-sm" id="adm-ban-why" maxlength="150" placeholder="Reason (for the log)" autocomplete="off" />' +
-              '<button class="btn btn-danger" type="button" data-uact="ban">' + icon("lock") + "<span>Ban</span></button></div>") +
+          : '<button class="btn btn-danger" type="button" data-uact="ban">' + icon("lock") + "<span>Ban…</span></button>") +
+        '<button class="btn btn-outline" type="button" data-uact="warn">' + icon("info") + "<span>Warn…</span></button>" +
         '<button class="btn btn-outline" type="button" data-uact="sign-out">' + icon("logout") + "<span>Sign out everywhere</span></button>" +
         (flag && flag.status === "open"
           ? '<button class="btn btn-outline" type="button" data-uact="dismiss">' + icon("check") + "<span>Dismiss flag</span></button>"
@@ -519,11 +658,8 @@
       return;
     }
     var req = null, done = "";
-    if (a === "ban") {
-      var days = $("adm-ban-days").value;
-      if (!confirm("Ban " + who(u) + (days ? " for " + days + " day" + (days === "1" ? "" : "s") : " until you unban them") + "? They’ll be signed out everywhere and can’t sign in.")) return;
-      req = ["ban", { id: u.id, days: days ? Number(days) : null, reason: $("adm-ban-why").value }]; done = "Banned.";
-    } else if (a === "unban") { req = ["unban", { id: u.id }]; done = "Unbanned."; }
+    if (a === "ban" || a === "warn") { reasonForm(a, [{ id: u.id, label: who(u) }], { reason: u.flagged ? "offensive_name" : "" }); return; }
+    if (a === "unban") { req = ["unban", { id: u.id }]; done = "Unbanned."; }
     else if (a === "sign-out") {
       if (!confirm("Sign " + who(u) + " out on every device?")) return;
       req = ["sign_out", { id: u.id }]; done = "Signed out everywhere.";
@@ -554,6 +690,97 @@
       reloadQuietly();
     });
   }
+  /** Ban or warn one or more accounts: a Community Rules reason, a message the person sees and (ban) a private note,
+      how long, and whether to block the email. Opens in the account sheet. */
+  function reasonForm(kind, people, preset) {
+    var ban = kind === "ban", dlg = $("admin-dialog"), body = $("admin-dialog-body"), names = people.map(function (p) { return p.label; });
+    body.innerHTML = '<div class="modal-head"><h2 id="admin-dialog-h">' + esc((ban ? "Ban " : "Warn ") + (people.length === 1 ? names[0] : people.length + " accounts")) + "</h2>" +
+      '<button class="icon-btn" data-close type="button" aria-label="Close">' + icon("x") + "</button></div>" +
+      '<form class="modal-scroll adm-reason" id="adm-reason-form">' +
+      (people.length > 1 ? '<p class="muted lab-small">' + esc(names.slice(0, 6).join(", ") + (names.length > 6 ? " and " + (names.length - 6) + " more" : "")) + "</p>" : "") +
+      '<label class="field-l" for="adm-r-reason"><b>Reason</b> <span class="tiny">(from the Community Rules; they see it in their language)</span></label>' + reasonSelect("adm-r-reason", (preset && preset.reason) || "offensive_name") +
+      (ban ? '<label class="field-l" for="adm-r-days"><b>How long</b></label><select class="input input-sm" id="adm-r-days">' +
+        '<option value="1">1 day</option><option value="7">7 days</option><option value="30">30 days</option><option value="" selected>Until unbanned</option></select>' : "") +
+      '<label class="field-l" for="adm-r-msg"><b>Message they\u2019ll see</b> <span class="tiny">(optional; needed for \u201cOther\u201d)</span></label>' +
+      '<textarea class="input" id="adm-r-msg" rows="3" maxlength="500" placeholder="' + (ban ? "For example: Your email contains a slur. Make a new account with a respectful email." : "For example: Please only ask SalaamStreet AI Islamic questions.") + '"></textarea>' +
+      (ban ? '<label class="field-l" for="adm-r-note"><b>Private note</b> <span class="tiny">(admins only)</span></label><input class="input input-sm" id="adm-r-note" maxlength="500" autocomplete="off" />' +
+        '<label class="adm-check"><input type="checkbox" id="adm-r-block"' + (preset && preset.block ? " checked" : "") + " /> <span>Also block the email from making a new account</span></label>" +
+        '<p class="muted lab-small">They\u2019re signed out on every device at once and see the reason, your message, when it ends and an Appeal button. Their sign-ins are refused, and so is every request from a device they\u2019re still on. They can keep using SalaamStreet without an account.</p>'
+        : '<p class="muted lab-small">They see it the next time they open SalaamStreet, once, with the reason and your message.</p>') +
+      '<p class="lab-err" id="adm-r-err" role="alert" hidden></p>' +
+      '<div class="modal-actions"><button class="btn ' + (ban ? "btn-danger" : "") + '" type="submit">' + icon(ban ? "lock" : "info") + "<span>" + (ban ? "Ban" : "Send warning") + "</span></button></div></form>";
+    if (!dlg.open) SS.openDialog(dlg);
+    var reasonEl = $("adm-r-reason");
+    if (ban && preset && preset.reason === "offensive_name") $("adm-r-block").checked = true;
+    $("adm-reason-form").onsubmit = function (e) {
+      e.preventDefault();
+      var err = $("adm-r-err"), btn = this.querySelector('[type="submit"]'), msg = $("adm-r-msg").value.trim();
+      if (reasonEl.value === "other" && !msg) { err.textContent = "With \u201cOther\u201d, write a message saying why."; err.hidden = false; return; }
+      var payload = { reason: reasonEl.value, message: msg };
+      if (ban) { payload.days = $("adm-r-days").value ? Number($("adm-r-days").value) : null; payload.note = $("adm-r-note").value.trim(); payload.block = $("adm-r-block").checked; }
+      if (people.length > 1 && !confirm((ban ? "Ban " : "Warn ") + people.length + " accounts?")) return;
+      btn.disabled = true;
+      var fails = [], i = 0;
+      (function next() {
+        if (i >= people.length) {
+          btn.disabled = false;
+          if (fails.length) { err.textContent = fails.length + " didn\u2019t work: " + fails.join("; "); err.hidden = false; return; }
+          SS.toast(ban ? (people.length === 1 ? "Banned." : people.length + " accounts banned.") : (people.length === 1 ? "Warning sent." : people.length + " warnings sent."));
+          st.sel = {};
+          if (people.length === 1 && st.openId === people[0].id) openUser(people[0].id); else dlg.close();
+          reloadQuietly();
+          return;
+        }
+        var p = people[i++];
+        api(kind, Object.assign({ id: p.id }, payload)).then(function (r) {
+          if (!r.ok) {
+            if (r.error === "forbidden" || r.error === "signed_out" || r.error === "invalid_session") { dlg.close(); return failed(r); }
+            fails.push(p.label + " (" + (r.message || r.error) + ")");
+          }
+          next();
+        });
+      })();
+    };
+  }
+  /** A CSV file made on this device (cells that look like formulas are made safe for spreadsheets). */
+  function downloadCsv(name, header, rows) {
+    var cell = function (v) { v = String(v == null ? "" : v); return /[",\n]/.test(v) || /^[=+\-@]/.test(v) ? '"' + v.replace(/"/g, '""').replace(/^([=+\-@])/, "'$1") + '"' : v; };
+    var lines = [header.map(cell).join(",")].concat(rows.map(function (r) { return r.map(cell).join(","); }));
+    var blob = new Blob(["\ufeff" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = name + "-" + SS.localDate(new Date()) + ".csv";
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  }
+  function exportUsers(b) {
+    b.disabled = true;
+    api("export_users", { search: st.q.search, filter: st.q.filter }).then(function (r) {
+      b.disabled = false;
+      if (!r.ok) return failed(r);
+      downloadCsv("salaamstreet-users", ["Email", "Phone", "Name", "Sign-in", "Joined", "Last sign-in", "Confirmed", "Banned until", "Ban reason", "Flagged", "Warnings", "Admin", "Account id"],
+        (r.users || []).map(function (u) {
+          return [u.email, u.phone, u.name, u.provider, u.created_at, u.last_sign_in_at, u.confirmed ? "yes" : "no", u.banned_until || "", u.ban_reason ? reasonLabel(u.ban_reason) : "",
+            u.flagged ? "yes" : "", u.warnings || 0, u.admin ? "yes" : "", u.id];
+        }));
+    });
+  }
+  function exportLog(b) {
+    b.disabled = true;
+    var all = [];
+    (function page(offset) {
+      api("audit", { offset: offset }).then(function (r) {
+        if (!r.ok) { b.disabled = false; return failed(r); }
+        all = all.concat(r.entries || []);
+        if (all.length < r.total && all.length < 5000 && (r.entries || []).length) return page(all.length);
+        b.disabled = false;
+        downloadCsv("salaamstreet-admin-log", ["When", "Action", "Account", "Details", "By"], all.map(function (e) {
+          return [e.at, ACTION_LABEL[e.action] || e.action, e.target || "", e.detail || "", e.action === "denied" ? "(not an admin)" : e.by || ""];
+        }));
+      });
+    })(0);
+  }
   /** After a change in the dialog: refresh the list behind it without losing the place. */
   function reloadQuietly() {
     if (st.tab === "users" && st.users) drawUsers();
@@ -575,9 +802,35 @@
     if (act === "log-more") return drawLog(true);
     if (act === "show-words") { st.showWords = !st.showWords; return drawFlags(); }
     if (act === "flag") return simple("flag", { id: b.getAttribute("data-id"), op: b.getAttribute("data-op") }, b, b.getAttribute("data-op") === "dismiss" ? "Marked as fine." : "Reopened.");
-    if (act === "ban-forever") {
-      if (!confirm("Ban " + b.getAttribute("data-email") + " until you unban them? They’ll be signed out everywhere.")) return;
-      return simple("ban", { id: b.getAttribute("data-id"), days: null, reason: "flagged sign-up" }, b, "Banned.");
+    if (act === "ban-one") return reasonForm("ban", [{ id: b.getAttribute("data-id"), label: b.getAttribute("data-email") }], { reason: b.getAttribute("data-word") ? "offensive_name" : "", block: !!b.getAttribute("data-word") });
+    if (act === "warn-one") return reasonForm("warn", [{ id: b.getAttribute("data-id"), label: b.getAttribute("data-email") }], {});
+    if (act === "bulk-ban" || act === "bulk-warn") {
+      var people = selected().map(function (id) {
+        var u = (st.users && st.users.users || []).filter(function (x) { return x.id === id; })[0];
+        return { id: id, label: u ? who(u) : id };
+      });
+      if (people.length) reasonForm(act === "bulk-ban" ? "ban" : "warn", people, {});
+      return;
+    }
+    if (act === "bulk-dismiss") {
+      var ids = selected();
+      if (!ids.length) return;
+      b.disabled = true;
+      Promise.all(ids.map(function (id) { return api("flag", { id: id, op: "dismiss" }); })).then(function () { b.disabled = false; st.sel = {}; SS.toast("Flags dismissed."); drawUsers(); });
+      return;
+    }
+    if (act === "bulk-clear") { st.sel = {}; [].forEach.call(document.querySelectorAll("[data-sel]"), function (c) { c.checked = false; }); drawBulk(); return; }
+    if (act === "export-users") return exportUsers(b);
+    if (act === "export-log") return exportLog(b);
+    if (act === "appeals-show") { st.appeals = b.getAttribute("data-show"); return drawAppeals(); }
+    if (act === "appeal-accept" || act === "appeal-deny") {
+      var accept = act === "appeal-accept", id = b.getAttribute("data-id"), reply = ($("adm-reply-" + id) || {}).value || "";
+      if (!confirm(accept ? "Lift this ban? They can sign in again straight away." : "Turn down this appeal? They\u2019ll see your reply.")) return;
+      return simple("appeal_decide", { id: Number(id), accept: accept, reply: reply }, b, accept ? "Ban lifted." : "Appeal turned down.");
+    }
+    if (act === "unblock") {
+      if (!confirm("Unblock " + b.getAttribute("data-email") + "? It can be used to make an account again.")) return;
+      return simple("blocked_set", { remove: b.getAttribute("data-id") }, b, "Unblocked.");
     }
     if (act === "word-remove") return simple("screening_set", { remove: b.getAttribute("data-word") }, b, "Word removed.");
     if (act === "post-delete") {
@@ -612,6 +865,21 @@
       if (w) simple("screening_set", { add: w }, f.querySelector("button"), "Word added. Matching accounts are flagged.");
       return;
     }
+    if (f.id === "adm-block-form") {
+      var em = $("adm-block-email").value.trim();
+      if (em && confirm("Block " + em + " from making a SalaamStreet account?")) simple("blocked_set", { add: em, reason: $("adm-block-reason").value }, f.querySelector("button"), "Email blocked.");
+      return;
+    }
+    if (f.id === "adm-banner-form") {
+      var bout = $("adm-banner-out"), u = $("adm-banner-until").value;
+      bout.textContent = "Saving…";
+      api("notice_set", { text: $("adm-banner-text").value, tone: $("adm-banner-tone").value, active: $("adm-banner-on").checked, until: u ? new Date(u).toISOString() : null }).then(function (r) {
+        if (!r.ok) { bout.textContent = r.message || "Couldn\u2019t save."; return; }
+        try { localStorage.removeItem("ss-notice"); } catch (e) { /* noop */ }
+        bout.textContent = r.notice.active ? "Saved — showing on Home." : "Saved — not showing.";
+      });
+      return;
+    }
     if (f.id === "adm-admin-form") {
       var mail = $("adm-admin-email").value.trim();
       if (!mail || !confirm("Make " + mail + " an admin? They’ll see every account and can ban and delete them.")) return;
@@ -633,6 +901,7 @@
   }
   function onPanelChange(e) {
     var t = e.target;
+    if (t.hasAttribute && t.hasAttribute("data-sel")) { st.sel[t.getAttribute("data-sel")] = t.checked; drawBulk(); return; }
     if (t.id === "adm-block") {
       if (t.checked && !confirm("Refuse every new sign-up whose email or name contains a screened word?")) { t.checked = false; return; }
       simple("screening_set", { block: t.checked }, null, t.checked ? "Matching sign-ups will be refused." : "Matching sign-ups will be flagged.");
@@ -657,5 +926,6 @@
     if (st.ready) { draw(); return; }
     start();
   };
-  SS.adminLeave = function () { clearInterval(waitTimer); var d = $("admin-dialog"); if (d && d.open) d.close(); };
+  SS.adminLeave = function () { clearInterval(waitTimer); clearInterval(st.timer); var d = $("admin-dialog"); if (d && d.open) d.close(); };
+  VIEWS = { overview: drawOverview, users: drawUsers, flags: drawFlags, appeals: drawAppeals, ai: drawAi, msa: drawMsa, banner: drawBanner, admins: drawAdmins, log: drawLog };
 })();

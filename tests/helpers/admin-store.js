@@ -19,15 +19,19 @@ async function adminDb(before) {
       raw_app_meta_data jsonb default '{}'::jsonb, created_at timestamptz default now(), last_sign_in_at timestamptz,
       email_confirmed_at timestamptz, phone_confirmed_at timestamptz, banned_until timestamptz);
     create table auth.sessions (id uuid primary key default gen_random_uuid(), user_id uuid references auth.users(id) on delete cascade);
+    create table auth.refresh_tokens (id bigserial primary key, token varchar(255), user_id varchar(255), revoked boolean default false,
+      created_at timestamptz default now(), session_id uuid references auth.sessions(id) on delete cascade);
     create function auth.uid() returns uuid language sql stable as
       $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
     create publication supabase_realtime;
     grant usage on schema public, auth to authenticated, anon, service_role;
-    grant select, update, delete on auth.users, auth.sessions to service_role;
+    grant select, update, delete on auth.users, auth.sessions, auth.refresh_tokens to service_role;
     grant execute on function auth.uid() to authenticated, anon;
   `);
   await pg.exec(SQL);
   if (before) await before(pg); // e.g. accounts that existed before the file ran again
+  // Supabase grants table privileges to these roles by default; the schema must take them away where it should.
+  await pg.exec("grant select, insert, update, delete on all tables in schema public to authenticated, anon;");
   await pg.exec(SQL); // re-running the file is how projects upgrade
   return pg;
 }

@@ -79,7 +79,7 @@ test("only the owner's Google account gets in; everyone else is refused and the 
 test("the database functions check the admin list themselves", async () => {
   const { pg } = await setup();
   await pg.exec("set role service_role;");
-  await assert.rejects(pg.query("select public.admin_ban($1, $2, null, 'x')", [ID.user, ID.troll]), /forbidden/);
+  await assert.rejects(pg.query("select public.admin_ban($1, $2, null, 'other', 'x', null, false)", [ID.user, ID.troll]), /forbidden/);
   await assert.rejects(pg.query("select public.admin_users($1, '', 'all', 0)", [ID.helper]), /forbidden/);
   await pg.exec("reset role;");
   // And the app's public roles can't call them at all.
@@ -141,24 +141,29 @@ test("overview and users: numbers, search, filters and one account's details", a
 
 test("ban, sign out, unban and delete — with the log, and never on yourself or another admin", async () => {
   const { call, one } = await setup();
-  const ban = await call("owner", { action: "ban", id: ID.troll, days: null, reason: "abusive email" });
+  assert.equal((await call("owner", { action: "ban", id: ID.troll, days: null, reason: "abusive email" })).status, 400, "a reason from the Community Rules");
+  assert.equal((await call("owner", { action: "ban", id: ID.troll, days: null, reason: "other" })).status, 400, "“Other” needs a message");
+  const ban = await call("owner", { action: "ban", id: ID.troll, days: null, reason: "offensive_name", message: "Your email contains a slur.", note: "troll", block: true });
   assert.equal(ban.status, 200, JSON.stringify(ban.body));
   const u = await one("select banned_until > now() + interval '50 years' as forever from auth.users where id = $1", [ID.troll]);
   assert.equal(u.forever, true);
-  assert.equal((await one("select count(*)::int as n from auth.sessions where user_id = $1", [ID.troll])).n, 0, "signed out everywhere");
+  assert.equal((await one("select count(*)::int as n from auth.sessions where user_id = $1", [ID.troll])).n, 2,
+    "sign-in tokens are kept so the banned device can show why (every request is refused anyway)");
+  assert.equal((await one("select count(*)::int as n from public.blocked_emails")).n, 1, "the email is blocked");
   assert.equal((await one("select status from public.admin_flags where user_id = $1", [ID.troll])).status, "dismissed", "the flag is dealt with");
   const banned = await call("owner", { action: "users", filter: "banned" });
   assert.deepEqual(banned.body.users.map((x) => x.id), [ID.troll]);
   assert.equal((await call("owner", { action: "unban", id: ID.troll })).status, 200);
   assert.equal((await one("select banned_until from auth.users where id = $1", [ID.troll])).banned_until, null);
-  const week = await call("owner", { action: "ban", id: ID.troll, days: 7 });
+  assert.equal((await one("select count(*)::int as n from public.blocked_emails")).n, 0, "unbanning lifts the ban's email block");
+  const week = await call("owner", { action: "ban", id: ID.troll, days: 7, reason: "ai_rules" });
   assert.equal(week.status, 200);
   assert.equal((await call("owner", { action: "ban", id: ID.troll, days: 0 })).status, 400);
   const so = await call("owner", { action: "sign_out", id: ID.user });
   assert.equal(so.body.sessions, 1);
 
   // Never yourself; never another admin.
-  const self = await call("owner", { action: "ban", id: ID.owner });
+  const self = await call("owner", { action: "ban", id: ID.owner, reason: "hacking" });
   assert.equal(self.body.error, "self");
   await call("owner", { action: "admins_set", add: "helper@gmail.com" });
   const other = await call("owner", { action: "delete", id: ID.helper, confirm: "helper@gmail.com" });
@@ -244,4 +249,107 @@ test("the website and the iPhone app may call it; other sites get no CORS header
   assert.equal(evil.headers.get("access-control-allow-origin"), null);
   const ai = await import(path.join(ROOT, "backend/functions/ai-lab/core.js"));
   assert.ok(ai.DEFAULT_ORIGINS.includes("app://salaamstreet"), "SalaamStreet AI works in the iPhone app too");
+});
+
+/* ═══════════ 3.0.2: what the banned person sees, warnings, appeals, blocked emails ═══════════ */
+/** Run SQL as the signed-in user (RLS applies), optionally inside a given session. */
+async function asUser(pg, uid, sid, sql, params) {
+  const claims = JSON.stringify(Object.assign({ sub: uid }, sid ? { session_id: sid } : {}));
+  await pg.exec(`set role authenticated; select set_config('request.jwt.claim.sub', '${uid}', false), set_config('request.jwt.claims', '${claims}', false);`);
+  try { return await pg.query(sql, params); } finally { await pg.exec("reset role; select set_config('request.jwt.claims', '', false), set_config('request.jwt.claim.sub', '', false);"); }
+}
+
+test("a banned account is refused at once, and its device can read the ban and appeal with the token it kept", async () => {
+  const { pg, call, one } = await setup();
+  const sid = (await one("select id from auth.sessions where user_id = $1 limit 1", [ID.troll])).id;
+  await pg.query("insert into auth.refresh_tokens (token, user_id, session_id) values ('tok3nTroll01', $1, $2)", [ID.troll, sid]);
+  // Before the ban: syncing works.
+  await asUser(pg, ID.troll, sid, "insert into public.sync_records (user_id, col, key, value) values ($1, 'bookmarks', '1:1', '{}')", [ID.troll]);
+  await call("owner", { action: "ban", id: ID.troll, days: 30, reason: "offensive_name", message: "Please choose a different email.", note: "private" });
+  // After: the same, still-valid token can't read or write anything.
+  assert.equal((await asUser(pg, ID.troll, sid, "select count(*)::int as n from public.sync_records")).rows[0].n, 0);
+  await assert.rejects(asUser(pg, ID.troll, sid, "insert into public.sync_records (user_id, col, key, value) values ($1, 'bookmarks', '1:2', '{}')", [ID.troll]), /row-level security/);
+  // It's told why (never the private note).
+  const st = (await asUser(pg, ID.troll, sid, "select public.account_status() as r")).rows[0].r;
+  assert.equal(st.banned, true);
+  assert.equal(st.reason, "offensive_name");
+  assert.equal(st.message, "Please choose a different email.");
+  assert.ok(!JSON.stringify(st).includes("private"));
+  assert.equal(st.can_appeal, true);
+  // Signed out (the token expired): the kept refresh token still shows the ban. A wrong token shows nothing.
+  await pg.exec("set role anon;");
+  const notice = (await pg.query("select public.account_notice('tok3nTroll01') as r")).rows[0].r;
+  assert.equal(notice.banned, true);
+  assert.equal(notice.reason, "offensive_name");
+  assert.deepEqual((await pg.query("select public.account_notice('guessedTok3n') as r")).rows[0].r, { banned: false, known: false });
+  await assert.rejects(pg.query("select public.account_appeal('tok3nTroll01', 'short')"), /appeal length/);
+  const ap = (await pg.query("select public.account_appeal('tok3nTroll01', 'I was joking, I changed my mind and will use a normal email.') as r")).rows[0].r;
+  assert.equal(ap.appeal.status, "open");
+  await assert.rejects(pg.query("select public.account_appeal('tok3nTroll01', 'Another appeal while one is open')"), /appeal limit/);
+  await assert.rejects(pg.query("select * from public.account_appeals"), /permission denied/);
+  await pg.exec("reset role;");
+
+  // Admins see it in Appeals, deny with a reply, then the person can appeal again (up to 3).
+  const list = await call("owner", { action: "appeals" });
+  assert.equal(list.body.appeals.length, 1);
+  assert.equal(list.body.appeals[0].ban.note, "private");
+  assert.equal((await call("owner", { action: "appeal_decide", id: list.body.appeals[0].id, accept: false, reply: "Not yet." })).status, 200);
+  assert.equal((await call("owner", { action: "appeal_decide", id: list.body.appeals[0].id, accept: true })).body.error, "decided");
+  await pg.exec("set role anon;");
+  const after = (await pg.query("select public.account_notice('tok3nTroll01') as r")).rows[0].r;
+  assert.deepEqual([after.appeal.status, after.appeal.reply, after.appeals_left], ["denied", "Not yet.", 2]);
+  await pg.query("select public.account_appeal('tok3nTroll01', 'Please, I promise to follow the rules now.')");
+  await pg.exec("reset role;");
+  const second = (await call("owner", { action: "appeals" })).body.appeals[0];
+  assert.equal((await call("owner", { action: "appeal_decide", id: second.id, accept: true, reply: "Welcome back." })).status, 200);
+  assert.equal((await one("select banned_until from auth.users where id = $1", [ID.troll])).banned_until, null, "accepting lifts the ban");
+  assert.equal((await asUser(pg, ID.troll, sid, "select public.account_status() as r")).rows[0].r.banned, false);
+  const acts = (await call("owner", { action: "audit" })).body.entries.map((e) => e.action);
+  for (const a of ["ban", "appeal", "appeal_deny", "appeal_accept"]) assert.ok(acts.includes(a), a);
+});
+
+test("sign out everywhere ends the session at once, even with a token that hasn't expired", async () => {
+  const { pg, call, one } = await setup();
+  const sid = (await one("select id from auth.sessions where user_id = $1", [ID.user])).id;
+  assert.equal((await asUser(pg, ID.user, sid, "select public.account_status() as r")).rows[0].r.session_ended, false);
+  await call("owner", { action: "sign_out", id: ID.user });
+  assert.equal((await asUser(pg, ID.user, sid, "select public.account_status() as r")).rows[0].r.session_ended, true);
+  assert.equal((await asUser(pg, ID.user, sid, "select public.am_blocked() as r")).rows[0].r, true);
+});
+
+test("warnings are shown once; the Community Rules are recorded; blocked emails can't sign up; the Home banner", async () => {
+  const { pg, call, one } = await setup();
+  assert.equal((await call("owner", { action: "warn", id: ID.user, reason: "ai_rules" })).status, 200);
+  const st = (await asUser(pg, ID.user, null, "select public.account_status() as r")).rows[0].r;
+  assert.equal(st.warnings.length, 1);
+  assert.equal(st.warnings[0].reason, "ai_rules");
+  assert.equal(st.rules_version, null);
+  await asUser(pg, ID.user, null, "select public.account_warning_seen($1)", [st.warnings[0].id]);
+  await asUser(pg, ID.user, null, "select public.account_accept_rules('2026-10-28')");
+  const st2 = (await asUser(pg, ID.user, null, "select public.account_status() as r")).rows[0].r;
+  assert.equal(st2.warnings.length, 0);
+  assert.equal(st2.rules_version, "2026-10-28");
+  assert.ok((await one("select rules_accepted_at from public.profiles where id = $1", [ID.user])).rules_accepted_at);
+  const d = await call("owner", { action: "user", id: ID.user });
+  assert.equal(d.body.user.warning_list.length, 1);
+  assert.equal(d.body.user.rules_version, "2026-10-28");
+
+  const b = await call("owner", { action: "blocked_set", add: "Spammer@Example.com", reason: "fake_accounts" });
+  assert.equal(b.body.blocked[0].masked, "sp***@example.com");
+  await assert.rejects(pg.query("insert into auth.users (id, email) values (gen_random_uuid(), 'spammer@example.com')"), /can't be used/);
+  assert.equal((await call("owner", { action: "blocked_set", add: "ibrahim.asim.contact@gmail.com" })).body.error, "is_admin");
+  await call("owner", { action: "blocked_set", remove: b.body.blocked[0].id });
+  await pg.query("insert into auth.users (id, email) values (gen_random_uuid(), 'spammer@example.com')");
+
+  assert.equal((await call("owner", { action: "notice_set", active: true, text: "" })).status, 400);
+  const n = await call("owner", { action: "notice_set", active: true, text: "Eid Mubarak from SalaamStreet!", tone: "celebrate" });
+  assert.equal(n.body.notice.active, true);
+  await pg.exec("set role anon;");
+  assert.equal((await pg.query("select public.app_notice_get() as r")).rows[0].r.text, "Eid Mubarak from SalaamStreet!");
+  await pg.exec("reset role;");
+  await call("owner", { action: "notice_set", active: false, text: "Eid Mubarak from SalaamStreet!" });
+  assert.equal((await pg.query("select public.app_notice_get() as r")).rows[0].r, null);
+
+  const csv = await call("owner", { action: "export_users", filter: "all" });
+  assert.equal(csv.body.users.length, 5);
 });

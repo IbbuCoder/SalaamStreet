@@ -254,6 +254,7 @@
     var code = err && (err.code || err.error_code);
     if ((err && err.offline) || navigator.onLine === false || /Failed to fetch|NetworkError|Load failed/i.test(m)) return t("account.errOffline");
     if (code === "over_email_send_rate_limit" || code === "over_sms_send_rate_limit" || code === "over_request_rate_limit" || /rate limit|too many/i.test(m) || (err && err.status === 429)) return t("account.errRate");
+    if (code === "user_banned" || /user is banned/i.test(m)) return t("account.errBanned");
     if (code === "invalid_credentials" || /invalid login credentials/i.test(m)) return t("account.errLogin");
     if (code === "user_already_exists" || code === "email_exists" || /user already registered/i.test(m)) return t("account.errExists");
     if (code === "weak_password" || /password should be|password is too weak|weak password/i.test(m)) return t("account.errWeak");
@@ -351,6 +352,7 @@
 
   /** Sign out. keepData=true leaves this device's copy as guest data. */
   function signOut(keepData) {
+    if (SS.standing) SS.standing.forget(); // signing out on purpose: this device no longer needs its ban notice
     var flush = state.user && engine.pendingCount() && navigator.onLine !== false
       ? Promise.race([engine.sync().catch(function () {}), new Promise(function (r) { setTimeout(r, 4000); })])
       : Promise.resolve();
@@ -365,6 +367,7 @@
     });
   }
   function deleteAccount() {
+    if (SS.standing) SS.standing.forget();
     return client().then(function (c) {
       return c.rpc("delete_account").then(function (r) {
         if (r.error) throw r.error;
@@ -413,6 +416,14 @@
     el.className = "acct-msg" + (kind ? " " + kind : "");
     el.hidden = !text;
   }
+  /** 3.0.2: "I've read and agree to the Terms of Use and the Community Rules" — required before any sign-in.
+      The agreement is recorded on the account once they're signed in (js/standing.js). */
+  function rulesBox() {
+    var ok = SS.standing && SS.standing.agreedHere();
+    return '<label class="acct-rules mt-2"><input type="checkbox" id="acct-rules"' + (ok ? " checked" : "") + " /> <span>" + esc(t("rules.agree")) + "</span></label>" +
+      '<p class="tiny acct-rules-link"><a href="terms/#rules" target="_blank" rel="noopener">' + esc(t("rules.read")) + "</a></p>";
+  }
+  function rulesAgreed(on) { if (SS.standing) SS.standing.agreeHere(on); }
   function methodButton(m, link) {
     var label = t((link ? "account.link." : "account.with.") + m);
     return '<button class="btn acct-method acct-' + m + '" type="button" data-method="' + m + '">' +
@@ -428,7 +439,7 @@
     var c = dlgCtx;
     if (step === "methods") {
       h.textContent = t("account.signInTitle");
-      html = '<p class="muted">' + esc(t("account.signInSub")) + "</p>" +
+      html = '<p class="muted">' + esc(t("account.signInSub")) + "</p>" + rulesBox() +
         '<div class="acct-methods mt-2">' + methods().map(function (m) { return methodButton(m, false); }).join("") + "</div>" +
         '<p class="acct-msg" id="acct-msg" role="alert" hidden></p>' +
         '<p class="tiny mt-2">' + esc(t("account.guestNote")) + "</p>" +
@@ -592,9 +603,12 @@
       };
     }
     if (step === "methods") {
+      $("acct-rules").onchange = function () { rulesAgreed(this.checked); if (this.checked) setMsg(""); };
       body.querySelector(".acct-methods").onclick = function (e) {
         var b = e.target.closest("[data-method]");
         if (!b) return;
+        // 3.0.2: the Community Rules come first, whichever way they sign in.
+        if (!$("acct-rules").checked) { setMsg(t("rules.needAgree"), "error"); $("acct-rules").focus(); return; }
         var m = b.getAttribute("data-method");
         if (m === "email") { dlgCtx = { mode: "signin" }; showStep("password"); return; }
         if (m === "phone") { dlgCtx = {}; showStep(m); return; }
