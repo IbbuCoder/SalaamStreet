@@ -104,6 +104,11 @@ async function device(opts = {}) {
       }
     }, { s: settings, v: VERSION });
   }
+  // 3.0.2: the Community Rules are ticked before any sign-in. Tests that aren't about that start agreed
+  // (the box is ticked already); the "community rules" test drives the box itself.
+  if (opts.rulesAgreed !== false) {
+    await context.addInitScript(() => { try { sessionStorage.setItem("ss-rules-agreed", "2026-10-28"); } catch (e) { /* noop */ } });
+  }
   const page = await context.newPage();
   page.errors = [];
   page.on("pageerror", (e) => page.errors.push(e.message));
@@ -2527,7 +2532,7 @@ test("admin panel: only an admin sees the link and gets in; overview, users, one
   const A = await device({ mock, context: { viewport: { width: 1280, height: 900 } } });
   A.page.on("dialog", (d) => d.accept());
   await open(A.page, "#/settings");
-  assert.equal(await A.page.isHidden("#st-admin"), true, "guests never see the link");
+  assert.equal(await A.page.$$eval("[data-admin-link]", (els) => els.length === 2 && els.every((e) => e.hidden)), true, "guests never see the link");
   assert.equal(await A.page.evaluate(() => !!window.SS.adminPage), false, "its script isn't loaded on other pages");
 
   await A.page.evaluate(() => { location.hash = "#/admin"; });
@@ -2573,16 +2578,24 @@ test("admin panel: only an admin sees the link and gets in; overview, users, one
   assert.equal(await A.page.$$eval('#admin-dialog [data-uact="ban"], #admin-dialog [data-uact="delete"]', (b) => b.length), 0);
   await A.page.click("#admin-dialog [data-close]");
 
-  // Ban from the sheet: signed out everywhere, the flag dealt with, recorded in the log.
+  // Ban from the sheet (3.0.2): a Community Rules reason, a message they see, a private note, the email blocked.
   await A.page.evaluate((id) => { location.hash = "#/admin/user/" + id; }, TROLL);
   await A.page.waitForSelector('#admin-dialog[open] [data-uact="ban"]');
-  await A.page.fill("#adm-ban-why", "abusive email");
   await A.page.click('#admin-dialog [data-uact="ban"]');
+  await A.page.waitForSelector("#adm-reason-form");
+  assert.equal(await A.page.inputValue("#adm-r-reason"), "offensive_name", "a flagged account starts with “Offensive name or email”");
+  assert.equal(await A.page.isChecked("#adm-r-block"), true);
+  await A.page.fill("#adm-r-msg", "Your email contains a slur. Use a respectful one.");
+  await A.page.fill("#adm-r-note", "abusive email");
+  await shot(A.page, "admin-6-ban-form-1280");
+  await A.page.click('#adm-reason-form [type="submit"]');
   await A.page.waitForSelector('#admin-dialog [data-uact="unban"]');
   const row = (await pg.query("select banned_until > now() + interval '50 years' as forever from auth.users where id = $1", [TROLL])).rows[0];
   assert.equal(row.forever, true);
-  assert.equal((await pg.query("select count(*)::int as n from auth.sessions where user_id = $1", [TROLL])).rows[0].n, 0);
-  assert.match(await A.page.textContent("#admin-dialog"), /History.*Banned.*abusive email/s);
+  const ban = (await pg.query("select reason, message, note, email_blocked from public.account_bans where user_id = $1", [TROLL])).rows[0];
+  assert.deepEqual(ban, { reason: "offensive_name", message: "Your email contains a slur. Use a respectful one.", note: "abusive email", email_blocked: true });
+  assert.match(await A.page.textContent("#admin-dialog"), /Banned .*They see\s*Your email contains a slur/s);
+  assert.match(await A.page.textContent("#admin-dialog"), /History.*Banned.*Offensive name or email/s);
   await A.page.click("#admin-dialog [data-close]");
 
   // Flags: nothing left to review; the word list is masked until shown.
@@ -2595,9 +2608,9 @@ test("admin panel: only an admin sees the link and gets in; overview, users, one
   await A.page.waitForFunction(() => /nigger/.test(document.querySelector(".adm-words").textContent));
   await A.page.click('[data-act="show-words"]');
 
-  // The log, and the app remembers the account is an admin: Settings shows the link.
+  // The log, and the app remembers the account is an admin: the More menu shows the link.
   await A.page.click('[data-tab="log"]');
-  await A.page.waitForFunction(() => /Banned · n1\*\*\*@gmail\.com — until unbanned — abusive email/.test(document.getElementById("adm-panel").textContent));
+  await A.page.waitForFunction(() => /Banned · n1\*\*\*@gmail\.com — Offensive name or email · until unbanned · email blocked — abusive email/.test(document.getElementById("adm-panel").textContent));
   await A.page.setViewportSize({ width: 390, height: 844 });
   await A.page.evaluate(() => { location.hash = "#/admin/overview"; });
   await A.page.waitForSelector("#adm-panel .adm-chart");
@@ -2610,8 +2623,11 @@ test("admin panel: only an admin sees the link and gets in; overview, users, one
     await shot(A.page, "admin-5-user-390");
     await A.page.click("#admin-dialog [data-close]");
   }
-  await A.page.evaluate(() => { location.hash = "#/settings"; });
-  await A.page.waitForSelector("#st-admin:not([hidden])");
+  await A.page.evaluate(() => { location.hash = "#/home"; });
+  await A.page.waitForFunction(() => !document.querySelector("#more-sheet [data-admin-link]").hidden);
+  await A.page.click("#more-btn");
+  await A.page.click("#more-sheet [data-admin-link]");
+  await A.page.waitForFunction(() => /#\/admin/.test(location.hash));
   assert.deepEqual(A.page.errors, []);
   await A.context.close();
 
@@ -2625,9 +2641,128 @@ test("admin panel: only an admin sees the link and gets in; overview, users, one
   await B.page.waitForFunction(() => window.SS && SS.account && SS.account.signedIn(), null, { timeout: 10000 });
   if (!/#\/admin/.test(B.page.url())) await B.page.evaluate(() => { location.hash = "#/admin"; });
   await B.page.waitForFunction(() => /can.t use the Admin Panel/.test((document.getElementById("adm-gate") || {}).textContent || ""));
-  await B.page.evaluate(() => { location.hash = "#/settings"; });
+  await B.page.evaluate(() => { location.hash = "#/home"; });
   await B.page.waitForTimeout(500);
-  assert.equal(await B.page.isHidden("#st-admin"), true);
+  assert.equal(await B.page.$$eval("[data-admin-link]", (els) => els.every((e) => e.hidden)), true, "no link for someone who isn't an admin");
   await B.context.close();
+  await pg.close();
+});
+
+/* ═══════════ 3.0.2: Community Rules, warnings, bans and appeals (the person's side) ═══════════
+   Real database functions (PGlite) behind the Supabase mock, and the real admin
+   server code acting as the admin. */
+test("community rules, warnings, bans and appeals: the rules box before sign-in, the ban screen with its reason, an appeal, the Home banner", async () => {
+  const { adminDb, adminStore } = require("./helpers/admin-store");
+  const { createHandler } = await import(path.join(ROOT, "backend/functions/admin/core.js"));
+  const pg = await adminDb();
+  const ADMIN = { id: "a0000000-0000-0000-0000-0000000000aa", email: "owner@example.com", email_confirmed_at: "2026-10-01T00:00:00Z", app_metadata: { provider: "google", providers: ["google"] } };
+  await pg.query("insert into auth.users (id, email, email_confirmed_at) values ($1, $2, now())", [ADMIN.id, ADMIN.email]);
+  await pg.query("insert into public.app_admins (email_hash) values (sha256('owner@example.com'))");
+  const mock = createMock({ pg });
+  const admin = createHandler({ env: () => undefined, store: adminStore(pg, (t) => (t === "admin" ? ADMIN : null)), log: { warn() {} } });
+  // Opening SalaamStreet again on this device (a real reload, not just a new #hash).
+  async function reopen(page) {
+    await page.reload();
+    await page.waitForFunction(() => !document.getElementById("boot"), null, { timeout: 8000 });
+  }
+  async function act(body) {
+    const res = await admin(new Request("https://x.supabase.co/functions/v1/admin", { method: "POST", headers: { authorization: "Bearer admin", "content-type": "application/json" }, body: JSON.stringify(body) }));
+    const j = await res.json();
+    assert.equal(res.status, 200, JSON.stringify(j));
+    return j;
+  }
+
+  const A = await device({ mock, rulesAgreed: false });
+  A.page.on("dialog", (d) => d.accept());
+  await open(A.page, "#/home");
+  // The rules come first: a sign-in button does nothing until the box is ticked.
+  await A.page.evaluate(() => SS.account.openSignIn());
+  await A.page.waitForSelector("#acct-dialog[open] #acct-rules");
+  assert.equal(await A.page.isChecked("#acct-rules"), false);
+  assert.equal(await A.page.getAttribute(".acct-rules-link a", "href"), "terms/#rules");
+  await A.page.click('#acct-dialog [data-method="google"]');
+  assert.match(await A.page.textContent("#acct-msg"), /Tick the box to agree/);
+  assert.equal(await A.page.evaluate(() => SS.account.signedIn()), false);
+  await shot(A.page, "rules-1-signin-390");
+  await A.page.check("#acct-rules");
+  await A.page.click('#acct-dialog [data-method="google"]');
+  await A.page.waitForFunction(() => SS.account.signedIn(), null, { timeout: 10000 });
+  const uid = await A.page.evaluate(() => SS.account.user().id);
+  // Agreeing is recorded on the account (with the version), so they're not asked again.
+  for (let i = 0; i < 50 && !(await pg.query("select rules_version from public.profiles where id = $1", [uid])).rows[0]?.rules_version; i++) await new Promise((r) => setTimeout(r, 100));
+  assert.equal((await pg.query("select rules_version from public.profiles where id = $1", [uid])).rows[0].rules_version, "2026-10-28");
+  // The device kept a copy of its sign-in token; Supabase keeps the token too (the mock keeps it in memory).
+  const rt = await A.page.evaluate(() => JSON.parse(localStorage.getItem("ss-standing")).rt);
+  await pg.query("insert into auth.refresh_tokens (token, user_id) values ($1, $2)", [rt, uid]);
+
+  // A warning: shown once, with the reason, in the person's language.
+  await act({ action: "warn", id: uid, reason: "ai_rules", message: "Please only ask Islamic questions." });
+  await A.page.evaluate(() => SS.standing.check());
+  await A.page.waitForSelector("#standing-dialog[open] #standing-ok");
+  const warning = await A.page.textContent("#standing-dialog");
+  assert.match(warning, /A warning from SalaamStreet/);
+  assert.match(warning, /Repeatedly breaking SalaamStreet AI's rules/);
+  assert.match(warning, /Please only ask Islamic questions\./);
+  await shot(A.page, "rules-2-warning-390");
+  await A.page.click("#standing-ok");
+  await A.page.waitForFunction(() => !document.getElementById("standing-dialog").open);
+  assert.ok((await pg.query("select seen_at from public.account_warnings where user_id = $1", [uid])).rows[0].seen_at);
+
+  // A ban: the device is signed out at once and shows why.
+  await act({ action: "ban", id: uid, days: 30, reason: "ai_abuse", message: "Mocking the Qur'an isn't allowed.", note: "private note" });
+  await A.page.evaluate(() => SS.standing.check());
+  await A.page.waitForSelector("#standing-dialog[open] #standing-appeal");
+  assert.equal(await A.page.evaluate(() => SS.account.signedIn()), false, "signed out on this device");
+  const screen = await A.page.textContent("#standing-dialog");
+  assert.match(screen, /Your account has been banned/);
+  assert.match(screen, /Hateful, sexual or disrespectful use of SalaamStreet AI/);
+  assert.match(screen, /Mocking the Qur'an isn't allowed\./);
+  assert.match(screen, /Ends /);
+  assert.match(screen, /Appeals left for this ban: 3/);
+  assert.ok(!/private note/.test(screen), "the private note stays private");
+  await shot(A.page, "rules-3-banned-390");
+
+  // Appeal from the ban screen; it reaches the admins.
+  await A.page.fill("#standing-appeal-text", "I'm sorry, it was a joke. I will be respectful.");
+  await A.page.click("#standing-appeal-go");
+  await A.page.waitForFunction(() => /Appeal sent/.test(document.getElementById("standing-dialog").textContent));
+  const appeals = (await act({ action: "appeals" })).appeals;
+  assert.equal(appeals.length, 1);
+  assert.equal(appeals[0].text, "I'm sorry, it was a joke. I will be respectful.");
+
+  // Reopening SalaamStreet on this device still shows the ban (from the token it kept); everything else works as a guest.
+  await A.page.click("#standing-close");
+  await reopen(A.page);
+  await A.page.waitForSelector("#standing-dialog[open]");
+  assert.match(await A.page.textContent("#standing-dialog"), /Appeal sent/);
+  await A.page.click("#standing-close");
+
+  // The admin turns it down with a reply; the person sees it and can try again.
+  await act({ action: "appeal_decide", id: appeals[0].id, accept: false, reply: "Please wait a week." });
+  await reopen(A.page);
+  await A.page.waitForSelector("#standing-dialog[open] #standing-appeal");
+  assert.match(await A.page.textContent("#standing-dialog"), /Your appeal was turned down\. Reply: Please wait a week\./);
+  assert.match(await A.page.textContent("#standing-dialog"), /Appeals left for this ban: 2/);
+  await A.page.click("#standing-close");
+
+  // Lifting the ban: the ban screen is gone and the copy of the token forgotten.
+  await act({ action: "unban", id: uid });
+  await reopen(A.page);
+  await A.page.waitForFunction(() => localStorage.getItem("ss-standing") === null);
+  assert.equal(await A.page.evaluate(() => document.getElementById("standing-dialog").open), false);
+
+  // The Home banner.
+  await act({ action: "notice_set", active: true, text: "Eid Mubarak from everyone at SalaamStreet!", tone: "celebrate" });
+  await A.page.evaluate(() => localStorage.removeItem("ss-notice"));
+  await reopen(A.page);
+  await A.page.waitForSelector("#app-notice:not([hidden])");
+  assert.match(await A.page.textContent("#app-notice"), /Eid Mubarak from everyone at SalaamStreet!/);
+  await shot(A.page, "rules-4-banner-390");
+  await A.page.click("#app-notice button");
+  assert.equal(await A.page.isHidden("#app-notice"), true, "it can be hidden");
+
+  assert.equal(await A.page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true, "fits a phone");
+  assert.deepEqual(A.page.errors, []);
+  await A.context.close();
   await pg.close();
 });

@@ -13,13 +13,13 @@
    3.0: on a connection that is there but barely working, a cached copy is
    served after a few seconds instead of leaving the page loading; the network
    answer still refreshes the cache when it arrives. */
-var VERSION = "ss-v30";
+var VERSION = "ss-v31";
 var SLOW_MS = 4000;
 var KEEP = /^ss-offline/;
 var SHELL = [
   "./", "index.html", "css/styles.css",
   "js/surahs.js", "js/duas.js", "js/extras.js", "js/content.js", "js/i18n.js", "js/praytimes.js", "js/core.js",
-  "js/offline.js", "js/views.js", "js/features.js", "js/stories.js", "js/stories-ui.js", "js/daily.js", "js/push.js", "js/offline-ui.js", "js/qibla.js", "js/config.js", "js/sync.js", "js/account.js", "js/modes.js", "js/msa.js", "js/shortcuts.js", "js/app.js",
+  "js/offline.js", "js/views.js", "js/features.js", "js/stories.js", "js/stories-ui.js", "js/daily.js", "js/push.js", "js/offline-ui.js", "js/qibla.js", "js/config.js", "js/sync.js", "js/account.js", "js/modes.js", "js/msa.js", "js/standing.js", "js/shortcuts.js", "js/app.js",
   // 2.10 Modes: downloaded by the page only when a mode is opened; kept here so they work offline afterwards.
   "js/modes/travel.js", "js/modes/hajj.js", "js/modes/mosque.js", "js/modes/kids.js",
   "manifest.webmanifest", "manifest-dark.webmanifest", "icons/icon-192.png", "icons/apple-touch-icon.png", "icons/favicon-32.png",

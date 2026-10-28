@@ -1,4 +1,4 @@
-# SalaamStreet for iPhone — 3.0.0 Beta (build 2)
+# SalaamStreet for iPhone — 3.0.0 Beta (build 3)
 
 The iOS app **is the website**. It runs the real SalaamStreet website, bundled
 inside the app, in a full-screen web view — same design, same pages, same
@@ -56,6 +56,13 @@ runs, but widgets and Siri won't see your prayer times.
 
 To make a release zip of the committed `ios/` folder: `sh tools/build-ios-zip.sh`
 (writes `SalaamStreet-iOS-3.0.0-Beta.zip` and checks it after extracting).
+
+## Build 3 (October 2026)
+
+The app's copy of the website is updated to **3.0.2**: the Community Rules
+(a box to tick before signing in), the ban screen with its reason and an
+Appeal form, warnings, the Home banner, and the Admin Panel in the More menu
+for admins. No Swift code changed.
 
 ## Build 2 (October 2026)
 
@@ -218,7 +225,7 @@ hadith) use the website's own IndexedDB and Cache storage inside the app.
 Downloaded recitation is also copied to the app's cache when played, so it keeps
 playing locked and offline.
 
-## Status of each feature (3.0.0 Beta, build 2)
+## Status of each feature (3.0.0 Beta, build 3)
 
 "Tested in simulator" means an automated test in this repo checked it on an
 iPhone 16 simulator (iOS 18.5, Xcode 16.4) in GitHub Actions. Nothing has been
@@ -245,7 +252,7 @@ tested on a physical iPhone yet.
 | Control Centre toggle (iOS 18) | built |
 | Spotlight | built; the simulator never confirms indexing, so its test is skipped |
 | Quick actions | tested in simulator (in the website's language) |
-| Admin Panel (website 3.0.1: Settings → Admin Panel, admins only) and SalaamStreet AI | the app's origin `app://salaamstreet` is allowed by the `admin` and `ai-lab` functions (tested in Node); signing in and using them in the app: needs a device and the functions deployed |
+| Admin Panel (More → Admin Panel, admins only), the ban screen and appeals, and SalaamStreet AI | the app's origin `app://salaamstreet` is allowed by the `admin` and `ai-lab` functions (tested in Node); signing in and using them in the app: needs a device and the functions deployed |
 
 ## Permissions (Info.plist)
 

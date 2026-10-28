@@ -274,6 +274,11 @@ export function createHandler(deps) {
       await refuse(user.id, "unconfirmed", !email ? "no email" : "email not confirmed");
       throw new LabError(403, "unconfirmed", "Confirm your account's email address first, then try again.");
     }
+    // 3.0.2: a banned account is refused at once, even while its sign-in token is still valid.
+    if (user.banned_until && new Date(user.banned_until).getTime() > Date.now()) {
+      await refuse(user.id, "account_banned");
+      throw new LabError(403, "account_banned", "This account is banned from SalaamStreet. Reload the app to see why and to appeal.");
+    }
     const am = user.app_metadata || {};
     const providers = [].concat(am.providers || [], am.provider || [], (user.identities || []).map((i) => i && i.provider));
     const google = providers.indexOf("google") > -1;

@@ -385,7 +385,7 @@
   // Which nav item to highlight for views that aren't themselves nav items.
   var NAV_ALIAS = { surah: "quran", mode: "modes" };
   // Destinations that live in the phone "More" sheet light up the More tab.
-  var IN_MORE = { hadith: 1, duas: 1, dhikr: 1, calendar: 1, settings: 1, adhkar: 1, names: 1, mosques: 1, learn: 1, about: 1, account: 1, stories: 1, modes: 1, family: 1, msa: 1, ai: 1, offline: 1 };
+  var IN_MORE = { hadith: 1, duas: 1, dhikr: 1, calendar: 1, settings: 1, adhkar: 1, names: 1, mosques: 1, learn: 1, about: 1, account: 1, stories: 1, modes: 1, family: 1, msa: 1, ai: 1, offline: 1, admin: 1 };
   var TITLE_KEY = {
     home: "nav.dashboard", prayer: "prayer.title", qibla: "qibla.title", quran: "quran.title", surah: "quran.title",
     hadith: "hadith.title", duas: "duas.title", dhikr: "dhikr.title", calendar: "cal.title", settings: "settings.title",
@@ -454,7 +454,6 @@
       : SS.i18n.getLocale() === "en" ? HOME_TITLE : "SalaamStreet — " + SS.i18n.t("app.tagline");
     try {
       if (SS.views[r.view]) SS.views[r.view](r.params);
-      if (r.view === "settings") adminLink();
     } catch (err) {
       // Never let one view break the shell.
       if (window.console) console.error(err);
@@ -504,12 +503,13 @@
   SS.leave = SS.leave || {};
   SS.leave.ai = SS.leave.lab = function () { if (SS.aiLeave) SS.aiLeave(); };
 
-  /* The Admin Panel (#/admin, 3.0.1): linked from Settings for admins only, on
-     the website and in the iPhone app (which has no address bar). js/admin.js
+  /* The Admin Panel (#/admin, 3.0.1): in the More menu and the sidebar for
+     admins only (js/standing.js), on the website and in the iPhone app (which
+     has no address bar). js/admin.js
      loads only when it opens; the server (backend/functions/admin) decides
      who may use it. */
   var adminLoading = null;
-  var ADMIN_REV = "2026-10-28"; // change whenever js/admin.js changes
+  var ADMIN_REV = "2026-10-28b"; // change whenever js/admin.js changes
   SS.views.admin = function (params) {
     var run = function () { if (currentView === "admin" && SS.adminPage) SS.adminPage(params); };
     if (SS.adminPage) return run();
@@ -528,35 +528,6 @@
     });
   };
   SS.leave.admin = function () { if (SS.adminLeave) SS.adminLeave(); };
-
-  /** Settings → "Admin Panel" for admins. Asked per account (admin "me") and remembered on the device:
-      a yes for a day, a no for 6 hours (so someone just made an admin sees it the same day). */
-  var ADMIN_CHECK = "ss.adminCheck";
-  function adminLink() {
-    var el = $("st-admin");
-    if (!el) return;
-    var cfg = SS.CONFIG || {}, user = SS.account && SS.account.signedIn() && SS.account.user();
-    if (!user || !cfg.supabaseUrl) { el.hidden = true; return; }
-    var c = null;
-    try { c = JSON.parse(localStorage.getItem(ADMIN_CHECK) || "null"); } catch (e) { c = null; }
-    if (c && c.uid === user.id && Date.now() - c.at < (c.admin ? 864e5 : 216e5)) { el.hidden = !c.admin; return; }
-    el.hidden = true;
-    SS.account.client().then(function (cl) { return cl.auth.getSession(); }).then(function (r) {
-      var tok = r.data && r.data.session && r.data.session.access_token;
-      if (!tok) return null;
-      return fetch(cfg.supabaseUrl.replace(/\/+$/, "") + "/functions/v1/admin", {
-        method: "POST", body: JSON.stringify({ action: "me" }),
-        headers: { authorization: "Bearer " + tok, apikey: cfg.supabaseAnonKey, "content-type": "application/json" },
-      }).then(function (res) {
-        // Only a definite answer is remembered (not a network hiccup or an undeployed function).
-        if (res.status !== 200 && res.status !== 403) return;
-        var yes = res.status === 200;
-        try { localStorage.setItem(ADMIN_CHECK, JSON.stringify({ uid: user.id, admin: yes, at: Date.now() })); } catch (e) { /* private mode */ }
-        if (SS.account.user() && SS.account.user().id === user.id) el.hidden = !yes;
-      });
-    }).catch(function () { /* offline: try next time */ });
-  }
-  document.addEventListener("ss:auth", function () { if (currentView === "settings") adminLink(); });
 
   /* ── Small global behaviours ────────────────────────────────── */
   function wireScrollState() {
@@ -624,6 +595,7 @@
     if (SS.accountBoot) SS.accountBoot();
     if (SS.modesBoot) SS.modesBoot();
     if (SS.msaBoot) SS.msaBoot();
+    if (SS.standingBoot) SS.standingBoot();
     window.addEventListener("hashchange", function () { navigate(); });
     if (!location.hash) {
       try { history.replaceState(null, "", "#/home"); } catch (e) { location.hash = "#/home"; }

@@ -253,6 +253,27 @@ approver. If another account had claimed the name, it is flagged.
 The roster is loaded the same way as before (MSA → Manage → Edit the list),
 or with a one-time SQL insert that is **not** kept in this repository.
 
+## 3.0.2 — Community Rules, bans people can see, appeals
+
+**Upgrading to 3.0.2:** run the whole updated `supabase-schema.sql` again
+(safe to re-run), then deploy `admin` and `ai-lab` again (GitHub → Actions →
+"Deploy Supabase"). No new secrets.
+
+- New tables: `account_bans` (reason, message shown to the person, private
+  note, until), `account_warnings`, `account_appeals`, `blocked_emails`,
+  `app_notice`; `profiles.rules_version` / `rules_accepted_at`.
+- `am_blocked()` (banned, or a session an admin ended) is part of the
+  `sync_records` / `profiles` policies and of `msa_my_email()`, so a ban or
+  "sign out everywhere" works at once. `ai-lab` refuses banned accounts too.
+- For the person: `account_status()` (signed in), `account_notice(token)` and
+  `account_appeal(token, text)` (signed out; the token is the device's saved
+  sign-in token, looked up in `auth.refresh_tokens`), `account_warning_seen`,
+  `account_accept_rules`, `app_notice_get()`.
+- Bans keep the account's sign-in tokens (so its device can prove who it was
+  to read the ban); Supabase Auth refuses to refresh them while banned.
+- A blocked email can't make an account (trigger on `auth.users`).
+- Details: [`docs/release-notes/3.0.2.md`](../docs/release-notes/3.0.2.md).
+
 ## 3.0.1 — Admin Panel
 
 **Upgrading to 3.0.1:** run the whole updated `supabase-schema.sql` again
@@ -261,8 +282,8 @@ again, which now also accepts the iPhone app). GitHub → Actions → "Deploy
 Supabase" → Run workflow does all of it (`deploy_admin` is on by default).
 No new secrets.
 
-**Opening it:** sign in with the owner's **Google** account, then Settings →
-**Admin Panel** (shown only to admins — on the website and in the iPhone app),
+**Opening it:** sign in with the owner's **Google** account, then More (or the
+sidebar) → **Admin Panel** (shown only to admins — on the website and in the iPhone app),
 or go to `salaamstreet.com/#/admin`. `#/admin/user/<account id>` opens one
 account directly.
 

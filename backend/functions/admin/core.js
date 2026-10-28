@@ -1,7 +1,9 @@
 // SalaamStreet — admin core (plain JavaScript, shared by the Edge Function
 // and the tests). The Admin Panel (3.0.1, #/admin on the website and in the
 // iPhone app): the app's numbers, accounts, flags, SalaamStreet AI's main
-// switches, the NVHS MSA, the admin list and the activity log.
+// switches, the NVHS MSA, the admin list and the activity log. 3.0.2: bans
+// with a Community Rules reason and a message the person sees, warnings,
+// appeals, blocked emails, the Home banner and CSV export.
 //
 // Every request is checked here, on the server, before anything else:
 //   1. a Supabase session token that Supabase Auth itself confirms;
@@ -20,6 +22,9 @@ const MAX_BODY = 20000; // bytes
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const FILTERS = ["all", "flagged", "banned", "new", "never", "unconfirmed", "admins"];
 export const AI_LIMITS = Object.freeze({ user_daily_limit: [0, 1000], daily_limit: [0, 100000] });
+/** The Community Rules' ban reasons (3.0.2; public.ban_reasons() in the database). */
+export const BAN_REASONS = Object.freeze(["offensive_name", "ai_abuse", "ai_rules", "impersonation", "msa_post", "fake_accounts", "hacking", "other"]);
+const TONES = ["info", "warn", "celebrate"];
 
 class AdminError extends Error {
   constructor(status, code, message) { super(message); this.status = status; this.code = code; }
@@ -39,6 +44,9 @@ function dbError(e) {
     if (/confirm/.test(msg)) return new AdminError(400, "confirm", "Type the account's email address exactly to confirm.");
     if (/bad word/.test(msg)) return new AdminError(400, "bad_request", "A word needs 3 to 40 letters.");
     if (/bad email/.test(msg)) return new AdminError(400, "bad_request", "That isn't a valid email address.");
+    if (/bad reason/.test(msg)) return new AdminError(400, "bad_request", "Choose a reason from the Community Rules.");
+    if (/other needs message/.test(msg)) return new AdminError(400, "bad_request", "With “Other”, write a message saying why.");
+    if (/already decided/.test(msg)) return new AdminError(409, "decided", "Another admin already answered this appeal.");
     return new AdminError(400, "bad_request", "The server couldn't use that request.");
   }
   if (code === "54000") return new AdminError(409, "too_many", /admins/.test(msg) ? "The admin list is full (20)." : "The word list is full (500).");
@@ -49,6 +57,10 @@ const str = (v, max) => (typeof v === "string" ? v.trim().slice(0, max) : "");
 function uuid(v) {
   if (typeof v !== "string" || !UUID_RE.test(v)) throw new AdminError(400, "bad_request", "That isn't a valid account id.");
   return v.toLowerCase();
+}
+function reason(v) {
+  if (BAN_REASONS.indexOf(v) === -1) throw new AdminError(400, "bad_request", "Choose a reason from the Community Rules.");
+  return v;
 }
 function int(v, lo, hi, name) {
   const n = Number(v);
@@ -143,7 +155,54 @@ export function createHandler(deps) {
       if (!u) throw new AdminError(404, "not_found", "That account doesn't exist any more.");
       return { user: u };
     },
-    ban: (a, b) => rpc("admin_ban", { p_admin: a, p_id: uuid(b.id), p_days: b.days === null || b.days === undefined ? null : int(b.days, 1, 3650, "days"), p_reason: str(b.reason, 150) }),
+    ban: (a, b) => {
+      const why = reason(b.reason), message = str(b.message, 500);
+      if (why === "other" && !message) throw new AdminError(400, "bad_request", "With “Other”, write a message saying why.");
+      return rpc("admin_ban", { p_admin: a, p_id: uuid(b.id), p_days: b.days === null || b.days === undefined ? null : int(b.days, 1, 3650, "days"),
+        p_reason: why, p_message: message || null, p_note: str(b.note, 500) || null, p_block: b.block === true });
+    },
+    warn: (a, b) => {
+      const why = reason(b.reason), message = str(b.message, 500);
+      if (why === "other" && !message) throw new AdminError(400, "bad_request", "With “Other”, write a message saying why.");
+      return rpc("admin_warn", { p_admin: a, p_id: uuid(b.id), p_reason: why, p_message: message || null });
+    },
+    appeals: async (a, b) => {
+      const status = b.status === undefined ? "open" : b.status;
+      if (["open", "decided"].indexOf(status) === -1) throw new AdminError(400, "bad_request", "status must be open or decided.");
+      return { appeals: await rpc("admin_appeals", { p_admin: a, p_status: status }) };
+    },
+    appeal_decide: (a, b) => {
+      const id = Number(b.id);
+      if (!Number.isSafeInteger(id) || id < 1) throw new AdminError(400, "bad_request", "That isn't a valid appeal.");
+      if (typeof b.accept !== "boolean") throw new AdminError(400, "bad_request", "accept must be true or false.");
+      return rpc("admin_appeal_decide", { p_admin: a, p_appeal: id, p_accept: b.accept, p_reply: str(b.reply, 500) || null });
+    },
+    blocked: async (a) => ({ blocked: await rpc("admin_blocked", { p_admin: a }) }),
+    blocked_set: async (a, b) => {
+      const add = b.add === undefined ? null : str(b.add, 320), remove = b.remove === undefined ? null : str(b.remove, 64);
+      if (!add && !remove) throw new AdminError(400, "bad_request", "Nothing to change.");
+      return { blocked: await rpc("admin_blocked_set", { p_admin: a, p_add_email: add || null, p_reason: add ? reason(b.reason || "other") : null, p_remove_id: remove || null }) };
+    },
+    notice: async (a) => ({ notice: await rpc("admin_notice", { p_admin: a }) }),
+    notice_set: async (a, b) => {
+      const tone = b.tone === undefined ? "info" : b.tone;
+      if (TONES.indexOf(tone) === -1) throw new AdminError(400, "bad_request", "tone must be info, warn or celebrate.");
+      if (typeof b.active !== "boolean") throw new AdminError(400, "bad_request", "active must be true or false.");
+      const text = str(b.text, 280);
+      if (b.active && !text) throw new AdminError(400, "bad_request", "Write the banner's text first.");
+      let until = null;
+      if (b.until !== undefined && b.until !== null && b.until !== "") {
+        const d = new Date(b.until);
+        if (isNaN(d.getTime())) throw new AdminError(400, "bad_request", "That isn't a valid date.");
+        until = d.toISOString();
+      }
+      return { notice: await rpc("admin_notice_set", { p_admin: a, p_text: text || null, p_tone: tone, p_active: b.active, p_until: until }) };
+    },
+    export_users: async (a, b) => {
+      const filter = b.filter === undefined ? "all" : b.filter;
+      if (FILTERS.indexOf(filter) === -1) throw new AdminError(400, "bad_request", "Unknown filter.");
+      return { users: await rpc("admin_users_export", { p_admin: a, p_search: str(b.search, 200), p_filter: filter }) };
+    },
     unban: (a, b) => rpc("admin_unban", { p_admin: a, p_id: uuid(b.id) }),
     sign_out: (a, b) => rpc("admin_sign_out", { p_admin: a, p_id: uuid(b.id) }),
     delete: (a, b) => {

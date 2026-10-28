@@ -7,6 +7,8 @@
      REST (PostgREST): sync_records (select), profiles (select, upsert),
                      rpc/sync_push, rpc/delete_account; family_*, kid_* and
                      msa_* RPCs go to a real Postgres when one is given
+   3.0.2: account_* and app_* RPCs (bans, warnings, appeals, the Community
+   Rules, the Home banner) go to the real Postgres too.
    State is shared by every browser context routed to it — i.e. devices.
    Mirrors backend/supabase-schema.sql semantics (newest write wins). */
 "use strict";
@@ -219,7 +221,7 @@ function createMock(opts) {
 
     /* ── REST ── */
     const u = userFromAuth(req);
-    const fam = p.match(/^\/rest\/v1\/rpc\/((?:family|kid|msa)_[a-z_]+)$/);
+    const fam = p.match(/^\/rest\/v1\/rpc\/((?:family|kid|msa|account|app)_[a-z_]+)$/);
     if (fam && opts.pg) return familyRpc(route, fam[1], body, u);
     if (p.indexOf("/rest/v1/") === 0 && !u) return json(route, 401, { code: "PGRST301", message: "JWT required" });
     if (p === "/rest/v1/rpc/sync_push") {
@@ -262,7 +264,8 @@ function createMock(opts) {
       const names = Object.keys(body || {}).filter((n) => /^p(_[a-z_]+)?$/.test(n));
       // Objects go in as JSON; arrays as Postgres arrays (text[]), as PostgREST does.
       const args = names.map((n) => (body[n] !== null && typeof body[n] === "object" && !Array.isArray(body[n]) ? JSON.stringify(body[n]) : body[n]));
-      await pg.exec(`set role ${uid ? "authenticated" : "anon"}; select set_config('request.jwt.claim.sub', '${uid}', false);`);
+      const claims = JSON.stringify(u ? { sub: uid, session_id: u.sessionId || null } : {}).replace(/'/g, "''");
+      await pg.exec(`set role ${uid ? "authenticated" : "anon"}; select set_config('request.jwt.claim.sub', '${uid}', false), set_config('request.jwt.claims', '${claims}', false);`);
       try {
         const r = await pg.query(`select public.${fn}(${names.map((n, i) => `${n} => $${i + 1}`).join(", ")}) as r`, args);
         return { status: 200, body: r.rows[0].r === undefined ? null : r.rows[0].r };
