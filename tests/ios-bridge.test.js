@@ -91,7 +91,7 @@ test("the bundled website in ios/ is the current website", () => {
   assert.ok(!html.includes("fonts.googleapis.com/css2"));
   const plist = fs.readFileSync(path.join(ROOT, "ios/SalaamStreet.xcodeproj/project.pbxproj"), "utf8");
   assert.match(plist, /MARKETING_VERSION = 3\.0\.0;/);
-  assert.match(plist, /CURRENT_PROJECT_VERSION = 3;/);
+  assert.match(plist, /CURRENT_PROJECT_VERSION = 4;/);
   assert.match(plist, /PRODUCT_BUNDLE_IDENTIFIER = com\.salaamstreet\.app;/);
   assert.match(plist, /IPHONEOS_DEPLOYMENT_TARGET = 17\.0;/);
 });

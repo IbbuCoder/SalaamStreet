@@ -715,3 +715,16 @@ test("verified texts the page attaches go to the assistant as data, after the ap
   assert.equal(big.status, 413);
   assert.equal(g.calls.length, 2);
 });
+
+test("3.0.3: a banned account can't use SalaamStreet AI (it can still sign in elsewhere in the app)", async () => {
+  const { pg, g, chat } = await setup();
+  await pg.query("insert into auth.users (id, email) values ($1, $2)", [users.other.id, users.other.email]);
+  await pg.query("insert into public.account_bans (user_id, reason, until) values ($1, 'ai_abuse', now() + interval '7 days')", [users.other.id]);
+  const r = await chat("other", "Assalamu alaikum");
+  assert.equal(r.status, 403);
+  assert.equal(r.body.error, "account_banned");
+  assert.equal(g.calls.length, 0, "Google was never called");
+  // An expired ban is over.
+  await pg.query("update public.account_bans set until = now() - interval '1 minute' where user_id = $1", [users.other.id]);
+  assert.equal((await chat("other", "Assalamu alaikum")).status, 200);
+});

@@ -1495,6 +1495,14 @@
       "reason.hacking": "Hacking or abusing the app",
       "reason.other": "Other",
       "notice.hide": "Hide",
+      // 3.0.3 — banned accounts can sign in
+      "ban.bar": "Your account is restricted — tap to see why",
+      "ban.onlineOff": "While your account is banned, its online features are off: SalaamStreet AI, the NVHS MSA and sync. Everything that works without an account still works.",
+      "ban.strictLead": "Until this ban is lifted, you can't use SalaamStreet with this account. You can appeal below, or sign out.",
+      "ban.continueOffline": "Continue — online features are off",
+      "ban.signOut": "Sign out",
+      "ban.pageBlocked": "This needs your account, which is banned.",
+      "account.statusRestricted": "Sync is off while your account is banned",
     },
 
     ar: {
@@ -2986,6 +2994,14 @@
       "reason.hacking": "اختراق التطبيق أو إساءة استخدامه",
       "reason.other": "أخرى",
       "notice.hide": "إخفاء",
+      // 3.0.3 — banned accounts can sign in
+      "ban.bar": "حسابك مقيَّد — اضغط لمعرفة السبب",
+      "ban.onlineOff": "ما دام حسابك محظورًا، تتوقف ميزاته عبر الإنترنت: المساعد الذكي ورابطة NVHS والمزامنة. وكل ما يعمل دون حساب يبقى يعمل.",
+      "ban.strictLead": "إلى أن يُرفع هذا الحظر، لا يمكنك استخدام SalaamStreet بهذا الحساب. يمكنك الاعتراض أدناه أو تسجيل الخروج.",
+      "ban.continueOffline": "متابعة — الميزات عبر الإنترنت متوقفة",
+      "ban.signOut": "تسجيل الخروج",
+      "ban.pageBlocked": "هذا يحتاج إلى حسابك، وهو محظور.",
+      "account.statusRestricted": "المزامنة متوقفة ما دام حسابك محظورًا",
     },
   };
 

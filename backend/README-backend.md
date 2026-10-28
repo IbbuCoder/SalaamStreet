@@ -253,6 +253,21 @@ approver. If another account had claimed the name, it is flagged.
 The roster is loaded the same way as before (MSA → Manage → Edit the list),
 or with a one-time SQL insert that is **not** kept in this repository.
 
+## 3.0.3 — Banned people can sign in
+
+**Upgrading to 3.0.3:** run the whole updated `supabase-schema.sql` again and
+deploy `ai-lab` (GitHub → Actions → "Deploy Supabase").
+
+- A ban lives only in `account_bans`; Supabase Auth's `banned_until` isn't
+  set (and is cleared for earlier bans), so banned people can sign in.
+- `am_blocked()` reads `account_bans`: sync policies, `msa_my_email()` and new
+  triggers on `msa_members` / `msa_posts` refuse a banned account;
+  `account_is_banned(user)` lets `ai-lab` refuse it.
+- `account_appeal(text)` is for the signed-in account; `account_notice` and
+  the token lookup are removed. `account_status()` includes `strict` (a ban
+  for an offensive name or email: the app shows only the ban).
+- Details: [`docs/release-notes/3.0.3.md`](../docs/release-notes/3.0.3.md).
+
 ## 3.0.2 — Community Rules, bans people can see, appeals
 
 **Upgrading to 3.0.2:** run the whole updated `supabase-schema.sql` again

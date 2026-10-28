@@ -145,16 +145,16 @@ test("ban, sign out, unban and delete — with the log, and never on yourself or
   assert.equal((await call("owner", { action: "ban", id: ID.troll, days: null, reason: "other" })).status, 400, "“Other” needs a message");
   const ban = await call("owner", { action: "ban", id: ID.troll, days: null, reason: "offensive_name", message: "Your email contains a slur.", note: "troll", block: true });
   assert.equal(ban.status, 200, JSON.stringify(ban.body));
-  const u = await one("select banned_until > now() + interval '50 years' as forever from auth.users where id = $1", [ID.troll]);
+  const u = await one("select until > now() + interval '50 years' as forever from public.account_bans where user_id = $1", [ID.troll]);
   assert.equal(u.forever, true);
   assert.equal((await one("select count(*)::int as n from auth.sessions where user_id = $1", [ID.troll])).n, 2,
-    "sign-in tokens are kept so the banned device can show why (every request is refused anyway)");
+    "a ban doesn't sign them out: they can still see the ban and appeal (every online request is refused)");
   assert.equal((await one("select count(*)::int as n from public.blocked_emails")).n, 1, "the email is blocked");
   assert.equal((await one("select status from public.admin_flags where user_id = $1", [ID.troll])).status, "dismissed", "the flag is dealt with");
   const banned = await call("owner", { action: "users", filter: "banned" });
   assert.deepEqual(banned.body.users.map((x) => x.id), [ID.troll]);
   assert.equal((await call("owner", { action: "unban", id: ID.troll })).status, 200);
-  assert.equal((await one("select banned_until from auth.users where id = $1", [ID.troll])).banned_until, null);
+  assert.equal((await one("select count(*)::int as n from public.account_bans where user_id = $1", [ID.troll])).n, 0);
   assert.equal((await one("select count(*)::int as n from public.blocked_emails")).n, 0, "unbanning lifts the ban's email block");
   const week = await call("owner", { action: "ban", id: ID.troll, days: 7, reason: "ai_rules" });
   assert.equal(week.status, 200);
@@ -259,34 +259,33 @@ async function asUser(pg, uid, sid, sql, params) {
   try { return await pg.query(sql, params); } finally { await pg.exec("reset role; select set_config('request.jwt.claims', '', false), set_config('request.jwt.claim.sub', '', false);"); }
 }
 
-test("a banned account is refused at once, and its device can read the ban and appeal with the token it kept", async () => {
+test("a banned account can still sign in and appeal, but every online feature refuses it (3.0.3)", async () => {
   const { pg, call, one } = await setup();
   const sid = (await one("select id from auth.sessions where user_id = $1 limit 1", [ID.troll])).id;
-  await pg.query("insert into auth.refresh_tokens (token, user_id, session_id) values ('tok3nTroll01', $1, $2)", [ID.troll, sid]);
   // Before the ban: syncing works.
   await asUser(pg, ID.troll, sid, "insert into public.sync_records (user_id, col, key, value) values ($1, 'bookmarks', '1:1', '{}')", [ID.troll]);
-  await call("owner", { action: "ban", id: ID.troll, days: 30, reason: "offensive_name", message: "Please choose a different email.", note: "private" });
-  // After: the same, still-valid token can't read or write anything.
+  await call("owner", { action: "ban", id: ID.troll, days: 30, reason: "ai_abuse", message: "Mocking the Qur'an isn't allowed.", note: "private" });
+  // Supabase Auth's own ban isn't used: they can still sign in.
+  assert.equal((await one("select banned_until from auth.users where id = $1", [ID.troll])).banned_until, null);
+  // Sync refuses the account at once: nothing to read, nothing written.
   assert.equal((await asUser(pg, ID.troll, sid, "select count(*)::int as n from public.sync_records")).rows[0].n, 0);
   await assert.rejects(asUser(pg, ID.troll, sid, "insert into public.sync_records (user_id, col, key, value) values ($1, 'bookmarks', '1:2', '{}')", [ID.troll]), /row-level security/);
-  // It's told why (never the private note).
+  // So does the MSA (joining, posting) and SalaamStreet AI (account_is_banned, used by the ai-lab function).
+  await assert.rejects(asUser(pg, ID.troll, sid, "select public.msa_join('Yusuf Khan')"), /account restricted/);
+  assert.equal((await one("select public.account_is_banned($1) as r", [ID.troll])).r, true);
+  assert.equal((await one("select public.account_is_banned($1) as r", [ID.user])).r, false);
+  // They're told why (never the private note), and it isn't the strict kind.
   const st = (await asUser(pg, ID.troll, sid, "select public.account_status() as r")).rows[0].r;
-  assert.equal(st.banned, true);
-  assert.equal(st.reason, "offensive_name");
-  assert.equal(st.message, "Please choose a different email.");
+  assert.deepEqual([st.banned, st.reason, st.message, st.strict, st.can_appeal], [true, "ai_abuse", "Mocking the Qur'an isn't allowed.", false, true]);
   assert.ok(!JSON.stringify(st).includes("private"));
-  assert.equal(st.can_appeal, true);
-  // Signed out (the token expired): the kept refresh token still shows the ban. A wrong token shows nothing.
-  await pg.exec("set role anon;");
-  const notice = (await pg.query("select public.account_notice('tok3nTroll01') as r")).rows[0].r;
-  assert.equal(notice.banned, true);
-  assert.equal(notice.reason, "offensive_name");
-  assert.deepEqual((await pg.query("select public.account_notice('guessedTok3n') as r")).rows[0].r, { banned: false, known: false });
-  await assert.rejects(pg.query("select public.account_appeal('tok3nTroll01', 'short')"), /appeal length/);
-  const ap = (await pg.query("select public.account_appeal('tok3nTroll01', 'I was joking, I changed my mind and will use a normal email.') as r")).rows[0].r;
+  // Appeals, signed in.
+  await assert.rejects(asUser(pg, ID.troll, sid, "select public.account_appeal('short')"), /appeal length/);
+  const ap = (await asUser(pg, ID.troll, sid, "select public.account_appeal('I was joking, I will be respectful from now on.') as r")).rows[0].r;
   assert.equal(ap.appeal.status, "open");
-  await assert.rejects(pg.query("select public.account_appeal('tok3nTroll01', 'Another appeal while one is open')"), /appeal limit/);
-  await assert.rejects(pg.query("select * from public.account_appeals"), /permission denied/);
+  await assert.rejects(asUser(pg, ID.troll, sid, "select public.account_appeal('Another appeal while one is open')"), /appeal limit/);
+  await assert.rejects(asUser(pg, ID.troll, sid, "select * from public.account_appeals"), /permission denied/);
+  await pg.exec("set role anon;");
+  await assert.rejects(pg.query("select public.account_appeal('Someone else appealing for them')"), /permission denied/);
   await pg.exec("reset role;");
 
   // Admins see it in Appeals, deny with a reply, then the person can appeal again (up to 3).
@@ -295,17 +294,25 @@ test("a banned account is refused at once, and its device can read the ban and a
   assert.equal(list.body.appeals[0].ban.note, "private");
   assert.equal((await call("owner", { action: "appeal_decide", id: list.body.appeals[0].id, accept: false, reply: "Not yet." })).status, 200);
   assert.equal((await call("owner", { action: "appeal_decide", id: list.body.appeals[0].id, accept: true })).body.error, "decided");
-  await pg.exec("set role anon;");
-  const after = (await pg.query("select public.account_notice('tok3nTroll01') as r")).rows[0].r;
+  const after = (await asUser(pg, ID.troll, sid, "select public.account_status() as r")).rows[0].r;
   assert.deepEqual([after.appeal.status, after.appeal.reply, after.appeals_left], ["denied", "Not yet.", 2]);
-  await pg.query("select public.account_appeal('tok3nTroll01', 'Please, I promise to follow the rules now.')");
-  await pg.exec("reset role;");
+  await asUser(pg, ID.troll, sid, "select public.account_appeal('Please, I promise to follow the rules now.')");
   const second = (await call("owner", { action: "appeals" })).body.appeals[0];
   assert.equal((await call("owner", { action: "appeal_decide", id: second.id, accept: true, reply: "Welcome back." })).status, 200);
-  assert.equal((await one("select banned_until from auth.users where id = $1", [ID.troll])).banned_until, null, "accepting lifts the ban");
-  assert.equal((await asUser(pg, ID.troll, sid, "select public.account_status() as r")).rows[0].r.banned, false);
+  assert.equal((await asUser(pg, ID.troll, sid, "select public.account_status() as r")).rows[0].r.banned, false, "accepting lifts the ban");
+  assert.equal((await asUser(pg, ID.troll, sid, "select count(*)::int as n from public.sync_records")).rows[0].n, 2, "and sync works again (both items are back)");
   const acts = (await call("owner", { action: "audit" })).body.entries.map((e) => e.action);
   for (const a of ["ban", "appeal", "appeal_deny", "appeal_accept"]) assert.ok(acts.includes(a), a);
+});
+
+test("a ban for an offensive name or email is strict; an expired ban is over by itself", async () => {
+  const { pg, call, one } = await setup();
+  await call("owner", { action: "ban", id: ID.troll, days: 7, reason: "offensive_name" });
+  assert.equal((await asUser(pg, ID.troll, null, "select public.account_status() as r")).rows[0].r.strict, true);
+  await pg.query("update public.account_bans set until = now() - interval '1 minute' where user_id = $1", [ID.troll]);
+  assert.equal((await asUser(pg, ID.troll, null, "select public.account_status() as r")).rows[0].r.banned, false);
+  assert.equal((await one("select public.account_is_banned($1) as r", [ID.troll])).r, false);
+  assert.equal((await call("owner", { action: "users", filter: "banned" })).body.total, 0);
 });
 
 test("sign out everywhere ends the session at once, even with a token that hasn't expired", async () => {

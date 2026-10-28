@@ -16,7 +16,8 @@
    3.0.2:
    • Bans and warnings give a Community Rules reason (shown to the person,
      with an optional message) and a private note; a ban can also block the
-     email from making a new account. Banned people see why and can appeal.
+     email from making a new account. Banned people can still sign in, see why
+     and appeal; their account's online features are off (3.0.3).
    • Appeals — answer them (lift the ban or deny, with a reply).
    • Blocked emails (in Flags), bulk actions and CSV downloads (Users, Log),
      the Home banner (Banner), and the panel refreshes itself every 30 s.
@@ -705,7 +706,7 @@
       '<textarea class="input" id="adm-r-msg" rows="3" maxlength="500" placeholder="' + (ban ? "For example: Your email contains a slur. Make a new account with a respectful email." : "For example: Please only ask SalaamStreet AI Islamic questions.") + '"></textarea>' +
       (ban ? '<label class="field-l" for="adm-r-note"><b>Private note</b> <span class="tiny">(admins only)</span></label><input class="input input-sm" id="adm-r-note" maxlength="500" autocomplete="off" />' +
         '<label class="adm-check"><input type="checkbox" id="adm-r-block"' + (preset && preset.block ? " checked" : "") + " /> <span>Also block the email from making a new account</span></label>" +
-        '<p class="muted lab-small">They\u2019re signed out on every device at once and see the reason, your message, when it ends and an Appeal button. Their sign-ins are refused, and so is every request from a device they\u2019re still on. They can keep using SalaamStreet without an account.</p>'
+        '<p class="muted lab-small">They can still sign in, and see the reason, your message, when it ends and an Appeal button. Their account\u2019s online features stop at once on every device \u2014 SalaamStreet AI, the NVHS MSA and sync \u2014 while everything that works without an account keeps working. With \u201cOffensive name or email\u201d the ban is strict: the app shows only the ban until it\u2019s lifted.</p>'
         : '<p class="muted lab-small">They see it the next time they open SalaamStreet, once, with the reason and your message.</p>') +
       '<p class="lab-err" id="adm-r-err" role="alert" hidden></p>' +
       '<div class="modal-actions"><button class="btn ' + (ban ? "btn-danger" : "") + '" type="submit">' + icon(ban ? "lock" : "info") + "<span>" + (ban ? "Ban" : "Send warning") + "</span></button></div></form>";

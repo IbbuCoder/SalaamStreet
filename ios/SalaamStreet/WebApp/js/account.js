@@ -105,13 +105,16 @@
     if (dlg && dlg.open && dlgStep !== "merge") dlg.close();
     document.dispatchEvent(new CustomEvent("ss:auth", { detail: { signedIn: true } }));
   }
+  /** 3.0.3: a banned account's sync is off (the server refuses it too); its data stays on this device. */
+  function restricted() { return !!(SS.standing && SS.standing.restricted && SS.standing.restricted()); }
+  function sync() { return restricted() ? Promise.resolve([]) : engine.sync(); }
   function startSession(user, announce) {
     var res = engine.beginSession(user.id);
     engine.backend = backend();
     subscribeRealtime(user.id);
     clearInterval(pollTimer);
     pollTimer = setInterval(function () { if (!document.hidden) schedule(0); }, 5 * 60000);
-    engine.sync().then(function () {
+    sync().then(function () {
       if (announce && res.migrated > 0) SS.toast(t("account.migrated"));
       else if (announce) SS.toast(f("account.welcome", { name: displayName() }));
     }).catch(function () { /* status shows it */ });
@@ -171,7 +174,7 @@
     clearTimeout(syncTimer);
     syncTimer = setTimeout(function () {
       if (navigator.onLine === false) { renderStatus(); return; }
-      engine.sync().catch(function () { /* status shows it */ });
+      sync().catch(function () { /* status shows it */ });
     }, ms);
   }
   function subscribeRealtime(uid) {
@@ -354,7 +357,7 @@
   function signOut(keepData) {
     if (SS.standing) SS.standing.forget(); // signing out on purpose: this device no longer needs its ban notice
     var flush = state.user && engine.pendingCount() && navigator.onLine !== false
-      ? Promise.race([engine.sync().catch(function () {}), new Promise(function (r) { setTimeout(r, 4000); })])
+      ? Promise.race([sync().catch(function () {}), new Promise(function (r) { setTimeout(r, 4000); })])
       : Promise.resolve();
     return flush.then(function () {
       return state.client ? state.client.auth.signOut({ scope: "local" }).catch(function () {}) : null;
@@ -723,6 +726,7 @@
   /* ═══════════ Sync status ═══════════ */
   function statusInfo() {
     if (!state.user) return { cls: "guest", icon: "user", text: t("account.statusGuest") };
+    if (restricted()) return { cls: "error", icon: "lock", text: t("account.statusRestricted") };
     var s = engine.status, m = engine.meta();
     if (navigator.onLine === false) return { cls: "offline", icon: "wifi-off", text: engine.pendingCount() ? t("account.statusOfflinePending") : t("account.statusOffline") };
     if (s === "syncing") return { cls: "busy", icon: "refresh", text: t("account.statusSyncing") };
@@ -1070,6 +1074,7 @@
   function wire() {
     if ($("ac-signin")) $("ac-signin").onclick = function () { openDialog("methods"); };
     if ($("ac-sync-now")) $("ac-sync-now").onclick = function () {
+      if (restricted()) { SS.toast(t("account.statusRestricted")); return; }
       engine.sync().then(function () { SS.toast(t("account.syncedToast")); }).catch(function (err) {
         SS.toast(err && err.offline ? t("account.errOffline") : t("account.statusError"));
       });
@@ -1162,7 +1167,9 @@
     /** Open sign-in. method "email" goes straight to "email me a code" (2.11.7: school accounts). */
     openSignIn: function (method) { if (method === "email") { dlgCtx = {}; openDialog("email"); } else openDialog("methods"); },
     signOut: signOut,
-    syncNow: function () { return state.user ? engine.sync() : Promise.resolve([]); },
+    syncNow: function () { return state.user ? sync() : Promise.resolve([]); },
+    /** Redraw the sync status (3.0.3: js/standing.js, when the account's ban changes). */
+    refreshStatus: function () { renderStatus(); },
     /** The Supabase client (2.10 Family uses its RPCs). Rejects when accounts aren't configured or offline. */
     client: function () { return client(); },
     /** Make sure a stored sign-in is restored (e.g. on #/family before visiting Account). */

@@ -234,7 +234,8 @@ function publicSettings(s) {
  * deps.store       → { getUser(token), settings(), updateSettings(patch, userId), reserve(userId, kind, admin),
  *                      finish(id, patch), summary(), stats(), logRefusal(userId, event, detail),
  *                      enqueue(userId), dequeue(userId), userStatus(userId),
- *                      acceptTerms(userId, version), strike(userId), rate(userId, usageId, rating) }
+ *                      acceptTerms(userId, version), strike(userId), rate(userId, usageId, rating),
+ *                      banned(userId) (3.0.3: the account's Community Rules ban) }
  * deps.log         → optional { warn(...) } (never given secrets or message text)
  */
 export function createHandler(deps) {
@@ -274,8 +275,10 @@ export function createHandler(deps) {
       await refuse(user.id, "unconfirmed", !email ? "no email" : "email not confirmed");
       throw new LabError(403, "unconfirmed", "Confirm your account's email address first, then try again.");
     }
-    // 3.0.2: a banned account is refused at once, even while its sign-in token is still valid.
-    if (user.banned_until && new Date(user.banned_until).getTime() > Date.now()) {
+    // 3.0.2: a banned account is refused at once. 3.0.3: banned people can still sign in, so ask the database.
+    let banned = false;
+    try { banned = store.banned ? (await store.banned(user.id)) === true : false; } catch (_) { banned = false; }
+    if (banned) {
       await refuse(user.id, "account_banned");
       throw new LabError(403, "account_banned", "This account is banned from SalaamStreet. Reload the app to see why and to appeal.");
     }

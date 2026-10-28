@@ -1547,5 +1547,12 @@ SS.i18n.register("fr", {
 "reason.fake_accounts": "Comptes supplémentaires ou faux",
 "reason.hacking": "Piratage ou abus de l'application",
 "reason.other": "Autre",
-"notice.hide": "Masquer"
+"notice.hide": "Masquer",
+"ban.bar": "Votre compte est restreint — touchez pour voir pourquoi",
+"ban.onlineOff": "Tant que votre compte est banni, ses fonctions en ligne sont désactivées : SalaamStreet AI, la NVHS MSA et la synchronisation. Tout ce qui fonctionne sans compte continue de fonctionner.",
+"ban.strictLead": "Tant que ce bannissement n'est pas levé, vous ne pouvez pas utiliser SalaamStreet avec ce compte. Vous pouvez faire appel ci-dessous ou vous déconnecter.",
+"ban.continueOffline": "Continuer — les fonctions en ligne sont désactivées",
+"ban.signOut": "Se déconnecter",
+"ban.pageBlocked": "Cela nécessite votre compte, qui est banni.",
+"account.statusRestricted": "La synchronisation est désactivée tant que votre compte est banni"
 });

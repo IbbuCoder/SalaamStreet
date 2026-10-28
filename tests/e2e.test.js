@@ -2593,8 +2593,9 @@ test("admin panel: only an admin sees the link and gets in; overview, users, one
   await shot(A.page, "admin-6-ban-form-1280");
   await A.page.click('#adm-reason-form [type="submit"]');
   await A.page.waitForSelector('#admin-dialog [data-uact="unban"]');
-  const row = (await pg.query("select banned_until > now() + interval '50 years' as forever from auth.users where id = $1", [TROLL])).rows[0];
+  const row = (await pg.query("select until > now() + interval '50 years' as forever from public.account_bans where user_id = $1", [TROLL])).rows[0];
   assert.equal(row.forever, true);
+  assert.equal((await pg.query("select banned_until from auth.users where id = $1", [TROLL])).rows[0].banned_until, null, "they can still sign in");
   const ban = (await pg.query("select reason, message, note, email_blocked from public.account_bans where user_id = $1", [TROLL])).rows[0];
   assert.deepEqual(ban, { reason: "offensive_name", message: "Your email contains a slur. Use a respectful one.", note: "abusive email", email_blocked: true });
   assert.match(await A.page.textContent("#admin-dialog"), /Banned .*They see\s*Your email contains a slur/s);
@@ -2694,10 +2695,6 @@ test("community rules, warnings, bans and appeals: the rules box before sign-in,
   // Agreeing is recorded on the account (with the version), so they're not asked again.
   for (let i = 0; i < 50 && !(await pg.query("select rules_version from public.profiles where id = $1", [uid])).rows[0]?.rules_version; i++) await new Promise((r) => setTimeout(r, 100));
   assert.equal((await pg.query("select rules_version from public.profiles where id = $1", [uid])).rows[0].rules_version, "2026-10-28");
-  // The device kept a copy of its sign-in token; Supabase keeps the token too (the mock keeps it in memory).
-  const rt = await A.page.evaluate(() => JSON.parse(localStorage.getItem("ss-standing")).rt);
-  await pg.query("insert into auth.refresh_tokens (token, user_id) values ($1, $2)", [rt, uid]);
-
   // A warning: shown once, with the reason, in the person's language.
   await act({ action: "warn", id: uid, reason: "ai_rules", message: "Please only ask Islamic questions." });
   await A.page.evaluate(() => SS.standing.check());
@@ -2711,33 +2708,61 @@ test("community rules, warnings, bans and appeals: the rules box before sign-in,
   await A.page.waitForFunction(() => !document.getElementById("standing-dialog").open);
   assert.ok((await pg.query("select seen_at from public.account_warnings where user_id = $1", [uid])).rows[0].seen_at);
 
-  // A ban: the device is signed out at once and shows why.
+  // A ban (3.0.3): they stay signed in and see why; the account's online features are off, offline ones work.
   await act({ action: "ban", id: uid, days: 30, reason: "ai_abuse", message: "Mocking the Qur'an isn't allowed.", note: "private note" });
   await A.page.evaluate(() => SS.standing.check());
   await A.page.waitForSelector("#standing-dialog[open] #standing-appeal");
-  assert.equal(await A.page.evaluate(() => SS.account.signedIn()), false, "signed out on this device");
+  assert.equal(await A.page.evaluate(() => SS.account.signedIn()), true, "still signed in");
   const screen = await A.page.textContent("#standing-dialog");
   assert.match(screen, /Your account has been banned/);
   assert.match(screen, /Hateful, sexual or disrespectful use of SalaamStreet AI/);
   assert.match(screen, /Mocking the Qur'an isn't allowed\./);
   assert.match(screen, /Ends /);
+  assert.match(screen, /online features are off: SalaamStreet AI, the NVHS MSA and sync/);
   assert.match(screen, /Appeals left for this ban: 3/);
   assert.ok(!/private note/.test(screen), "the private note stays private");
   await shot(A.page, "rules-3-banned-390");
+  await A.page.click("#standing-close");
+  assert.equal(await A.page.isVisible("#ban-bar"), true, "a bar says the account is restricted");
+  assert.equal(await A.page.evaluate(() => SS.standing.restricted()), true);
+  // Pages that need the account show the ban instead; offline pages open as usual.
+  await A.page.evaluate(() => { location.hash = "#/msa"; });
+  await A.page.waitForSelector("#standing-dialog[open]");
+  assert.match(await A.page.textContent("#standing-dialog"), /This needs your account, which is banned\./);
+  assert.equal(await A.page.evaluate(() => location.hash), "#/home");
+  await A.page.click("#standing-close");
+  await A.page.evaluate(() => { location.hash = "#/ai"; });
+  await A.page.waitForSelector("#standing-dialog[open]");
+  assert.equal(await A.page.evaluate(() => location.hash), "#/home");
+  await A.page.click("#standing-close");
+  await A.page.evaluate(() => { location.hash = "#/duas"; });
+  await A.page.waitForSelector("#view-duas:not([hidden])");
+  assert.equal(await A.page.evaluate(() => document.getElementById("standing-dialog").open), false);
+  // Sync is off: nothing goes to the server.
+  const syncCalls = [];
+  const onReq = (r) => { if (/\/rest\/v1\/(rpc\/sync_push|sync_records)/.test(r.url())) syncCalls.push(r.url()); };
+  A.page.on("request", onReq);
+  await A.page.evaluate(() => { SS.store.set("bookmarks", { "2:255": { t: Date.now() } }); return SS.account.syncNow(); });
+  await A.page.waitForTimeout(2500);
+  A.page.off("request", onReq);
+  assert.deepEqual(syncCalls, [], "no sync while banned");
 
-  // Appeal from the ban screen; it reaches the admins.
+  // Appeal from the ban screen (the bar opens it); it reaches the admins.
+  await A.page.click("#ban-bar");
+  await A.page.waitForSelector("#standing-dialog[open] #standing-appeal-text");
   await A.page.fill("#standing-appeal-text", "I'm sorry, it was a joke. I will be respectful.");
   await A.page.click("#standing-appeal-go");
   await A.page.waitForFunction(() => /Appeal sent/.test(document.getElementById("standing-dialog").textContent));
   const appeals = (await act({ action: "appeals" })).appeals;
   assert.equal(appeals.length, 1);
   assert.equal(appeals[0].text, "I'm sorry, it was a joke. I will be respectful.");
-
-  // Reopening SalaamStreet on this device still shows the ban (from the token it kept); everything else works as a guest.
   await A.page.click("#standing-close");
+
+  // Opening SalaamStreet again: still signed in, restricted at once, the ban shown once.
   await reopen(A.page);
   await A.page.waitForSelector("#standing-dialog[open]");
   assert.match(await A.page.textContent("#standing-dialog"), /Appeal sent/);
+  assert.equal(await A.page.evaluate(() => SS.account.signedIn()), true);
   await A.page.click("#standing-close");
 
   // The admin turns it down with a reply; the person sees it and can try again.
@@ -2748,15 +2773,29 @@ test("community rules, warnings, bans and appeals: the rules box before sign-in,
   assert.match(await A.page.textContent("#standing-dialog"), /Appeals left for this ban: 2/);
   await A.page.click("#standing-close");
 
-  // Lifting the ban: the ban screen is gone and the copy of the token forgotten.
+  // Lifting the ban: no ban screen, no bar, everything back.
   await act({ action: "unban", id: uid });
   await reopen(A.page);
-  await A.page.waitForFunction(() => localStorage.getItem("ss-standing") === null);
+  await A.page.waitForFunction(() => SS.account.signedIn() && localStorage.getItem("ss-ban") === null, null, { timeout: 10000 });
+  assert.equal(await A.page.isHidden("#ban-bar"), true);
   assert.equal(await A.page.evaluate(() => document.getElementById("standing-dialog").open), false);
+
+  // A ban for an offensive name or email is strict: only the ban (appeal or sign out), it can't be closed.
+  await act({ action: "ban", id: uid, days: null, reason: "offensive_name" });
+  await A.page.evaluate(() => SS.standing.check());
+  await A.page.waitForSelector("#standing-dialog[open] #standing-signout");
+  assert.equal(await A.page.$("#standing-close"), null, "no “continue”");
+  assert.match(await A.page.textContent("#standing-dialog"), /you can't use SalaamStreet with this account/);
+  await A.page.keyboard.press("Escape");
+  assert.equal(await A.page.evaluate(() => document.getElementById("standing-dialog").open), true, "Escape doesn't close it");
+  await shot(A.page, "rules-5-strict-390");
+  await act({ action: "unban", id: uid });
+  await reopen(A.page);
+  await A.page.waitForFunction(() => SS.account.signedIn() && localStorage.getItem("ss-ban") === null, null, { timeout: 10000 });
 
   // The Home banner.
   await act({ action: "notice_set", active: true, text: "Eid Mubarak from everyone at SalaamStreet!", tone: "celebrate" });
-  await A.page.evaluate(() => localStorage.removeItem("ss-notice"));
+  await A.page.evaluate(() => { localStorage.removeItem("ss-notice"); location.hash = "#/home"; });
   await reopen(A.page);
   await A.page.waitForSelector("#app-notice:not([hidden])");
   assert.match(await A.page.textContent("#app-notice"), /Eid Mubarak from everyone at SalaamStreet!/);
