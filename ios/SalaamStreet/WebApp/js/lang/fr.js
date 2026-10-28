@@ -661,7 +661,7 @@ SS.i18n.register("fr", {
 "msa.removeImage": "Retirer",
 "msa.imageError": "Cette image n’a pas pu être utilisée. Essayez une photo JPEG ou PNG.",
 "msa.photoNote": "Ne publiez des photos d’élèves qu’avec leur accord. Les données de localisation sont retirées automatiquement.",
-"msa.fHome": "Afficher sur l’accueil de tous",
+"msa.fHome": "Afficher sur l’accueil des membres",
 "msa.fHomeSub": "Une petite carte en haut de l’accueil, que chacun peut masquer.",
 "msa.fPin": "Épingler en haut",
 "msa.fExpires": "Afficher pendant",
@@ -1554,5 +1554,13 @@ SS.i18n.register("fr", {
 "ban.continueOffline": "Continuer — les fonctions en ligne sont désactivées",
 "ban.signOut": "Se déconnecter",
 "ban.pageBlocked": "Cela nécessite votre compte, qui est banni.",
-"account.statusRestricted": "La synchronisation est désactivée tant que votre compte est banni"
+"account.statusRestricted": "La synchronisation est désactivée tant que votre compte est banni",
+"msa.membersOnlyTitle": "Les annonces sont réservées aux membres de la NVHS MSA",
+"msa.membersOnlyText": "Rejoignez-la ci-dessous pour les voir — avec votre e-mail scolaire ou avec le code de réunion.",
+"msa.personalTitle": "Sur votre compte personnel ?",
+"msa.personalText": "Pour voir les annonces sur votre compte principal plutôt que sur votre compte scolaire, demandez à Ibrahim Ahmed le code de réunion à 6 chiffres — en personne, par SMS ou par e-mail. Saisissez votre nom complet et le code ; chaque code est valable 10 minutes.",
+"msa.textIbrahim": "SMS : (464) 243-3663",
+"msa.emailIbrahim": "E-mail : ibrahim.asim.contact@gmail.com",
+"msa.signInFirst": "Connectez-vous d'abord (avec n'importe quel compte), puis saisissez ici votre nom et le code.",
+"msa.codeUntil": "Code actuel jusqu'à {t}"
 });

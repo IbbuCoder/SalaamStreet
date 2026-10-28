@@ -253,6 +253,12 @@ approver. If another account had claimed the name, it is flagged.
 The roster is loaded the same way as before (MSA → Manage → Edit the list),
 or with a one-time SQL insert that is **not** kept in this repository.
 
+## 3.0.4 — MSA announcements for members only
+
+Run the updated `supabase-schema.sql` again. `msa_feed` / `msa_image` now answer
+only `msa_can_see_all()` (approved members, MSA admins, the approver; never a
+banned account). Details: [`docs/release-notes/3.0.4.md`](../docs/release-notes/3.0.4.md).
+
 ## 3.0.3 — Banned people can sign in
 
 **Upgrading to 3.0.3:** run the whole updated `supabase-schema.sql` again and

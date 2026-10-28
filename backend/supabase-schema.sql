@@ -2998,3 +2998,30 @@ drop trigger if exists msa_posts_blocked on public.msa_posts;
 create trigger msa_posts_blocked before insert or update or delete on public.msa_posts
     for each row execute function public.msa_blocked_check();
 revoke all on function public.msa_blocked_check() from public, anon, authenticated;
+
+-- ════════════════════════════════════════════════════════════════════════
+--  3.0.4 — NVHS MSA announcements are for members only
+--  Only approved members, MSA admins and the approver see announcements and
+--  their pictures (every post, whatever its members-only setting), and never
+--  a banned account. Everyone else sees how to join: their school email, or
+--  the 10-minute meeting code from Ibrahim Ahmed.
+-- ════════════════════════════════════════════════════════════════════════
+create or replace function public.msa_can_see_all()
+returns boolean language sql stable security definer set search_path = public as $$
+    select auth.uid() is not null and not public.am_blocked() and (
+        exists (select 1 from public.msa_members m where m.user_id = auth.uid() and m.status = 'approved' and m.expires_at > now())
+        or public.msa_is_approver_now()
+        or exists (select 1 from public.msa_admins where email_hash = sha256(convert_to(coalesce(public.msa_my_email(), ''), 'UTF8'))));
+$$;
+create or replace function public.msa_feed()
+returns jsonb language sql stable security definer set search_path = public as $$
+    select coalesce(jsonb_agg(public.msa_post_json(p) order by p.pinned desc, p.created_at desc), '[]'::jsonb)
+    from (select * from public.msa_posts
+          where (expires_at is null or expires_at > now()) and public.msa_can_see_all()
+          order by pinned desc, created_at desc limit 30) p;
+$$;
+create or replace function public.msa_image(p_id uuid)
+returns text language sql stable security definer set search_path = public as $$
+    select image from public.msa_posts
+    where id = p_id and (expires_at is null or expires_at > now()) and public.msa_can_see_all();
+$$;

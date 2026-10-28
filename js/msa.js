@@ -32,7 +32,9 @@
   function icon(n, c) { return SS.ui.icon(n, c); }
 
   var CFG = SS.CONFIG || {};
-  var FEED_KEY = "msa:feed", DISMISS_KEY = "msa:dismissed";
+  // 3.0.4: "msa:feed2" — feeds saved before announcements became members-only are dropped.
+  var FEED_KEY = "msa:feed2", DISMISS_KEY = "msa:dismissed";
+  var IBRAHIM = { phone: "+14642433663", email: "ibrahim.asim.contact@gmail.com" }; // asks for the meeting code (public, by his choice)
   var FRESH_MS = 5 * 60000;
   var MAX_IMAGE = 650000; // characters of data URL; the database allows 700 000
 
@@ -51,7 +53,7 @@
   }
   function signedIn() { return !!(SS.account && SS.account.signedIn()); }
   function who() { var u = signedIn() && SS.account.user(); return u ? u.id : ""; }
-  /** Reads go with the account when signed in, so members get members-only posts. */
+  /** Reads go with the account when signed in (3.0.4: only members get announcements at all). */
   function read(fn, args) { return signedIn() ? rpc(fn, args) : call(fn, args); }
   function cached() {
     var c = SS.store.get(FEED_KEY);
@@ -182,6 +184,8 @@
       $("msa-new").hidden = !poster;
       $("msa-admin-btn").hidden = !st.approver;
       memberCard();
+      // 3.0.4: announcements are for members only (the server sends nobody else any).
+      if (!isMember(st)) { SS.store.remove(FEED_KEY); membersOnly(list); return null; }
       return feed(true).then(function (all) { if (my === pageGen && SS.currentView() === "msa") draw(all, focusId); });
     }).catch(function () {
       if (my !== pageGen) return;
@@ -189,6 +193,23 @@
     });
     $("msa-new").onclick = function () { compose(null); };
     footer();
+  }
+  function isMember(st) { return !!st && (st.status === "approved" || !!st.approver || !!st.poster); }
+  /** Not a member: no announcements, just how to see them. */
+  function membersOnly(list) {
+    list.removeAttribute("aria-busy");
+    list.innerHTML = '<div class="card msa-empty msa-locked">' + '<span class="msa-empty-ic" aria-hidden="true">' + icon("lock") + "</span>" +
+      "<h2>" + esc(t("msa.membersOnlyTitle")) + '</h2><p class="muted">' + esc(t("msa.membersOnlyText")) + "</p></div>";
+  }
+  /** "On your personal account? Ask Ibrahim Ahmed for the 10-minute meeting code." */
+  function personalHtml(guest) {
+    return '<section class="card msa-personal" aria-labelledby="msa-personal-h">' +
+      '<h2 class="h-sm" id="msa-personal-h">' + icon("user") + "<span>" + esc(t("msa.personalTitle")) + "</span></h2>" +
+      "<p>" + esc(t("msa.personalText")) + "</p>" +
+      '<div class="msa-contact"><a class="btn btn-outline btn-sm" href="sms:' + IBRAHIM.phone + '">' + icon("phone") + "<span>" + esc(t("msa.textIbrahim")) + "</span></a>" +
+      '<a class="btn btn-outline btn-sm" href="mailto:' + IBRAHIM.email + '?subject=' + encodeURIComponent("NVHS MSA meeting code") + '">' + icon("mail") + "<span>" + esc(t("msa.emailIbrahim")) + "</span></a></div>" +
+      (guest ? '<p class="tiny">' + esc(t("msa.signInFirst")) + '</p><button class="btn" type="button" id="msa-personal-go">' + icon("user") + "<span>" + esc(t("account.signInBtn")) + "</span></button>" : "") +
+      "</section>";
   }
   function footer() {
     var el = $("msa-foot");
@@ -206,7 +227,12 @@
         esc(st === "approved" ? f("msa.memberUntil", { d: dateLabel(me.expires_at) }) : t(me.approver ? "msa.youAdmin" : "msa.youPost")) + "</span></p>";
       return;
     }
-    if (!signedIn()) { el.innerHTML = schoolHtml(false); wireSchool(el); return; }
+    if (!signedIn()) {
+      el.innerHTML = schoolHtml(false) + personalHtml(true);
+      wireSchool(el);
+      $("msa-personal-go").onclick = function () { SS.account.openSignIn(); };
+      return;
+    }
     if (st === "pending" || st === "flagged") {
       el.innerHTML = '<div class="card msa-join ' + st + '" role="status"><span class="msa-join-ic" aria-hidden="true">' + icon(st === "flagged" ? "users" : "clock") + "</span>" +
         '<div class="msa-join-t"><b>' + esc(t(st === "flagged" ? "msa.flaggedTitle" : "msa.pendingTitle")) + "</b><span>" +
@@ -222,7 +248,7 @@
     // Not a member yet: the school-email way first, then the meeting code or a request.
     el.innerHTML = (me.school ? '<div class="card msa-join notfound" role="status"><span class="msa-join-ic" aria-hidden="true">' + icon("search") + "</span>" +
       '<div class="msa-join-t"><b>' + esc(t("msa.notOnListTitle")) + "</b><span>" + esc(f("msa.notOnListText", { e: me.email || "" })) + "</span></div></div>"
-      : schoolHtml(true)) + '<div id="msa-join-other"></div>';
+      : schoolHtml(true)) + personalHtml(false) + '<div id="msa-join-other"></div>';
     wireSchool(el);
     joinForm($("msa-join-other"), "");
   }
@@ -457,8 +483,10 @@
       var left = Date.parse(cur.changes_at) - Date.now();
       if (left <= 0) { cur = null; load(); return; }
       $("msa-code").textContent = cur.code.slice(0, 3) + " " + cur.code.slice(3);
-      var m = Math.floor(left / 60000), sec = Math.floor(left / 1000) % 60;
-      $("msa-code-left").textContent = f("msa.codeChanges", { t: m + ":" + (sec < 10 ? "0" : "") + sec });
+      // 3.0.4: the clock time it changes (codes change on the ten minutes: :00, :10, :20 …), not a countdown.
+      var at = "";
+      try { at = new Date(cur.changes_at).toLocaleTimeString(SS.i18n.dateLocale(), { hour: "numeric", minute: "2-digit" }); } catch (e) { at = ""; }
+      $("msa-code-left").textContent = f("msa.codeUntil", { t: at });
       $("msa-code-bar").style.inlineSize = Math.max(0, Math.min(100, left / 6000)) + "%";
     }
     load();
@@ -640,7 +668,6 @@
       (p.has_image ? '<div class="msa-img" id="msa-img-' + esc(p.id) + '"><div class="skeleton"></div></div>' : "") +
       '<div class="msa-post-body">' +
       '<p class="msa-meta">' + (p.pinned ? '<span class="badge">' + icon("pin") + "<span>" + esc(t("msa.pinned")) + "</span></span>" : "") +
-      (p.members_only ? '<span class="badge badge-gold">' + icon("lock") + "<span>" + esc(t("msa.membersOnly")) + "</span></span>" : "") +
       "<span>" + esc(t("msa.club")) + " · " + '<time datetime="' + esc(p.created_at) + '">' + esc(dateLabel(p.created_at)) + "</time></span></p>" +
       '<h2 class="msa-title" id="msa-t-' + esc(p.id) + '">' + esc(p.title) + "</h2>" +
       (p.body ? '<p class="msa-text">' + richText(p.body) + '</p><button class="link-btn msa-more" type="button" aria-expanded="false" hidden>' + esc(t("msa.more")) + "</button>" : "") +
@@ -726,8 +753,6 @@
       '<p class="tiny msa-photo-note">' + esc(t("msa.photoNote")) + "</p>" +
       '<div class="set-row"><span id="msa-f-home-l"><b>' + esc(t("msa.fHome")) + '</b><br><span class="tiny">' + esc(t("msa.fHomeSub")) + "</span></span>" +
       '<label class="switch"><input type="checkbox" id="msa-f-home" aria-labelledby="msa-f-home-l"' + (p && p.on_home ? " checked" : "") + ' /><span class="trk"></span><span class="th"></span></label></div>' +
-      '<div class="set-row"><span id="msa-f-mem-l"><b>' + esc(t("msa.fMembers")) + '</b><br><span class="tiny">' + esc(t("msa.fMembersSub")) + "</span></span>" +
-      '<label class="switch"><input type="checkbox" id="msa-f-mem" aria-labelledby="msa-f-mem-l"' + (p && p.members_only ? " checked" : "") + ' /><span class="trk"></span><span class="th"></span></label></div>' +
       '<div class="set-row"><span id="msa-f-pin-l"><b>' + esc(t("msa.fPin")) + "</b></span>" +
       '<label class="switch"><input type="checkbox" id="msa-f-pin" aria-labelledby="msa-f-pin-l"' + (p && p.pinned ? " checked" : "") + ' /><span class="trk"></span><span class="th"></span></label></div>' +
       '<div class="set-row"><label for="msa-f-exp"><b>' + esc(t("msa.fExpires")) + "</b></label>" +
@@ -773,7 +798,7 @@
       EXPIRY.forEach(function (x) { if (x[0] === exp) days = x[1]; });
       var post = {
         title: title, body: $("msa-f-body").value.trim(),
-        on_home: $("msa-f-home").checked, pinned: $("msa-f-pin").checked, members_only: $("msa-f-mem").checked,
+        on_home: $("msa-f-home").checked, pinned: $("msa-f-pin").checked, members_only: true, // 3.0.4: every announcement is for members
         expires_at: exp === "keep" ? p.expires_at : days ? new Date(Date.now() + days * 864e5).toISOString() : null,
       };
       if (p) post.id = p.id;

@@ -2300,3 +2300,11 @@ html[data-theme="dark"] .app-notice.warn{color:#fcd34d}
 .ban-bar[hidden]{display:none}
 .ban-bar span{flex:1;min-inline-size:0}
 .ss-restricted #msa-home{display:none !important}
+
+/* ── 3.0.4: MSA announcements for members only ── */
+.msa-personal{display:grid;gap:10px}
+.msa-personal p{margin:0}
+.msa-personal .btn{justify-self:start}
+.msa-contact{display:flex;flex-wrap:wrap;gap:8px}
+.msa-contact .btn{overflow-wrap:anywhere;text-align:start}
+.msa-personal h2{display:flex;align-items:center;gap:8px;margin:0}

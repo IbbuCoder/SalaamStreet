@@ -661,7 +661,7 @@ SS.i18n.register("id", {
 "msa.removeImage": "Hapus",
 "msa.imageError": "Gambar itu tidak bisa dipakai. Coba foto JPEG atau PNG.",
 "msa.photoNote": "Hanya posting foto siswa dengan izin mereka. Data lokasi dihapus dari foto secara otomatis.",
-"msa.fHome": "Tampilkan di Beranda semua orang",
+"msa.fHome": "Tampilkan di Beranda anggota",
 "msa.fHomeSub": "Kartu kecil di atas Beranda. Bisa disembunyikan.",
 "msa.fPin": "Sematkan di atas",
 "msa.fExpires": "Tampilkan selama",
@@ -1554,5 +1554,13 @@ SS.i18n.register("id", {
 "ban.continueOffline": "Lanjutkan — fitur daring dimatikan",
 "ban.signOut": "Keluar",
 "ban.pageBlocked": "Ini memerlukan akun Anda, yang sedang dilarang.",
-"account.statusRestricted": "Sinkronisasi mati selama akun Anda dilarang"
+"account.statusRestricted": "Sinkronisasi mati selama akun Anda dilarang",
+"msa.membersOnlyTitle": "Pengumuman hanya untuk anggota NVHS MSA",
+"msa.membersOnlyText": "Bergabunglah di bawah untuk melihatnya — dengan email sekolah, atau dengan kode pertemuan.",
+"msa.personalTitle": "Di akun pribadi Anda?",
+"msa.personalText": "Untuk melihat pengumuman di akun utama Anda, bukan akun sekolah, mintalah kode pertemuan 6 digit kepada Ibrahim Ahmed — langsung, lewat SMS, atau email. Masukkan nama lengkap dan kodenya; setiap kode berlaku 10 menit.",
+"msa.textIbrahim": "SMS: (464) 243-3663",
+"msa.emailIbrahim": "Email: ibrahim.asim.contact@gmail.com",
+"msa.signInFirst": "Masuk dulu (dengan akun apa saja), lalu masukkan nama dan kodenya di sini.",
+"msa.codeUntil": "Kode saat ini berlaku sampai {t}"
 });

@@ -1,4 +1,4 @@
-# SalaamStreet for iPhone — 3.0.0 Beta (build 4)
+# SalaamStreet for iPhone — 3.0.0 Beta (build 5)
 
 The iOS app **is the website**. It runs the real SalaamStreet website, bundled
 inside the app, in a full-screen web view — same design, same pages, same
@@ -56,6 +56,11 @@ runs, but widgets and Siri won't see your prayer times.
 
 To make a release zip of the committed `ios/` folder: `sh tools/build-ios-zip.sh`
 (writes `SalaamStreet-iOS-3.0.0-Beta.zip` and checks it after extracting).
+
+## Build 5 (October 2026)
+
+The app's copy of the website is updated to **3.0.4**: NVHS MSA announcements
+for members only. No Swift code changed.
 
 ## Build 4 (October 2026)
 
@@ -230,7 +235,7 @@ hadith) use the website's own IndexedDB and Cache storage inside the app.
 Downloaded recitation is also copied to the app's cache when played, so it keeps
 playing locked and offline.
 
-## Status of each feature (3.0.0 Beta, build 4)
+## Status of each feature (3.0.0 Beta, build 5)
 
 "Tested in simulator" means an automated test in this repo checked it on an
 iPhone 16 simulator (iOS 18.5, Xcode 16.4) in GitHub Actions. Nothing has been
