@@ -467,7 +467,8 @@ test("guest mode: everything works, no account prompts, no account network traff
   const { page, context } = await device({ mock });
   const supabaseHits = [];
   // The MSA's public announcements (2.11) are read without an account; nothing else may reach Supabase.
-  page.on("request", (r) => { if (/supabase/.test(r.url()) && !/\/rest\/v1\/rpc\/msa_(feed|image)$/.test(r.url())) supabaseHits.push(r.url()); });
+  // Public reads that need no account are fine: the MSA feed and (3.0.2) the Home banner.
+  page.on("request", (r) => { if (/supabase/.test(r.url()) && !/\/rest\/v1\/rpc\/(msa_(feed|image)|app_notice_get)$/.test(r.url())) supabaseHits.push(r.url()); });
   for (const v of ["#/home", "#/prayer", "#/qibla", "#/quran", "#/surah/1", "#/duas", "#/dhikr", "#/adhkar", "#/names", "#/learn", "#/calendar", "#/settings", "#/about"]) {
     await open(page, v);
     assert.equal(await page.evaluate(() => !!document.querySelector("dialog[open]")), false, "no dialog on " + v);
@@ -498,6 +499,8 @@ async function emailSignIn(page, email, code) {
   await open(page, "#/account");
   await page.click("#ac-signin");
   await page.waitForSelector("#acct-dialog[open] .acct-methods");
+  // 3.0.2: the Community Rules box (ticked already on a fresh device; a later sign-in on the same tab ticks it again).
+  if (!(await page.isChecked("#acct-rules"))) await page.check("#acct-rules");
   await page.click('[data-method="email"]');
   await page.click("#acct-use-link"); // the emailed-link/code route
   await page.fill("#acct-input", email);
