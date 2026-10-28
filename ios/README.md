@@ -1,4 +1,4 @@
-# SalaamStreet for iPhone — 3.0.0 Beta (build 1)
+# SalaamStreet for iPhone — 3.0.0 Beta (build 2)
 
 The iOS app **is the website**. It runs the real SalaamStreet website, bundled
 inside the app, in a full-screen web view — same design, same pages, same
@@ -56,6 +56,13 @@ runs, but widgets and Siri won't see your prayer times.
 
 To make a release zip of the committed `ios/` folder: `sh tools/build-ios-zip.sh`
 (writes `SalaamStreet-iOS-3.0.0-Beta.zip` and checks it after extracting).
+
+## Build 2 (October 2026)
+
+The app's copy of the website is updated to **3.0.1** (build 1 carried
+3.0.0-beta): SalaamStreet AI out of beta, Siri shortcut links and the Admin
+Panel. No Swift code changed. Deploy the Supabase functions first (GitHub →
+Actions → Deploy Supabase): `ai-lab` and `admin` now accept the app's origin.
 
 ## When the website changes
 
@@ -211,7 +218,7 @@ hadith) use the website's own IndexedDB and Cache storage inside the app.
 Downloaded recitation is also copied to the app's cache when played, so it keeps
 playing locked and offline.
 
-## Status of each feature (3.0.0 Beta, build 1)
+## Status of each feature (3.0.0 Beta, build 2)
 
 "Tested in simulator" means an automated test in this repo checked it on an
 iPhone 16 simulator (iOS 18.5, Xcode 16.4) in GitHub Actions. Nothing has been
@@ -238,6 +245,7 @@ tested on a physical iPhone yet.
 | Control Centre toggle (iOS 18) | built |
 | Spotlight | built; the simulator never confirms indexing, so its test is skipped |
 | Quick actions | tested in simulator (in the website's language) |
+| Admin Panel (website 3.0.1: Settings → Admin Panel, admins only) and SalaamStreet AI | the app's origin `app://salaamstreet` is allowed by the `admin` and `ai-lab` functions (tested in Node); signing in and using them in the app: needs a device and the functions deployed |
 
 ## Permissions (Info.plist)
 

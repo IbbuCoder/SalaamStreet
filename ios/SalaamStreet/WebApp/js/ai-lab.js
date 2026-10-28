@@ -1,7 +1,9 @@
 /* SalaamStreet — ai-lab.js (classic script, loaded only on #/ai and #/lab)
    Two pages over one Edge Function (backend/functions/ai-lab):
-   • #/ai — SalaamStreet AI (3.0 Beta), for everyone with an account: chat,
+   • #/ai — SalaamStreet AI (3.0), for everyone with an account: chat,
      commands, today's allowance, and the waiting list when it's busy.
+     #/ai/ask/<text> opens it with <text> in the message box (the tafsir
+     sheet's "Ask SalaamStreet AI" uses it); nothing is sent until they do.
    • #/lab — the admin's private AI Testing Lab (in no menu): the same chat
      plus status, app stats, settings and the emergency switch.
 
@@ -11,7 +13,8 @@
    • The Gemini key never reaches the browser.
    • The conversation lives in this page's memory only: it's gone on reload,
      "New conversation" or "Clear", and is never saved on the device or the
-     server. English only for the beta, like other admin tools.
+     server. English only for now, like other admin tools. "Save" downloads
+     it as a text file on this device.
    • The assistant only answers Islamic questions (the rule lives in the
      server's system prompt). With "Use my app data" on, each message also
      carries a short summary of this device's SalaamStreet data (bookmarks,
@@ -24,7 +27,14 @@
      admin accepts the AI Terms (terms/) once per version. Off-topic questions
      get a warning; the third within 30 days pauses access for 7 days.
    • With "Use my app data" off the server is told so, and the assistant
-     explains why it can't see the person's data instead of just refusing. */
+     explains why it can't see the person's data instead of just refusing.
+   • Verified text (3.0): ayahs mentioned in a question ("2:255"), and what
+     /ayah, /tafsir, /hadith and /reflect look up, are loaded from the app's
+     own Qur'an, tafsir and hadith data and sent with every later question in
+     the conversation (as `sources`, separate from what the person typed).
+     They're shown under the answer, and ayah references in answers link to
+     the Qur'an. Answers can be read aloud (the browser's own voice, on the
+     device) and rated helpful or not (only the number reaches the server). */
 (function () {
   "use strict";
   window.SS = window.SS || {};
@@ -42,13 +52,15 @@
       msgs: [],          // { role: "user"|"model", text, meta? } — this page only
       busy: false,
       status: null,      // the Lab: the server's last status reply
-      me: null,          // #/ai: the person's allowance and the beta's state
+      me: null,          // #/ai: the person's allowance and whether it's open
       queue: null,       // { position, waiting, wait_seconds } while waiting in line
       queueTimer: 0,
       req: 0,            // bumps when a request is abandoned, so its late reply is ignored
       session: { tokens: 0, cost: 0, requests: 0 },
       waitTimer: 0,
       useData: true,     // attach appData() to each message
+      speaking: -1,      // the message being read aloud
+      prefill: false,    // #/ai/ask/<text> put something in the box: focus it once the page is ready
     };
   }
   st = freshState();
@@ -93,17 +105,90 @@
     for (var i = 0; i < sur - 1; i++) g += list[i].ayahs;
     return g + ay;
   }
-  /** A prompt about one ayah, with its text loaded by the app when possible; null if the ayah doesn't exist. */
-  function ayahPrompt(sur, ay, ask) {
-    var g = globalAyah(sur, ay);
-    if (!g) return null;
-    var head = ref(sur + ":" + ay) + ". " + ask;
-    return SS.api.ayah(g).then(function (a) {
-      return { prompt: head + "\n\nText from the app (quote it exactly if you quote it):\n" + a.arabic + "\n" + a.translation };
-    }, function () {
-      return { prompt: head + " (The app couldn't load the text, so don't quote it word for word.)" };
+  /* ── Verified text from the app ──────────────────────────────── */
+  var MAX_REFS = 3, SOURCE_BUDGET = 15000, TAFSIR_CHARS = 6000;
+  /** Resolves to null instead of waiting long or failing: a source is a bonus, never a reason not to answer. */
+  function soon(p, ms) {
+    return new Promise(function (ok) {
+      var t = setTimeout(function () { ok(null); }, ms);
+      Promise.resolve(p).then(function (v) { clearTimeout(t); ok(v || null); }, function () { clearTimeout(t); ok(null); });
     });
   }
+  /** The app's own text of one ayah: { kind, ref, s, a, arabic, text }, or null. */
+  function ayahSource(sur, ay) {
+    var g = globalAyah(sur, ay);
+    if (!g || !SS.api) return Promise.resolve(null);
+    return soon(SS.api.ayah(g), 8000).then(function (x) {
+      return x && x.arabic ? { kind: "ayah", ref: ref(sur + ":" + ay), s: sur, a: ay, arabic: x.arabic, text: x.translation } : null;
+    });
+  }
+  /** Ibn Kathir's tafsir of one ayah from the app, or null. */
+  function tafsirSource(sur, ay) {
+    if (!SS.api || !SS.api.tafsir) return Promise.resolve(null);
+    return soon(SS.api.tafsir(sur, ay), 10000).then(function (x) {
+      var t = x && String(x.text || "").trim();
+      if (!t) return null;
+      return { kind: "tafsir", ref: "Tafsir Ibn Kathir (abridged) on " + ref(sur + ":" + ay), s: sur, a: ay,
+        text: t.length > TAFSIR_CHARS ? t.slice(0, TAFSIR_CHARS).replace(/\s+\S*$/, "") + " […]" : t };
+    });
+  }
+  function hadithColl(name) {
+    var k = String(name || "").toLowerCase().replace(/[^a-z]/g, "");
+    var list = SS.HADITH_COLLECTIONS || [];
+    for (var i = 0; i < list.length; i++) {
+      var c = list[i], en = c.en.toLowerCase().replace(/[^a-z]/g, "");
+      if (k && (c.id === k || en === k || en.indexOf(k) > -1)) return c;
+    }
+    return null;
+  }
+  /** One hadith from the app's collections, with its gradings, or null. */
+  function hadithSource(c, n) {
+    if (!SS.api || !SS.api.hadithOne) return Promise.resolve(null);
+    return soon(SS.api.hadithOne(c.eng, n), 10000).then(function (h) {
+      var t = h && String(h.text || "").replace(/<[^>]*>/g, " ").replace(/[ \t]+/g, " ").trim();
+      if (!t) return null;
+      var grade = (h.grades || []).filter(function (x) { return x && x.grade; }).map(function (x) { return x.grade + (x.name ? " (" + x.name + ")" : ""); }).join("; ");
+      return { kind: "hadith", ref: c.cite + " " + n, coll: c.id, n: n, text: t.slice(0, 6000), grade: grade };
+    });
+  }
+  /** Qur'an references someone typed ("2:255", "18:10") — real ayahs only, not times like "at 5:30" or "4:30 pm". */
+  var NOT_REF_BEFORE = /\b(at|by|until|till|from|around|before|after|about|between|since)\s*$/i, NOT_REF_AFTER = /^\s*(am|pm|a\.m|p\.m)\b/i;
+  function findRefs(text, max) {
+    var out = [], seen = {}, re = /(^|[^\d:])(\d{1,3})\s?:\s?(\d{1,3})(?![\d:])/g, m;
+    while ((m = re.exec(text)) && out.length < max) {
+      var at = m.index + m[1].length, sur = +m[2], ay = +m[3], k = sur + ":" + ay;
+      if (seen[k] || !globalAyah(sur, ay) || NOT_REF_BEFORE.test(text.slice(Math.max(0, at - 12), at)) || NOT_REF_AFTER.test(text.slice(at + m[0].length - m[1].length))) continue;
+      seen[k] = 1;
+      out.push({ s: sur, a: ay });
+    }
+    return out;
+  }
+  /** Every source in the conversation, newest first, within the budget (the server's limit is 16,000 characters). */
+  function conversationSources() {
+    var out = [], seen = {}, used = 0;
+    for (var i = st.msgs.length - 1; i >= 0; i--) {
+      (st.msgs[i].sources || []).forEach(function (x) {
+        var len = x.ref.length + (x.arabic || "").length + x.text.length + (x.grade || "").length + 30;
+        if (seen[x.ref] || out.length >= 8 || used + len > SOURCE_BUDGET) return;
+        seen[x.ref] = 1; used += len;
+        out.push({ ref: x.ref, text: x.text, arabic: x.arabic || undefined, grade: x.grade || undefined });
+      });
+    }
+    return out.reverse();
+  }
+  function parseRef(arg) {
+    var m = String(arg || "").match(/^(\d{1,3})\s*[:.\s]\s*(\d{1,3})$/);
+    return m && globalAyah(+m[1], +m[2]) ? { s: +m[1], a: +m[2] } : null;
+  }
+  /** A prompt about one ayah, sent with the app's text of it; null if the ayah doesn't exist. */
+  function ayahPrompt(sur, ay, ask) {
+    if (!globalAyah(sur, ay)) return null;
+    var head = ref(sur + ":" + ay) + ". " + ask;
+    return ayahSource(sur, ay).then(function (x) {
+      return x ? { prompt: head, sources: [x] } : { prompt: head + " (The app couldn't load the text, so don't quote it word for word.)" };
+    });
+  }
+
   var COMMANDS = [
     { name: "help", hint: "list the commands" },
     { name: "bookmarks", hint: "themes and reflections from your bookmarked ayahs", data: true,
@@ -113,9 +198,34 @@
       } },
     { name: "ayah", args: "2:255", hint: "explain an ayah, with its text from the app",
       run: function (arg) {
-        var m = String(arg || "").match(/^(\d{1,3})\s*[:.\s]\s*(\d{1,3})$/);
-        return (m && ayahPrompt(+m[1], +m[2], "Explain it for me: its meaning, its context, the main lessons, and how I can act on it today."))
+        var r = parseRef(arg);
+        return (r && ayahPrompt(r.s, r.a, "Explain it for me: its meaning, its context, the main lessons, and how I can act on it today."))
           || { local: "Give an ayah like /ayah 2:255 (surah:ayah)." };
+      } },
+    { name: "tafsir", args: "2:255", hint: "Ibn Kathir's tafsir of an ayah, explained simply",
+      run: function (arg) {
+        var r = parseRef(arg);
+        if (!r) return { local: "Give an ayah like /tafsir 2:255 (surah:ayah)." };
+        return Promise.all([ayahSource(r.s, r.a), tafsirSource(r.s, r.a)]).then(function (x) {
+          var head = ref(r.s + ":" + r.a) + ". ";
+          if (!x[1]) return { prompt: head + "The app couldn't load Ibn Kathir's tafsir of this ayah just now. Explain its meaning generally, and say clearly that this isn't from the tafsir text.", sources: x[0] ? [x[0]] : [] };
+          return { sources: x.filter(Boolean), prompt: head + "Using Ibn Kathir's tafsir from the app, explain in plain language what he says about this ayah: the main points, " +
+            "any context or hadith he mentions, and the lessons. Make clear which points come from the tafsir and which are your own explanation." };
+        });
+      } },
+    { name: "hadith", args: "nawawi 1", hint: "explain a hadith from the app's collections",
+      run: function (arg) {
+        var m = String(arg || "").match(/^(.*?)[\s#:]*(\d{1,5})$/), c = m && hadithColl(m[1]);
+        if (!c) {
+          return { local: "Give a collection and a number, like /hadith nawawi 1 or /hadith bukhari 1. Collections:\n" +
+            (SS.HADITH_COLLECTIONS || []).map(function (x) { return "- " + x.id + " — " + x.en + " (1–" + x.last + ")"; }).join("\n") };
+        }
+        var n = +m[2];
+        if (n < 1 || n > c.last) return { local: c.en + " has hadith 1 to " + c.last + " in the app." };
+        return hadithSource(c, n).then(function (h) {
+          if (!h) return { local: "Couldn't load " + c.cite + " " + n + " just now. Check your connection, or open it in Hadith." };
+          return { sources: [h], prompt: "Explain " + h.ref + " for me: what it means, its context if it's known, and the lessons for today. Mention its grading as the app lists it." };
+        });
       } },
     { name: "progress", hint: "how you're doing, and a next step", data: true,
       run: function () { return { prompt: "Using my app data, summarise how I'm doing with the Qur'an, my prayers this week and my dhikr streak. Be encouraging and honest, and give me one small, specific next step for each." }; } },
@@ -143,12 +253,20 @@
     return "Commands (they use this device's SalaamStreet data):\n" + COMMANDS.map(function (c) {
       return "/" + c.name + (c.args ? " " + c.args : "") + " — " + c.hint;
     }).join("\n") + "\n\nI only answer Islamic questions and questions about SalaamStreet. Off-topic questions get a warning, and the " +
-      "third within 30 days pauses SalaamStreet AI for you for 7 days. Turn off “Use my app data” to stop sending your data with messages.";
+      "third within 30 days pauses SalaamStreet AI for you for 7 days. Turn off “Use my app data” to stop sending your data with messages.\n\n" +
+      "Mention an ayah like 2:255 in any question and its text from the app goes with it. Tab finishes a command you've started typing.";
   }
   /** "/cmd args" → Promise<{ prompt, data? } | { local }>; plain text → { prompt: text }. */
   function expand(text) {
     var m = text.match(/^\/([a-z]+)\b\s*([\s\S]*)$/i);
-    if (!m) return Promise.resolve({ prompt: text });
+    if (!m) {
+      // A plain question: ayahs it mentions go with it, in the app's own words.
+      var refs = findRefs(text, MAX_REFS);
+      if (!refs.length) return Promise.resolve({ prompt: text });
+      return Promise.all(refs.map(function (r) { return ayahSource(r.s, r.a); })).then(function (list) {
+        return { prompt: text, sources: list.filter(Boolean) };
+      });
+    }
     var name = m[1].toLowerCase(), c = findCommand(name === "verse" ? "ayah" : name);
     if (!c) return Promise.resolve({ local: "Unknown command /" + name + ". Type /help to see them all." });
     if (!c.run) return Promise.resolve({ local: helpText() });
@@ -201,9 +319,17 @@
     return n < 0.01 ? "$" + Number(n).toFixed(4) : "$" + Number(n).toFixed(2);
   }
   function int(n) { return n == null ? "—" : Number(n).toLocaleString("en-US"); }
-  /** One line: escaped, with **bold**, *italic* and `code`. */
+  /** Ayah references in an answer ("Al-Baqarah 2:255", "(18:10)") become links to the Qur'an. Times ("at 5:30", "4:30 pm") don't. */
+  function linkRefs(h) {
+    return h.replace(/(^|[\s(\[])(\d{1,3}):(\d{1,3})(?=$|[\s.,;!?)\]\u2013-]|:\s)/g, function (all, pre, sur, ay, at, str) {
+      var start = at + pre.length;
+      if (!globalAyah(+sur, +ay) || NOT_REF_BEFORE.test(str.slice(Math.max(0, start - 12), start)) || NOT_REF_AFTER.test(str.slice(at + all.length))) return all;
+      return pre + '<a class="ai-ref" href="#/surah/' + (+sur) + "/" + (+ay) + '">' + sur + ":" + ay + "</a>";
+    });
+  }
+  /** One line: escaped, with **bold**, *italic*, `code` and links to ayahs. */
   function inline(s) {
-    return esc(s).replace(/`([^`\n]+)`/g, "<code>$1</code>").replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>")
+    return linkRefs(esc(s)).replace(/`([^`\n]+)`/g, "<code>$1</code>").replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>")
       .replace(/(^|[\s(])\*([^*\s][^*\n]*?)\*(?=[\s.,;:!?)]|$)/g, "$1<em>$2</em>");
   }
   /** A reply as safe HTML: paragraphs (line breaks kept by CSS), "- " and "1. " lists, and "## " headings. */
@@ -239,7 +365,8 @@
     return '<section class="card lab-chat" aria-labelledby="lab-chat-h">' +
       '<div class="card-title"><h2 id="lab-chat-h">Conversation</h2><div class="lab-acts">' +
         '<button class="btn btn-outline btn-sm" id="lab-new" type="button">' + icon("plus") + '<span>New conversation</span></button>' +
-        '<button class="btn btn-ghost btn-sm" id="lab-clear" type="button">' + icon("trash") + '<span>Clear</span></button></div></div>' +
+        '<button class="btn btn-ghost btn-sm" id="ai-save" type="button" title="Download this conversation as a text file" aria-label="Save conversation" disabled>' + icon("download") + '<span>Save</span></button>' +
+        '<button class="btn btn-ghost btn-sm" id="lab-clear" type="button" aria-label="Clear" title="Clear">' + icon("trash") + '<span>Clear</span></button></div></div>' +
       (lab() ? "" : '<p class="muted lab-small ai-quota" id="ai-quota" role="status"></p>' +
         '<div class="ai-rule" id="ai-rule" role="note">' + icon("info") + '<p><b>Islamic and SalaamStreet questions only.</b> ' +
         'Off-topic questions get a warning. <b>The third one within 30 days pauses SalaamStreet AI for you for 7 days.</b> ' +
@@ -256,7 +383,7 @@
         '<div class="row-between lab-form-foot"><span class="muted lab-count" id="lab-count"></span>' +
         '<button class="btn" id="lab-send" type="submit">' + icon("next") + '<span>Send</span></button></div>' +
         '<label class="lab-data muted"><input type="checkbox" id="lab-usedata" checked /> Use my app data (bookmarks, progress, prayers, dhikr) to personalise answers</label>' +
-        '<p class="muted lab-hint">Enter sends · Shift+Enter adds a line · This conversation is kept on this page only.' +
+        '<p class="muted lab-hint">Enter sends · Shift+Enter adds a line · Tab finishes a command · This conversation is kept on this page only.' +
           (lab() ? "" : ' · <a href="terms/" target="_blank" rel="noopener">Terms of Use &amp; Privacy</a>') + '</p>' +
       '</form>' +
       (lab() ? '<p class="muted lab-session" id="lab-session"></p>' : "") +
@@ -278,13 +405,13 @@
   }
   function aiShell() {
     return '<header class="page-head lab-head"><span class="lab-logo" aria-hidden="true">' + icon("chat") + '</span>' +
-      '<div><h1 id="lab-h" tabindex="-1">SalaamStreet AI <span class="badge ai-beta">Beta</span></h1>' +
-      '<p>Ask about the Qur’an, hadith, prayer, duas and Muslim life. It only answers Islamic questions. Answers can be wrong — check anything important with a trusted scholar or source.</p></div></header>' +
+      '<div><h1 id="lab-h" tabindex="-1">SalaamStreet AI</h1>' +
+      '<p>Ask about the Qur’an, hadith, prayer, duas and Muslim life. It only answers Islamic questions, and quotes the app’s own Qur’an, tafsir and hadith when it can. Answers can be wrong — check anything important with a trusted scholar or source.</p></div></header>' +
       '<div id="lab-gate" aria-live="polite"></div>' +
       '<div id="lab-app" class="stack" hidden>' + chatCard() +
-        '<p class="muted lab-small">Beta: free for everyone with an account, with a daily allowance. When lots of people are asking at once you’ll wait in line for a moment. ' +
+        '<p class="muted lab-small">Free for everyone with an account, with a daily allowance. When lots of people are asking at once you’ll wait in line for a moment. ' +
         'Privacy: your questions (and, with “Use my app data” on, a short summary of your bookmarks and progress) are sent to Google’s Gemini to be answered. ' +
-        'SalaamStreet doesn’t keep your conversations — they’re gone when you leave this page. Not a mufti: for rulings on your own situation, ask a qualified scholar. ' +
+        'SalaamStreet doesn’t keep your conversations — they’re gone when you leave this page (use Save to keep a copy on your device). “Read aloud” uses your device’s own voice. Not a mufti: for rulings on your own situation, ask a qualified scholar. ' +
         'Not medical, legal, financial or emergency advice — in an emergency, call your local emergency number (911 in the US). ' +
         'By using SalaamStreet AI you agree to the <a href="terms/" target="_blank" rel="noopener">Terms of Use</a>.</p>' +
       '</div>';
@@ -310,8 +437,8 @@
         '<details class="card lab-settings" id="lab-settings"><summary><h2>Settings and emergency switch</h2></summary>' +
           '<div class="lab-kill row-between"><div><b>AI requests</b><p class="muted" id="lab-kill-note"></p></div>' +
             '<label class="switch"><input type="checkbox" id="lab-enabled" aria-label="AI requests on" /><span class="trk"></span><span class="th"></span></label></div>' +
-          '<div class="lab-kill row-between"><div><b>Beta open to everyone with an account</b><p class="muted" id="lab-beta-note"></p></div>' +
-            '<label class="switch"><input type="checkbox" id="lab-beta" aria-label="Beta open to everyone" /><span class="trk"></span><span class="th"></span></label></div>' +
+          '<div class="lab-kill row-between"><div><b>Open to everyone with an account</b><p class="muted" id="lab-beta-note"></p></div>' +
+            '<label class="switch"><input type="checkbox" id="lab-beta" aria-label="Open to everyone with an account" /><span class="trk"></span><span class="th"></span></label></div>' +
           '<form id="lab-set-form" class="lab-set-grid">' +
             field("model", "Model ID", "text", "") +
             field("user_daily_limit", "Questions per person per day", "number", 'min="0" max="1000" step="1"') +
@@ -335,9 +462,12 @@
   function wire() {
     $("lab-form").addEventListener("submit", function (e) { e.preventDefault(); send(); });
     $("lab-input").addEventListener("keydown", function (e) {
-      if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); }
+      if (e.isComposing) return;
+      if (e.key === "Tab" && !e.shiftKey && complete()) { e.preventDefault(); return; }
+      if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (!complete(true)) send(); }
     });
     $("lab-input").addEventListener("input", function () { count(); grow(); });
+    $("ai-save").onclick = saveConversation;
     $("lab-again").onclick = function () { showErr(""); send(); };
     $("lab-usedata").onchange = function () { st.useData = this.checked; };
     $("lab-cmds").onclick = function (e) {
@@ -360,7 +490,11 @@
       var ask = e.target.closest("[data-ask]");
       if (ask) { $("lab-input").value = ask.getAttribute("data-ask"); count(); send(); return; }
       var b = e.target.closest("[data-copy]");
-      if (b) SS.ui.copyText(st.msgs[+b.getAttribute("data-copy")].text);
+      if (b) { SS.ui.copyText(st.msgs[+b.getAttribute("data-copy")].text); return; }
+      var sp = e.target.closest("[data-speak]");
+      if (sp) { speak(+sp.getAttribute("data-speak")); return; }
+      var rt = e.target.closest("[data-rate]");
+      if (rt) rate(+rt.getAttribute("data-rate"), +rt.getAttribute("data-v"));
     });
     if (!lab()) return;
     $("lab-refresh").onclick = function () { loadStatus(); };
@@ -372,7 +506,7 @@
     };
     $("lab-beta").onchange = function () {
       var on = this.checked;
-      if (on || confirm("Close the beta? Everyone but you will be told it's closed for now.")) saveSettings({ beta_open: on });
+      if (on || confirm("Close SalaamStreet AI? Everyone but you will be told it's closed for now.")) saveSettings({ beta_open: on });
       else this.checked = true;
     };
     $("lab-set-form").addEventListener("submit", function (e) {
@@ -388,6 +522,7 @@
 
   function reset() {
     clearTimeout(st.slowTimer);
+    hush();
     st.msgs = [];
     st.session = { tokens: 0, cost: 0, requests: 0 };
     showErr("");
@@ -399,6 +534,7 @@
     var n = $("lab-input").value.length;
     $("lab-count").textContent = max ? n.toLocaleString("en-US") + " / " + max.toLocaleString("en-US") : "";
     $("lab-count").classList.toggle("over", !!max && n > max);
+    filterCmds();
   }
   /** The message box grows with what's typed (up to the CSS max). */
   function grow() {
@@ -407,6 +543,94 @@
     el.style.height = "auto";
     if (el.value) el.style.height = el.scrollHeight + 2 + "px";
   }
+  /** Typing "/ta" shows only the matching command chips. */
+  function filterCmds() {
+    var m = $("lab-input").value.match(/^\/([a-z]*)$/i), k = m ? m[1].toLowerCase() : "";
+    [].forEach.call($("lab-cmds").children, function (b) { b.hidden = !!m && b.getAttribute("data-cmd").indexOf(k) !== 0; });
+  }
+  /** Finish a command that's been started ("/taf" → "/tafsir "). onEnter: only when exactly one
+      command fits and it isn't typed in full yet; a command without arguments is then sent. */
+  function complete(onEnter) {
+    var input = $("lab-input"), m = input.value.match(/^\/([a-z]+)$/i);
+    if (!m) return false;
+    var k = m[1].toLowerCase();
+    if (findCommand(k)) return false;
+    var hits = COMMANDS.filter(function (c) { return c.name.indexOf(k) === 0; });
+    if (!hits.length || (onEnter && hits.length > 1)) return false;
+    var c = hits[0];
+    input.value = "/" + c.name + (c.args ? " " : "");
+    count();
+    if (!c.args && onEnter) send();
+    return true;
+  }
+  /** The conversation as plain text, downloaded to this device (it's never saved anywhere else). */
+  function saveConversation() {
+    var shown = st.msgs.filter(function (m) { return !m.warn; });
+    if (!shown.length) return;
+    var when = new Date(), lines = ["SalaamStreet AI — conversation, " + when.toLocaleString(), ""];
+    shown.forEach(function (m) {
+      lines.push((m.role === "user" ? "You" : "SalaamStreet AI") + ":", m.shown || m.text, "");
+      (m.role === "model" && m.sources || []).forEach(function (x) {
+        lines.push("  Verified text from the app — " + x.ref + (x.grade ? " (" + x.grade + ")" : "") + ":", "  " + (x.arabic ? x.arabic + "\n  " : "") + x.text.replace(/\n/g, "\n  "), "");
+      });
+    });
+    lines.push("—", "Answers can be wrong. Check anything important with a qualified scholar or a trusted source.", "https://salaamstreet.com/#/ai");
+    var blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "salaamstreet-ai-" + day(when) + ".txt";
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  }
+  /** Read an answer aloud with the device's own voice; tapping again stops. */
+  function speak(i) {
+    var synth = window.speechSynthesis, m = st.msgs[i];
+    if (!synth || !m || typeof SpeechSynthesisUtterance === "undefined") return;
+    var again = st.speaking === i;
+    hush();
+    if (again) return;
+    var u = new SpeechSynthesisUtterance(String(m.text).replace(/[*#`>]+/g, "").replace(/^\s*[-•]\s+/gm, "").slice(0, 6000));
+    u.lang = document.documentElement.lang || "en";
+    u.onend = u.onerror = function () { if (st.speaking === i) { st.speaking = -1; speakButtons(); } };
+    st.speaking = i;
+    speakButtons();
+    synth.speak(u);
+  }
+  function hush() {
+    if (st.speaking < 0) return;
+    st.speaking = -1;
+    try { window.speechSynthesis.cancel(); } catch (e) { /* not supported */ }
+    speakButtons();
+  }
+  function speakButtons() {
+    [].forEach.call(document.querySelectorAll("#lab-log [data-speak]"), function (b) {
+      var on = +b.getAttribute("data-speak") === st.speaking;
+      b.setAttribute("aria-pressed", String(on));
+      b.lastChild.textContent = on ? "Stop" : "Read aloud";
+    });
+  }
+  /** "Was this helpful?": 1 or -1; the same again takes it back. Only the number reaches the server. */
+  function rate(i, v) {
+    var m = st.msgs[i];
+    if (!m || !m.meta || !m.meta.id) return;
+    var before = m.rating || 0, now = before === v ? 0 : v;
+    m.rating = now;
+    rateButtons(i);
+    api("rate", { id: m.meta.id, rating: now }).then(function (r) {
+      if (r.ok) { if (now && SS.toast) SS.toast(now > 0 ? "Thanks — glad it helped." : "Thanks for telling us. Try asking another way, or check a trusted source."); return; }
+      m.rating = before;
+      rateButtons(i);
+      if (SS.toast) SS.toast(r.message || "Couldn't save that.");
+    });
+  }
+  function rateButtons(i) {
+    var m = st.msgs[i];
+    [].forEach.call(document.querySelectorAll('#lab-log [data-rate="' + i + '"]'), function (b) {
+      b.setAttribute("aria-pressed", String(+b.getAttribute("data-v") === (m.rating || 0)));
+    });
+  }
+
   /** retry: show "Try again", which sends what's in the box again. */
   function showErr(msg, retry) {
     var el = $("lab-err");
@@ -440,7 +664,7 @@
   function termsCard() {
     var lim = (st.me && st.me.strike_limit) || 3, days = (st.me && st.me.ban_days) || 7;
     return '<div class="card lab-gate ai-terms"><h2>Before you start</h2>' +
-      '<p>SalaamStreet AI is an experimental beta. Please read and agree to these rules:</p><ul>' +
+      '<p>SalaamStreet AI is an AI assistant, and AI is still experimental. Please read and agree to these rules:</p><ul>' +
       '<li><b>Islamic and SalaamStreet questions only.</b> It is not a general chatbot.</li>' +
       '<li class="ai-terms-warn"><b>Off-topic questions are against the rules.</b> Each one gets a warning. ' +
         'The ' + (lim === 3 ? "third" : lim + "th") + " off-topic question within 30 days <b>pauses SalaamStreet AI for you for " + days + " days</b>. " +
@@ -476,16 +700,18 @@
 
   /* ── Status ───────────────────────────────────────────────────── */
   function load() { return lab() ? loadStatus() : loadMe(); }
-  /** #/ai: the person's allowance today and whether the beta is open. */
+  /** #/ai: the person's allowance today and whether SalaamStreet AI is open. */
   function loadMe() {
     return api("me").then(function (r) {
       if (r.ok) {
         st.me = r;
         if (!r.admin && r.terms_accepted === false) { gate("terms"); return r; }
-        gate("ok"); drawMe(); count(); return r;
+        gate("ok"); drawMe(); count();
+        if (st.prefill) { st.prefill = false; $("lab-input").focus(); }
+        return r;
       }
       if (r.error === "signed_out" || r.error === "invalid_session") {
-        gate("signin", "Sign in to use SalaamStreet AI. It\u2019s free during the beta \u2014 you just need a SalaamStreet account.");
+        gate("signin", "Sign in to use SalaamStreet AI. It\u2019s free \u2014 you just need a SalaamStreet account.");
         waitForSignIn();
       } else if (st.me) { if (!$("lab-err").textContent) showErr(r.message || "Couldn't refresh."); }
       else gate("retry", r.message || "Couldn't load SalaamStreet AI.");
@@ -503,7 +729,7 @@
     $("ai-strikes").textContent = banned ? "" : strikes ? "You have " + strikes + " of " + (m.strike_limit || 3) + " warnings." : "";
     if (banned) showErr(banMessage(m.banned_until));
     else if (!m.enabled) showErr("SalaamStreet AI is switched off for now. Please try again later.");
-    else if (!m.beta_open) showErr("The SalaamStreet AI beta is closed for now. Please check back soon.");
+    else if (!m.beta_open) showErr("SalaamStreet AI is closed for now. Please check back soon.");
     else if (!m.admin && left <= 0) showErr("You've asked all of today's questions. More at " + timeUtc(m.resets_at) + ".");
   }
   function banMessage(until) {
@@ -531,7 +757,7 @@
       (on ? badge("badge-ok", "AI requests on") : badge("badge-warn", s.disabled_by_secret ? "Off (AI_DISABLED secret)" : "Off (emergency switch)")) +
       (s.gemini_key_set ? badge("badge-muted", "Gemini key set") : badge("badge-warn", "GEMINI_API_KEY not set")) +
       badge("badge-muted", "Model: " + set.model) +
-      (set.beta_open ? badge("badge-ok", "Beta open") : badge("badge-warn", "Beta closed")) +
+      (set.beta_open ? badge("badge-ok", "Open to everyone") : badge("badge-warn", "Closed to everyone else")) +
       (u.waiting_now ? badge("badge-warn", int(u.waiting_now) + " waiting in line") : "");
     $("lab-stats").innerHTML =
       stat("Today", int(u.today_requests) + " / " + int(set.daily_limit)) +
@@ -542,7 +768,8 @@
       stat("People today", int(u.people_today)) +
       stat("Refused today", int(u.refused_today)) +
       stat("Off-topic today", int(u.off_topic_today)) +
-      stat("Paused (3 strikes)", int(u.banned_now));
+      stat("Paused (3 strikes)", int(u.banned_now)) +
+      stat("Helpful · 7 days", (u.helpful_7d || u.unhelpful_7d) ? "\ud83d\udc4d " + int(u.helpful_7d) + " · \ud83d\udc4e " + int(u.unhelpful_7d) : "No ratings yet");
     var lim = $("lab-stats");
     lim.setAttribute("title", "Limits reset at " + timeUtc(u.resets_at));
     $("lab-send").disabled = st.busy || !on || !s.gemini_key_set;
@@ -553,7 +780,7 @@
     $("lab-enabled").checked = !!set.enabled;
     $("lab-beta").checked = !!set.beta_open;
     $("lab-beta-note").textContent = set.beta_open ? "Open: anyone signed in can ask " + int(set.user_daily_limit) + " questions a day (#/ai)."
-      : "Closed: only you can use the AI. Everyone else is told the beta is closed for now.";
+      : "Closed: only you can use the AI. Everyone else is told it's closed for now.";
     $("lab-kill-note").textContent = s.disabled_by_secret ? "The AI_DISABLED secret is set, so requests stay off whatever this switch says."
       : set.enabled ? "On. Turn off to stop all AI requests at once." : "Off. No AI requests are sent until you turn this back on.";
     if (!s.gemini_key_set) showErr("GEMINI_API_KEY isn't set yet. Add it in Supabase → Edge Functions → Secrets (backend/README-ai.md).");
@@ -613,6 +840,7 @@
   /* ── Chat ─────────────────────────────────────────────────────── */
   function drawLog() {
     var log = $("lab-log");
+    $("ai-save").disabled = !st.msgs.length;
     if (!st.msgs.length && !st.busy) {
       log.innerHTML = '<div class="lab-empty muted">' + icon("sparkle") + "<p>Ask an Islamic question — tafsir, hadith, fiqh opinions, seerah, duas — or try a command like /bookmarks, /ayah 2:255 or /progress. Type /help for them all.</p>" +
         '<div class="lab-suggest" role="group" aria-label="Try asking">' + SUGGESTIONS.map(function (q) {
@@ -628,15 +856,45 @@
       var bits = !lab() ? [] : [meta.model, meta.usage && meta.usage.total != null ? int(meta.usage.total) + " tokens" : "tokens not reported",
         meta.cost_usd != null ? "~" + money(meta.cost_usd) + " if paid" : "", meta.latency_ms ? (meta.latency_ms / 1000).toFixed(1) + " s" : "",
         meta.off_topic ? "flagged off-topic (no strike for the admin)" : ""].filter(Boolean);
+      var voice = !!window.speechSynthesis, rated = m.rating || 0, last = i === st.msgs.length - 1 && !st.busy;
       return '<div class="lab-msg ai"><div class="lab-bubble">' + rich(m.text) +
         (meta.truncated ? '<p class="lab-trunc">Cut short: the reply reached the max output tokens.</p>' : "") + "</div>" +
-        '<div class="lab-meta"><span>' + esc(bits.join(" · ")) + '</span><button class="btn btn-ghost btn-sm" type="button" data-copy="' + i + '">' + icon("copy") + "<span>Copy</span></button></div></div>";
+        sourcesHtml(m.sources) +
+        '<div class="lab-meta"><span>' + esc(bits.join(" · ")) + '</span>' +
+          '<button class="btn btn-ghost btn-sm" type="button" data-copy="' + i + '">' + icon("copy") + "<span>Copy</span></button>" +
+          (voice ? '<button class="btn btn-ghost btn-sm" type="button" data-speak="' + i + '" aria-pressed="' + (st.speaking === i) + '">' + icon("volume") + "<span>" + (st.speaking === i ? "Stop" : "Read aloud") + "</span></button>" : "") +
+          (meta.id ? '<span class="ai-rate" role="group" aria-label="Was this helpful?">' +
+            '<button class="btn btn-ghost btn-sm" type="button" data-rate="' + i + '" data-v="1" aria-pressed="' + (rated === 1) + '" aria-label="Helpful" title="Helpful">' + icon("thumb-up") + "</button>" +
+            '<button class="btn btn-ghost btn-sm" type="button" data-rate="' + i + '" data-v="-1" aria-pressed="' + (rated === -1) + '" aria-label="Not helpful" title="Not helpful">' + icon("thumb-down") + "</button></span>" : "") +
+        "</div>" +
+        (last && !lab() ? followUps() : "") + "</div>";
     }).join("") + (st.queue ? waitCard(st.queue)
       : st.busy ? '<div class="lab-msg ai lab-pending"><div class="lab-bubble lab-typing" aria-label="' + (lab() ? "Gemini" : "SalaamStreet AI") + ' is answering"><span></span><span></span><span></span></div>' +
         '<div class="lab-meta"><span class="lab-slow" id="lab-slow" aria-live="polite"></span><button class="btn btn-ghost btn-sm" type="button" data-stop>' + icon("x") + "<span>Stop</span></button></div></div>" : "");
     log.scrollTop = log.scrollHeight;
   }
-  var SUGGESTIONS = ["How do I pray Fajr on time?", "What does Ayat al-Kursi mean?", "Duas for when I feel anxious", "Tell me a story from the seerah"];
+  /** The verified texts that went with a question, under its answer. */
+  function sourcesHtml(list) {
+    if (!list || !list.length) return "";
+    return '<details class="ai-src"><summary>' + icon("check") + "<span>Verified text from the app · " + list.length + "</span></summary>" + list.map(function (x) {
+      var open = x.kind === "hadith" ? "#/hadith/" + x.coll + "/" + x.n : "#/surah/" + x.s + "/" + x.a;
+      var text = x.kind === "tafsir" && x.text.length > 700 ? x.text.slice(0, 700).replace(/\s+\S*$/, "") + " …" : x.text;
+      return '<div class="ai-src-item"><div class="row-between"><b>' + esc(x.ref) + "</b>" +
+        '<a class="ai-src-open" href="' + open + '">' + (x.kind === "hadith" ? "Open in Hadith" : "Open in the Qur’an") + "</a></div>" +
+        (x.grade ? '<p class="tiny">Grading: ' + esc(x.grade) + "</p>" : "") +
+        (x.arabic ? '<p class="arabic" lang="ar" dir="rtl">' + esc(x.arabic) + "</p>" : "") +
+        "<p>" + esc(text) + "</p></div>";
+    }).join("") + "</details>";
+  }
+  /** Ready-made follow-ups under the latest answer. */
+  var FOLLOW_UPS = ["Explain it more simply", "What’s the evidence for this?", "Is there a dua for this?", "Sum it up in 3 points"];
+  function followUps() {
+    if (st.me && (st.me.remaining_today === 0 || (st.me.banned_until && new Date(st.me.banned_until) > new Date()))) return "";
+    return '<div class="lab-suggest ai-follow" role="group" aria-label="Ask a follow-up">' + FOLLOW_UPS.map(function (q) {
+      return '<button class="chip" type="button" data-ask="' + esc(q) + '">' + esc(q) + "</button>";
+    }).join("") + "</div>";
+  }
+  var SUGGESTIONS = ["How do I pray Fajr on time?", "What does 2:255 (Ayat al-Kursi) mean?", "Duas for when I feel anxious", "Tell me a story from the seerah", "/hadith nawawi 1"];
   /** Stop waiting for an answer: the question goes back in the box (a late reply is ignored). */
   function stop() {
     if (!st.busy || st.queue) return;
@@ -722,7 +980,7 @@
         drawLog();
         return;
       }
-      st.msgs.push({ role: "user", text: x.prompt, shown: text });
+      st.msgs.push({ role: "user", text: x.prompt, shown: text, sources: x.sources && x.sources.length ? x.sources : undefined });
       drawLog();
       ask(input);
     });
@@ -731,6 +989,8 @@
     var extra = { messages: st.msgs.filter(function (m) { return !m.local; }).map(function (m) { return { role: m.role, text: m.text }; }) };
     extra.app_data = st.useData; // off: the server tells the assistant, so it can say why it can't see their data
     if (st.useData) { try { extra.context = appData(); } catch (_) { /* send without it */ } }
+    var sources = conversationSources();
+    if (sources.length) extra.sources = sources;
     var id = ++st.req;
     slowNotes();
     api("chat", extra).then(function (r) {
@@ -747,7 +1007,8 @@
       st.queue = null;
       st.busy = false;
       if (r.ok) {
-        st.msgs.push({ role: "model", text: r.text, meta: r });
+        var q = st.msgs[st.msgs.length - 1];
+        st.msgs.push({ role: "model", text: r.text, meta: r, sources: q && q.sources });
         st.session.requests++;
         st.session.tokens += (r.usage && r.usage.total) || 0;
         st.session.cost += r.cost_usd || 0;
@@ -776,9 +1037,16 @@
 
   /* ── View ─────────────────────────────────────────────────────── */
   /** Show #/ai (view "ai") or #/lab (view "lab"). */
-  SS.aiPage = function (view) {
+  SS.aiPage = function (view, params) {
     MODE = view === "lab" ? "lab" : "ai";
     shell();
+    if (params && params[0] === "ask" && params[1]) {
+      var text = "";
+      try { text = decodeURIComponent(params.slice(1).join("/")).slice(0, 2000); } catch (e) { text = ""; }
+      try { history.replaceState(null, "", "#/" + MODE); } catch (e) { /* file:// */ }
+      var box = $("lab-input");
+      if (text && !st.busy) { box.value = text; count(); grow(); st.prefill = true; }
+    }
     var name = lab() ? "AI Testing Lab" : "SalaamStreet AI";
     document.title = name + " — SalaamStreet";
     $("tb-title").textContent = name;
@@ -793,5 +1061,5 @@
     load();
   };
   /** Leaving the page: give up any place in line (the question goes back in the box). */
-  SS.aiLeave = function () { leaveLine(true); };
+  SS.aiLeave = function () { leaveLine(true); hush(); };
 })();

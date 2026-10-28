@@ -253,6 +253,59 @@ approver. If another account had claimed the name, it is flagged.
 The roster is loaded the same way as before (MSA → Manage → Edit the list),
 or with a one-time SQL insert that is **not** kept in this repository.
 
+## 3.0.1 — Admin Panel
+
+**Upgrading to 3.0.1:** run the whole updated `supabase-schema.sql` again
+(safe to re-run), then deploy the new `admin` Edge Function (and `ai-lab`
+again, which now also accepts the iPhone app). GitHub → Actions → "Deploy
+Supabase" → Run workflow does all of it (`deploy_admin` is on by default).
+No new secrets.
+
+**Opening it:** sign in with the owner's **Google** account, then Settings →
+**Admin Panel** (shown only to admins — on the website and in the iPhone app),
+or go to `salaamstreet.com/#/admin`. `#/admin/user/<account id>` opens one
+account directly.
+
+**What's in it**
+
+| Tab | What it does |
+|---|---|
+| Overview | Accounts, new today / 7 days, signed in today / 7 / 30 days, never signed in, banned, admins; sign-ups for the last 14 days; sign-in methods; synced items, reminder devices, Family children, MSA members; SalaamStreet AI today; the 5 newest accounts; a banner when anything is flagged |
+| Users | Search (email, phone, name or account id) and filter (flagged, banned, new, never signed in, unconfirmed, admins), 50 at a time. Opening an account shows its sign-in methods, dates, synced-item count, Family children, MSA membership, SalaamStreet AI use (questions, ratings, warnings, Terms) and its history in the log — counts only, never AI conversations, bookmarks or notes |
+| — actions on an account | **Ban** (1, 7 or 30 days, or until unbanned; signs them out everywhere and stops them signing in), **Unban**, **Sign out everywhere**, **Flag / Dismiss flag**, **Pause / Restore SalaamStreet AI**, **Delete** (the account and everything that belongs to it; type its email to confirm). Never on your own account or another admin's |
+| Flags | Accounts waiting for review (with Ban / It's fine), SalaamStreet AI warnings and pauses, recently reviewed flags, and **sign-up screening**: the word list (masked until you press Show words; add or remove words) and the switch to **refuse** matching sign-ups instead of only flagging them |
+| AI | SalaamStreet AI's emergency switch, open/closed, questions per person per day and per day overall, and usage. Model, prices and the test chat stay in the AI Testing Lab (`#/lab`) |
+| MSA | NVHS MSA members, waiting, admins, roster and the latest 30 announcements, with **Take down** for emergencies |
+| Admins | Who can open the panel. Add by email (they must sign in with Google using it); remove. You can't remove yourself or the last admin |
+| Log | Every admin action — who (masked), when, which account (masked email, kept after deletion), details — plus refused attempts by non-admins. Kept 2 years |
+
+**How it's protected**
+
+- The page (`js/admin.js`) is only a view. Every request goes to the `admin`
+  Edge Function (`backend/functions/admin`) with the person's own session
+  token. The function asks Supabase Auth who it is, requires a confirmed
+  email signed in with **Google** (like the AI Testing Lab — so nobody can make
+  a password account in an admin's name), and checks the email's SHA-256
+  against `public.app_admins`.
+- Every action is a `public.admin_*` database function that checks the admin
+  list again itself and writes to `public.admin_audit`. None of them, and none
+  of the new tables, can be reached with the website's public key.
+- The owner (`ibrahim.asim.contact@gmail.com`, stored only as a hash) is the
+  first admin. More are added on the Admins tab, or in SQL:
+  `insert into public.app_admins (email_hash) values (sha256(convert_to(lower('name@gmail.com'), 'UTF8')));`
+- **Sign-up screening** (`admin_screen_user`, a trigger on `auth.users`):
+  the part of the email before the @ and the name from Google or Apple are
+  lower-cased, stripped to letters, with look-alikes undone (1→i, 0→o, 3→e,
+  4→a, 5→s, 7→t, @→a, $→s), then checked for any listed word. A match is
+  flagged — or, with "Refuse matching sign-ups" on, the sign-up fails with
+  "This email address or name can't be used on SalaamStreet." Accounts made
+  before 3.0.1 are checked once when the schema runs. Words match anywhere
+  inside, so avoid ones that hide in ordinary names (the starter list leaves
+  out "paki" and "nazi" for that reason).
+- `ADMIN_ALLOWED_ORIGINS` (optional secret) replaces the sites allowed to call
+  the function; the default is salaamstreet.com, www, ibbucoder.github.io and
+  the iPhone app (`app://salaamstreet`).
+
 ## 3.0.0 — The AI update
 
 **Upgrading to 3.0:** run the whole updated `supabase-schema.sql` again (safe

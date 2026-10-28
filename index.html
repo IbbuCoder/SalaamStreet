@@ -1020,6 +1020,14 @@
       <div id="lab-root"></div>
     </section>
 
+    <!-- ═══════════ Admin Panel (3.0.1, private) ═══════════
+         Linked only from Settings, and only for admins. js/admin.js loads
+         only here, and the server (backend/functions/admin) decides who may
+         use it. -->
+    <section class="view adm-view" id="view-admin" hidden aria-labelledby="adm-h">
+      <div id="admin-root"></div>
+    </section>
+
     <!-- ═══════════ OFFLINE (3.0): downloads and what works without internet ═══════════ -->
     <section class="view view-narrow" id="view-offline" hidden aria-labelledby="off-h">
       <header class="page-head">
@@ -1033,6 +1041,7 @@
     <section class="view view-narrow" id="view-settings" hidden aria-labelledby="st-h">
       <header class="page-head st-main"><h1 id="st-h" tabindex="-1" data-i18n="settings.title">Settings</h1></header>
       <div class="mt-1" id="st-account"></div>
+      <a class="card admin-entry" id="st-admin" href="#/admin" hidden><span class="lab-logo" aria-hidden="true"><svg class="ic"><use href="#i-lock"/></svg></span><span><b>Admin Panel</b><br><span class="muted">Accounts, flags, SalaamStreet AI and the activity log</span></span><svg class="ic" aria-hidden="true"><use href="#i-chev-r"/></svg></a>
 
       <h2 class="group-label with-ic"><svg class="ic" aria-hidden="true"><use href="#i-contrast"/></svg><span data-i18n="settings.appearance">Appearance</span></h2>
       <div class="card settings-group">
@@ -1347,6 +1356,11 @@
   <!-- ═══════════ NVHS MSA: write an announcement (posters only) ═══════════ -->
   <dialog class="modal msa-dialog" id="msa-dialog" aria-labelledby="msa-dialog-h">
     <div class="modal-body" id="msa-dialog-body"></div>
+  </dialog>
+
+  <!-- ═══════════ Admin Panel: one account ═══════════ -->
+  <dialog class="modal sheet tall adm-dialog" id="admin-dialog" aria-labelledby="admin-dialog-h">
+    <div class="modal-body" id="admin-dialog-body"></div>
   </dialog>
 
   <!-- ═══════════ Language picker ═══════════ -->
