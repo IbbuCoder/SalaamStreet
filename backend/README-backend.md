@@ -253,6 +253,14 @@ approver. If another account had claimed the name, it is flagged.
 The roster is loaded the same way as before (MSA → Manage → Edit the list),
 or with a one-time SQL insert that is **not** kept in this repository.
 
+## 3.0.5 — Analytics for admins
+
+Run the updated `supabase-schema.sql` again and redeploy the `admin` Edge
+Function. New: `app_visits` (day, kind, total — no ids), `visit_count(kind)`
+for the app (anon), `admin_analytics(p_admin)` for the Admin Panel's Analytics
+tab, and `guests_today` in `admin_overview`. Details:
+[`docs/release-notes/3.0.5.md`](../docs/release-notes/3.0.5.md).
+
 ## 3.0.4 — MSA announcements for members only
 
 Run the updated `supabase-schema.sql` again. `msa_feed` / `msa_image` now answer

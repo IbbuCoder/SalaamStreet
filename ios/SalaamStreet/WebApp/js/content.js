@@ -224,8 +224,24 @@
   ];
 
   /* ── Version & release notes (newest first) ──────────────────────── */
-  SS.VERSION = "3.0.4";
+  SS.VERSION = "3.0.5";
   SS.CHANGELOG = [
+    {
+      v: "3.0.5", date: "2026-10-29",
+      en: "Analytics for admins", ar: "إحصاءات للمشرفين",
+      den: "The Admin Panel has a new Analytics tab — guests, growth and how SalaamStreet is used — and a shorter Overview. To count guests, the app now adds 1 to an anonymous daily count of visits: no identifiers, and not at all with Do Not Track on.",
+      dar: "في لوحة الإدارة تبويب جديد للإحصاءات — الزوار والنمو وكيف يُستخدم SalaamStreet — ونظرة عامة أقصر. ولعدّ الزوار، يضيف التطبيق الآن 1 إلى عدد يومي مجهول للزيارات: بلا أي معرّفات، ولا يُعدّ جهازك إطلاقًا إن فعّلت «عدم التتبع».",
+      groups: [
+        { en: "Privacy", ar: "الخصوصية", items: [
+          { en: "Each day, the first time SalaamStreet opens, your device adds 1 to an anonymous count of visits — only the day and the total are kept", ar: "في كل يوم، أول مرة يُفتح فيها SalaamStreet، يضيف جهازك 1 إلى عدد مجهول للزيارات — ولا يُحفظ إلا اليوم والمجموع" },
+          { en: "No identifier, IP address or device details are sent or kept, and devices with Do Not Track or Global Privacy Control aren't counted", ar: "لا يُرسَل ولا يُحفظ أي معرّف أو عنوان IP أو تفاصيل عن الجهاز، ولا تُعدّ الأجهزة التي فعّلت «عدم التتبع» أو «التحكم العام في الخصوصية»" },
+        ] },
+        { en: "Admin Panel", ar: "لوحة الإدارة", items: [
+          { en: "A new Analytics tab, second in line: guests per day, sign-ups over 30 days, sign-in methods, languages, reminder devices by region, what people use, SalaamStreet AI and moderation", ar: "تبويب «الإحصاءات» الجديد في المرتبة الثانية: الزوار يوميًا، والتسجيلات خلال 30 يومًا، وطرق تسجيل الدخول، واللغات، وأجهزة التذكير حسب المنطقة، وما يستخدمه الناس، والمساعد الذكي، والإشراف" },
+          { en: "A shorter Overview: what needs you, today's numbers (guests included), sign-ups, SalaamStreet AI and the newest accounts", ar: "نظرة عامة أقصر: ما يحتاج إليك، وأرقام اليوم (ومنها الزوار)، والتسجيلات، والمساعد الذكي، وأحدث الحسابات" },
+        ] },
+      ],
+    },
     {
       v: "3.0.4", date: "2026-10-28",
       en: "MSA announcements for members", ar: "إعلانات الرابطة للأعضاء",

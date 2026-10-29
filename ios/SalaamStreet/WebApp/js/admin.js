@@ -37,7 +37,7 @@
   var CFG = SS.CONFIG || {};
 
   var TABS = [
-    ["overview", "Overview", "grid"], ["users", "Users", "users"], ["flags", "Flags", "info"], ["appeals", "Appeals", "chat"],
+    ["overview", "Overview", "grid"], ["analytics", "Analytics", "chart"], ["users", "Users", "users"], ["flags", "Flags", "info"], ["appeals", "Appeals", "chat"],
     ["ai", "AI", "sparkle"], ["msa", "MSA", "mosque"], ["banner", "Banner", "bell"], ["admins", "Admins", "lock"], ["log", "Log", "scroll"],
   ];
   /** The Community Rules' ban reasons (public.ban_reasons(); the person sees them in their own language). */
@@ -251,10 +251,10 @@
     autoRefresh();
   }
   var VIEWS = {};
-  /** Overview, Flags and Appeals refresh themselves while the page is open — never while you're typing or an account is open. */
+  /** Overview, Analytics, Flags and Appeals refresh themselves while the page is open — never while you're typing or an account is open. */
   function autoRefresh() {
     clearInterval(st.timer);
-    if (["overview", "flags", "appeals"].indexOf(st.tab) === -1) return;
+    if (["overview", "analytics", "flags", "appeals"].indexOf(st.tab) === -1) return;
     st.timer = setInterval(function () {
       if (SS.currentView() !== "admin") return clearInterval(st.timer);
       var a = document.activeElement, d = $("admin-dialog");
@@ -267,44 +267,89 @@
   }
   function refreshBtn(what) { return '<button class="btn btn-ghost btn-sm" type="button" data-act="refresh" data-what="' + what + '" aria-label="Refresh" title="Refresh">' + icon("refresh") + "</button>"; }
 
+  /** A bar chart of one number per day (14 or 30 days); with 30, only every fifth day is labelled. */
+  function chart(rows, key, label) {
+    rows = rows || [];
+    var n = rows.length, max = Math.max.apply(null, rows.map(function (d) { return d[key] || 0; }).concat([1]));
+    return '<div class="adm-chart" style="grid-template-columns:repeat(' + Math.max(n, 1) + ',1fr)" role="img" aria-label="' + esc(label) + '">' + rows.map(function (d, i) {
+      var v = d[key] || 0, day = new Date(d.day + "T12:00:00Z");
+      var shown = n <= 14 || (n - 1 - i) % 5 === 0;
+      return '<div class="adm-bar" title="' + esc(day.toLocaleDateString([], { month: "short", day: "numeric" }) + ": " + v) + '"><span class="adm-bar-n">' + (n <= 14 && v ? v : "") +
+        '</span><span class="adm-bar-fill" style="block-size:' + Math.max(v ? 6 : 2, Math.round(v / max * 100)) + '%"></span><span class="adm-bar-d">' + (shown ? day.getUTCDate() : "&nbsp;") + "</span></div>";
+    }).join("") + "</div>";
+  }
+  function alerts(r) {
+    return (r.open_flags ? '<a class="card adm-alert" href="#/admin/flags">' + icon("info") + "<span><b>" + int(r.open_flags) + " account" + (r.open_flags === 1 ? "" : "s") +
+        " flagged</b><br><span class=\"muted\">Their email or name contains a screened word, or an admin flagged them. Review them.</span></span>" + icon("chev-r") + "</a>" : "") +
+      (r.open_appeals ? '<a class="card adm-alert" href="#/admin/appeals">' + icon("chat") + "<span><b>" + int(r.open_appeals) + " appeal" + (r.open_appeals === 1 ? "" : "s") +
+        " waiting</b><br><span class=\"muted\">Banned people asking for their ban to be lifted. Answer them.</span></span>" + icon("chev-r") + "</a>" : "") +
+      (r.notice ? '<a class="card adm-alert adm-alert-info" href="#/admin/banner">' + icon("bell") + "<span><b>The Home banner is showing</b><br><span class=\"muted\">" + esc(r.notice.text) + "</span></span>" + icon("chev-r") + "</a>" : "");
+  }
+
+  /** 3.0.5: only what needs you or tells you how today is going; every other number is on Analytics. */
   function drawOverview() {
     api("overview").then(function (r) {
       if (st.tab !== "overview") return;
       if (!r.ok) return failed(r);
       counts({ flags: r.open_flags, appeals: r.open_appeals });
       remember(true, (r.open_flags || 0) + (r.open_appeals || 0));
-      var ai = r.ai || {}, prov = r.by_provider || {};
-      var max = Math.max.apply(null, (r.signups_14d || []).map(function (d) { return d.n; }).concat([1]));
-      var bars = (r.signups_14d || []).map(function (d) {
-        var label = new Date(d.day + "T12:00:00Z").toLocaleDateString([], { month: "short", day: "numeric" });
-        return '<div class="adm-bar" title="' + esc(label + ": " + d.n) + '"><span class="adm-bar-n">' + (d.n || "") + '</span><span class="adm-bar-fill" style="block-size:' +
-          Math.max(d.n ? 6 : 2, Math.round(d.n / max * 100)) + '%"></span><span class="adm-bar-d">' + new Date(d.day + "T12:00:00Z").getUTCDate() + "</span></div>";
-      }).join("");
-      var how = Object.keys(prov).sort(function (a, b) { return prov[b] - prov[a]; }).map(function (k) { return stat(provider(k), int(prov[k])); }).join("");
-      $("adm-panel").innerHTML =
-        (r.open_flags ? '<a class="card adm-alert" href="#/admin/flags">' + icon("info") + "<span><b>" + int(r.open_flags) + " account" + (r.open_flags === 1 ? "" : "s") +
-          " flagged</b><br><span class=\"muted\">Their email or name contains a screened word, or an admin flagged them. Review them.</span></span>" + icon("chev-r") + "</a>" : "") +
-        (r.open_appeals ? '<a class="card adm-alert" href="#/admin/appeals">' + icon("chat") + "<span><b>" + int(r.open_appeals) + " appeal" + (r.open_appeals === 1 ? "" : "s") +
-          " waiting</b><br><span class=\"muted\">Banned people asking for their ban to be lifted. Answer them.</span></span>" + icon("chev-r") + "</a>" : "") +
-        (r.notice ? '<a class="card adm-alert adm-alert-info" href="#/admin/banner">' + icon("bell") + "<span><b>The Home banner is showing</b><br><span class=\"muted\">" + esc(r.notice.text) + "</span></span>" + icon("chev-r") + "</a>" : "") +
-        card("Accounts", '<dl class="lab-stats">' + stat("Accounts", int(r.accounts)) + stat("New today", int(r.new_today)) + stat("New · 7 days", int(r.new_7d)) +
-          stat("Signed in today", int(r.active_today)) + stat("Signed in · 7 days", int(r.active_7d)) + stat("Signed in · 30 days", int(r.active_30d)) +
-          stat("Never signed in", int(r.never_signed_in)) + stat("Banned", int(r.banned)) + stat("Blocked emails", int(r.blocked_emails)) +
-          stat("Warnings · 7 days", int(r.warnings_7d)) + stat("Agreed to the Rules", int(r.rules_accepted)) + stat("Admins", int(r.admins)) + "</dl>",
+      var ai = r.ai || {};
+      $("adm-panel").innerHTML = alerts(r) +
+        card("Today", '<dl class="lab-stats">' + stat("Accounts", int(r.accounts)) + stat("New today", int(r.new_today)) +
+          stat("Signed in today", int(r.active_today)) + stat("Guests today", int(r.guests_today)) + "</dl>",
           '<span class="muted lab-small">Updated ' + esc(ago(r.at)) + "</span>" + refreshBtn("overview")) +
-        card("Sign-ups · last 14 days", '<div class="adm-chart" role="img" aria-label="Sign-ups per day for the last 14 days">' + bars + "</div>") +
-        card("How people sign in", '<dl class="lab-stats">' + (how || stat("No accounts yet", "")) + "</dl>") +
-        card("What people use", '<dl class="lab-stats">' + stat("Synced items", int(r.synced_items)) + stat("Reminder devices", int(r.reminder_devices)) +
-          stat("Family: children", int(r.family_children)) + stat("MSA members", int(r.msa_members)) + stat("MSA waiting", int(r.msa_pending)) +
-          stat("MSA posts", int(r.msa_posts)) + "</dl>") +
+        card("Sign-ups · last 14 days", chart(r.signups_14d, "n", "Sign-ups per day for the last 14 days")) +
         card("SalaamStreet AI today", '<div class="lab-badges">' + (r.ai_enabled ? badge("badge-ok", "On and open") : badge("badge-warn", "Off or closed")) + "</div>" +
-          '<dl class="lab-stats">' + stat("Questions today", int(ai.today_requests)) + stat("People today", int(ai.people_today)) + stat("Errors today", int(ai.today_errors)) +
-          stat("Off-topic today", int(ai.off_topic_today)) + stat("Paused now", int(ai.banned_now)) + stat("If paid: today", money(ai.today_cost_usd)) +
-          stat("If paid: 7 days", money(ai.week_cost_usd)) + stat("Helpful · 7 days", "👍 " + int(ai.helpful_7d) + " · 👎 " + int(ai.unhelpful_7d)) + "</dl>",
+          '<dl class="lab-stats">' + stat("Questions today", int(ai.today_requests)) + stat("People today", int(ai.people_today)) + stat("Errors today", int(ai.today_errors)) + "</dl>",
           '<a class="btn btn-ghost btn-sm" href="#/admin/ai">Settings</a>') +
         card("Newest accounts", '<div class="adm-list">' + ((r.recent || []).map(function (u) { return userRow(u); }).join("") || '<p class="muted">No accounts yet.</p>') + "</div>",
           '<a class="btn btn-ghost btn-sm" href="#/admin/users">All users</a>') +
+        '<a class="card adm-alert adm-alert-info" href="#/admin/analytics">' + icon("chart") + "<span><b>More numbers in Analytics</b><br><span class=\"muted\">Guests, growth, sign-in methods, languages, reminders and what people use.</span></span>" + icon("chev-r") + "</a>" +
         (r.block_signups ? "" : '<p class="muted lab-small">Sign-up screening flags matching accounts for you to review. To refuse them outright, turn it on in Flags.</p>');
+    });
+  }
+
+  var LANGS = { en: "English", ar: "Arabic", ur: "Urdu", bn: "Bengali", id: "Indonesian", tr: "Turkish", fr: "French" };
+  function sortedStats(obj, label) {
+    obj = obj || {};
+    return Object.keys(obj).sort(function (a, b) { return obj[b] - obj[a]; }).map(function (k) { return stat(label(k), int(obj[k])); }).join("");
+  }
+  /** 3.0.5: every number the app keeps, in one place. Counts only — never anyone's data. */
+  function drawAnalytics() {
+    api("analytics").then(function (r) {
+      if (st.tab !== "analytics") return;
+      if (!r.ok) return failed(r);
+      var v = r.visits || {}, a = r.accounts || {}, rem = r.reminders || {}, f = r.features || {}, ai = r.ai || {}, m = r.moderation || {};
+      var lang = function (k) { return LANGS[k] || k.toUpperCase(); };
+      var since = v.since ? new Date(v.since + "T12:00:00Z").toLocaleDateString([], { month: "long", day: "numeric", year: "numeric" }) : "";
+      $("adm-panel").innerHTML =
+        card("Visits", '<dl class="lab-stats">' + stat("Guests today", int(v.guests_today)) + stat("Guests yesterday", int(v.guests_yesterday)) +
+          stat("Guests · 7 days", int(v.guests_7d)) + stat("Guests · 30 days", int(v.guests_30d)) +
+          stat("Accounts today", int(v.accounts_today)) + stat("Accounts · 7 days", int(v.accounts_7d)) + "</dl>" +
+          '<p class="muted lab-small">An anonymous count: each device adds 1 the first time it opens SalaamStreet that day (UTC), as a guest or signed in. ' +
+          "Nothing identifies the device or the person, so 7 and 30 days are visits, not different people." + (since ? " Counting since " + esc(since) + "." : " No visits counted yet.") + "</p>",
+          '<span class="muted lab-small">Updated ' + esc(ago(r.at)) + "</span>" + refreshBtn("analytics")) +
+        card("Guests per day · last 30 days", chart(r.visits_30d, "guest", "Guest visits per day for the last 30 days")) +
+        card("Accounts", '<dl class="lab-stats">' + stat("Accounts", int(a.total)) + stat("New today", int(a.new_today)) + stat("New · 7 days", int(a.new_7d)) +
+          stat("New · 30 days", int(a.new_30d)) + stat("Signed in today", int(a.active_today)) + stat("Signed in · 7 days", int(a.active_7d)) +
+          stat("Signed in · 30 days", int(a.active_30d)) + stat("Never signed in", int(a.never_signed_in)) + stat("Unconfirmed", int(a.unconfirmed)) + "</dl>") +
+        card("Sign-ups per day · last 30 days", chart(r.signups_30d, "n", "Sign-ups per day for the last 30 days")) +
+        card("How people sign in", '<dl class="lab-stats">' + (sortedStats(r.by_provider, provider) || stat("No accounts yet", "")) + "</dl>") +
+        card("App language (accounts)", '<dl class="lab-stats">' + (sortedStats(r.languages, lang) || stat("No accounts yet", "")) + "</dl>") +
+        card("Reminder devices", '<dl class="lab-stats">' + stat("Devices", int(rem.devices)) + stat("Prayer reminders", int(rem.prayers)) +
+          stat("Friday Al-Kahf", int(rem.kahf)) + stat("Adhkar", int(rem.adhkar)) + stat("Qur'an goal", int(rem.quran)) + "</dl>" +
+          ((rem.regions || []).length ? '<h3 class="h-sm">Top regions</h3><dl class="lab-stats">' + rem.regions.map(function (x) { return stat(String(x.tz).replace(/_/g, " "), int(x.n)); }).join("") + "</dl>" : "") +
+          (Object.keys(rem.languages || {}).length ? '<h3 class="h-sm">Languages</h3><dl class="lab-stats">' + sortedStats(rem.languages, lang) + "</dl>" : "") +
+          '<p class="muted lab-small">Phones and computers that get reminders with SalaamStreet closed, guests and accounts together.</p>') +
+        card("What people use", '<dl class="lab-stats">' + stat("Synced items", int(f.synced_items)) + stat("Accounts syncing", int(f.syncing_accounts)) +
+          stat("Family: children", int(f.family_children)) + stat("Kids devices", int(f.kids_devices)) + stat("MSA members", int(f.msa_members)) +
+          stat("MSA waiting", int(f.msa_pending)) + stat("MSA posts", int(f.msa_posts)) + "</dl>") +
+        card("SalaamStreet AI", '<dl class="lab-stats">' + stat("Questions today", int(ai.today_requests)) + stat("People today", int(ai.people_today)) +
+          stat("Questions · 7 days", int(ai.week_requests)) + stat("Errors today", int(ai.today_errors)) + stat("Off-topic today", int(ai.off_topic_today)) +
+          stat("Paused now", int(ai.banned_now)) + stat("If paid: today", money(ai.today_cost_usd)) + stat("If paid: 7 days", money(ai.week_cost_usd)) +
+          stat("Helpful · 7 days", "👍 " + int(ai.helpful_7d) + " · 👎 " + int(ai.unhelpful_7d)) + "</dl>") +
+        card("Moderation", '<dl class="lab-stats">' + stat("Banned now", int(m.banned)) + stat("Blocked emails", int(m.blocked_emails)) +
+          stat("Warnings · 7 days", int(m.warnings_7d)) + stat("Agreed to the Rules", int(m.rules_accepted)) + stat("Admins", int(m.admins)) + "</dl>");
     });
   }
 
@@ -928,5 +973,5 @@
     start();
   };
   SS.adminLeave = function () { clearInterval(waitTimer); clearInterval(st.timer); var d = $("admin-dialog"); if (d && d.open) d.close(); };
-  VIEWS = { overview: drawOverview, users: drawUsers, flags: drawFlags, appeals: drawAppeals, ai: drawAi, msa: drawMsa, banner: drawBanner, admins: drawAdmins, log: drawLog };
+  VIEWS = { overview: drawOverview, analytics: drawAnalytics, users: drawUsers, flags: drawFlags, appeals: drawAppeals, ai: drawAi, msa: drawMsa, banner: drawBanner, admins: drawAdmins, log: drawLog };
 })();

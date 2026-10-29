@@ -74,7 +74,12 @@ Reading views (Qur'an, duas, hadith, settings) cap at 800px for comfortable line
 - Location is only requested after the user picks an option in the in-app dialog.
 - Coordinates are rounded to 2 decimals (~1 km) and sent only to AlAdhan.
 - The Qibla bearing, magnetic declination (WMM2025) and distance are computed on the device.
-- No analytics and no tracking cookies. Accounts are optional; signed-in people
+- No tracking and no tracking cookies. The only analytics (3.0.5) is an anonymous
+  daily visit count: the first time the app opens each day (UTC) a device adds 1
+  to that day's guest or account total (`visit_count`, js/standing.js). No id,
+  IP address or device details are stored, and Do Not Track / Global Privacy
+  Control turn it off. Admins see the totals on the Admin Panel's Analytics tab.
+- Accounts are optional; signed-in people
   sync bookmarks, streaks, progress and settings to their own rows (Row-Level
   Security) — never their location.
 

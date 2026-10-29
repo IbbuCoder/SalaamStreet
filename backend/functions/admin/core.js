@@ -145,6 +145,7 @@ export function createHandler(deps) {
   const ACTIONS = {
     me: (a) => rpc("admin_hello", { p_admin: a }),
     overview: (a) => rpc("admin_overview", { p_admin: a }),
+    analytics: (a) => rpc("admin_analytics", { p_admin: a }),
     users: (a, b) => {
       const filter = b.filter === undefined ? "all" : b.filter;
       if (FILTERS.indexOf(filter) === -1) throw new AdminError(400, "bad_request", "Unknown filter.");
