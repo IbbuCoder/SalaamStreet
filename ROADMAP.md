@@ -1,6 +1,6 @@
 # SalaamStreet Roadmap
 
-What we plan to build after **3.0.4 — MSA announcements for members**, in order. This is a plan, not a
+What we plan to build after **3.0.5 — Analytics for admins**, in order. This is a plan, not a
 promise: nothing planned below exists in the app yet, and there are no dates —
 releases ship when they're ready and tested. The same list appears in the app
 under About → Updates (`SS.ROADMAP` in `js/content.js`); keep the two in step.
@@ -33,6 +33,7 @@ under About → Updates (`SS.ROADMAP` in `js/content.js`); keep the two in step.
 | 3.0.2 | Community Rules, bans you can see, appeals | ✅ Completed |
 | 3.0.3 | Fairer bans: sign in and appeal, online features off | ✅ Completed |
 | 3.0.4 | MSA announcements for members only | ✅ Completed |
+| 3.0.5 | Analytics for admins (anonymous daily visit count) | ✅ Completed |
 | 3.1 | Personalization | 📋 Planned |
 | 3.2 | Qur'an Experience | 📋 Planned |
 | 3.3 | Community: mosque pages | 📋 Planned |

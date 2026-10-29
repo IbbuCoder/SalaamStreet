@@ -206,6 +206,13 @@
     d = d || new Date();
     return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
   };
+  /** 3.0.5: search engines and AI crawlers that run the page's JavaScript. They never call the server:
+      Meta's crawler alone loaded SalaamStreet tens of thousands of times a day, and every call counts
+      against the free plan's data allowance. */
+  var BOTS = /bot\/|bot;|googlebot|bingbot|applebot|duckduckbot|yandex|baiduspider|petalbot|bytespider|amazonbot|ccbot|gptbot|chatgpt-user|oai-searchbot|claudebot|claude-web|anthropic-ai|perplexitybot|meta-external|facebookexternalhit|facebookcatalog|twitterbot|linkedinbot|slackbot|discordbot|telegrambot|whatsapp|semrush|ahrefs|mj12bot|dotbot|crawler|spider|slurp|lighthouse/i;
+  SS.isBot = function () {
+    try { return BOTS.test(navigator.userAgent || ""); } catch (e) { return false; }
+  };
   /** "12 Ramadan 1447 AH" from an AlAdhan hijri object, localised. */
   SS.hijriLabel = function (h) {
     if (!h) return "";

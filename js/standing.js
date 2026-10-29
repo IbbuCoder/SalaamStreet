@@ -1,4 +1,4 @@
-/* SalaamStreet — standing.js (classic script, 3.0.2; 3.0.3)
+/* SalaamStreet — standing.js (classic script, 3.0.2; 3.0.3; 3.0.5)
    An account's standing with SalaamStreet, on the website and in the iPhone app:
    • Bans (3.0.3): a banned person can still sign in, see why and appeal, but
      their account's online features are off: SalaamStreet AI, the NVHS MSA,
@@ -17,6 +17,10 @@
    • The Admin Panel link in the More menu and sidebar, for admins only, with
      a count of flags and appeals waiting.
    • The banner admins can show on everyone's Home (app_notice_get).
+   • The anonymous daily visit count (3.0.5): the first time the app opens
+     each day (UTC) it adds 1 to that day's total, as a guest or an account
+     (visit_count). Nothing that identifies the device or the person is sent
+     or kept, and not at all with Do Not Track or Global Privacy Control on.
    The server decides all of this; this file only shows it. */
 (function () {
   "use strict";
@@ -310,6 +314,17 @@
     }, function () { /* offline: keep what's shown */ });
   }
 
+  /* ── The anonymous daily visit count (3.0.5) ──────────────────── */
+  var VISIT_KEY = "ss-visit-day";      // the last day (UTC) this device was counted
+  function countVisit() {
+    if (!configured()) return;
+    try { if (navigator.doNotTrack === "1" || navigator.globalPrivacyControl === true) return; } catch (e) { /* noop */ }
+    var day = new Date().toISOString().slice(0, 10);
+    if (get(localStorage, VISIT_KEY) === day) return;
+    put(localStorage, VISIT_KEY, day);
+    anon("visit_count", { p_kind: signedIn() ? "account" : "guest" }).catch(function () { put(localStorage, VISIT_KEY, null); /* try again next time */ });
+  }
+
   /* ── Wiring ───────────────────────────────────────────────────── */
   SS.standing = {
     RULES_VERSION: RULES_VERSION,
@@ -325,8 +340,9 @@
     guard: guard,
   };
   SS.standingBoot = function () {
-    if (!configured()) return;
+    if (!configured() || SS.isBot()) return; // 3.0.5: crawlers never call the server
     loadNotice(false);
+    setTimeout(countVisit, 4000); // after a saved sign-in is restored, so it counts as an account
     var bar = $("ban-bar");
     if (bar) bar.onclick = function () { var b = ban(); if (b) showBan(b); };
     document.addEventListener("ss:auth", function (e) {
@@ -342,6 +358,7 @@
     });
     document.addEventListener("visibilitychange", function () {
       if (document.hidden) return;
+      countVisit();
       check(false);
       if (!restricted()) adminLink(false);
       loadNotice(false);

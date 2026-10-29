@@ -2538,6 +2538,9 @@ test("admin panel: only an admin sees the link and gets in; overview, users, one
     (gen_random_uuid(), 'fatima@example.com', '{"provider":"google"}', now(), now() - interval '3 days', now() - interval '2 hours'),
     (gen_random_uuid(), 'yusuf@example.com', '{"provider":"apple"}', null, now() - interval '9 days', null)`, [TROLL]);
   await pg.query("insert into auth.sessions (user_id) values ($1)", [TROLL]);
+  // Anonymous daily visits (3.0.5): 3 guests today, 2 yesterday.
+  await pg.query(`insert into public.app_visits (day, kind, n) values ((now() at time zone 'UTC')::date, 'guest', 3),
+    ((now() at time zone 'UTC')::date - 1, 'guest', 2)`);
   const mock = createMock();
   const store = adminStore(pg, async (t) => {
     const u = mock.userForToken(t);
@@ -2565,9 +2568,22 @@ test("admin panel: only an admin sees the link and gets in; overview, users, one
   const overview = await A.page.textContent("#adm-panel");
   assert.match(overview, /1 account flagged/);
   assert.match(overview, /Accounts\s*4/);
-  assert.match(overview, /Never signed in\s*1/);
+  assert.match(overview, /Guests today\s*3/);
+  assert.doesNotMatch(overview, /Never signed in|Blocked emails|Synced items/, "3.0.5: the rest is on Analytics");
   assert.equal(await A.page.textContent('[data-count="flags"]'), "1");
   await shot(A.page, "admin-1-overview-1280");
+
+  // 3.0.5 Analytics: second tab; guests (anonymous daily visits), growth, sign-in methods, languages and the rest.
+  assert.deepEqual(await A.page.$$eval(".adm-tabs [data-tab]", (els) => els.slice(0, 3).map((e) => e.getAttribute("data-tab"))), ["overview", "analytics", "users"]);
+  await A.page.click('[data-tab="analytics"]');
+  await A.page.waitForFunction(() => /Guests yesterday/.test(document.getElementById("adm-panel").textContent));
+  const analytics = await A.page.textContent("#adm-panel");
+  assert.match(analytics, /Guests today\s*3/);
+  assert.match(analytics, /Guests yesterday\s*2/);
+  assert.match(analytics, /Never signed in\s*1/);
+  assert.match(analytics, /Apple\s*1/);
+  assert.equal(await A.page.$$eval("#adm-panel .adm-chart", (els) => els.map((e) => e.querySelectorAll(".adm-bar").length).join()), "30,30");
+  await shot(A.page, "admin-1b-analytics-1280");
 
   // Users: search and filters; one account opens in a sheet with what it uses and the actions.
   await A.page.click('[data-tab="users"]');
@@ -2826,4 +2842,27 @@ test("community rules, warnings, bans and appeals: the rules box before sign-in,
   assert.deepEqual(A.page.errors, []);
   await A.context.close();
   await pg.close();
+});
+
+test("3.0.5: crawlers never call the server, and a guest's device doesn't ask for the members-only MSA feed", async () => {
+  const META = "Mozilla/5.0 (compatible; meta-externalagent/1.1 (+https://developers.facebook.com/docs/sharing/webmasters/crawler))";
+  const bot = await device({ context: { userAgent: META } });
+  const botCalls = [];
+  bot.page.on("request", (r) => { if (/supabase\.co/.test(r.url())) botCalls.push(new URL(r.url()).pathname); });
+  await open(bot.page, "#/home");
+  await bot.page.waitForTimeout(5000); // past the visit count's 4-second wait
+  assert.deepEqual(botCalls, [], "a crawler costs the server nothing");
+  assert.deepEqual(bot.page.errors, []);
+  await bot.context.close();
+
+  const guest = await device();
+  const calls = [];
+  guest.page.on("request", (r) => { if (/supabase\.co/.test(r.url())) calls.push(new URL(r.url()).pathname); });
+  await open(guest.page, "#/home");
+  await guest.page.waitForTimeout(5000);
+  assert.ok(!calls.some((p) => /msa_feed|msa_image/.test(p)), "guests don't ask for the members-only feed: " + calls.join());
+  assert.ok(calls.some((p) => /app_notice_get/.test(p)), "people still get the Home banner");
+  assert.ok(calls.some((p) => /visit_count/.test(p)), "and are counted, anonymously");
+  assert.deepEqual(guest.page.errors, []);
+  await guest.context.close();
 });

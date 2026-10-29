@@ -360,3 +360,37 @@ test("warnings are shown once; the Community Rules are recorded; blocked emails 
   const csv = await call("owner", { action: "export_users", filter: "all" });
   assert.equal(csv.body.users.length, 5);
 });
+
+test("3.0.5: anonymous daily visit counts, and the Analytics tab's numbers", async () => {
+  const { pg, call, one } = await setup();
+  // The app (anon key, signed out or in) adds to today's total; only the day, kind and total are kept.
+  await pg.exec("set role anon;");
+  for (let i = 0; i < 3; i++) await pg.query("select public.visit_count('guest')");
+  await pg.query("select public.visit_count('account')");
+  await assert.rejects(pg.query("select public.visit_count('robot')"), /bad kind/);
+  assert.equal((await pg.query("select * from public.app_visits")).rows.length, 0, "the public can't read the totals");
+  await assert.rejects(pg.query("select public.admin_analytics($1)", [ID.owner]), /permission denied/);
+  await pg.exec("reset role;");
+  assert.deepEqual(Object.keys((await pg.query("select * from public.app_visits limit 1")).rows[0]).sort(), ["day", "kind", "n"], "no ids, addresses or devices");
+  await pg.query("insert into public.app_visits (day, kind, n) values ((now() at time zone 'UTC')::date - 1, 'guest', 5), ((now() at time zone 'UTC')::date - 500, 'guest', 9)");
+  await pg.query("select public.visit_count('account')");
+  assert.equal((await one("select count(*)::int as n from public.app_visits where day < now()::date - 400")).n, 1, "old days go on a new day's first visit, not on every visit");
+
+  const a = await call("owner", { action: "analytics" });
+  assert.equal(a.status, 200, JSON.stringify(a.body));
+  assert.equal(a.body.visits.guests_today, 3);
+  assert.equal(a.body.visits.guests_yesterday, 5);
+  assert.equal(a.body.visits.guests_7d, 8);
+  assert.equal(a.body.visits.accounts_today, 2);
+  assert.equal(a.body.visits_30d.length, 30);
+  assert.deepEqual(a.body.visits_30d.at(-1).guest, 3);
+  assert.equal(a.body.signups_30d.length, 30);
+  assert.equal(a.body.accounts.total, 4);
+  assert.deepEqual(a.body.by_provider, { email: 1, google: 3 });
+  assert.equal(a.body.features.synced_items, 1);
+  assert.equal(a.body.features.syncing_accounts, 1);
+  assert.equal(a.body.moderation.admins, 1);
+  assert.ok(a.body.ai && typeof a.body.ai.week_requests === "number");
+  assert.equal((await call("owner", { action: "overview" })).body.guests_today, 3, "the Overview shows guests today too");
+  assert.equal((await call("user", { action: "analytics" })).status, 403, "admins only");
+});

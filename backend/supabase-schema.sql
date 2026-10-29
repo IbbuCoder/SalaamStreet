@@ -2093,6 +2093,7 @@ begin
     return public.admin_stats() || jsonb_build_object(
         'new_today', (select count(*) from auth.users where created_at >= d0),
         'active_today', (select count(*) from auth.users where last_sign_in_at >= d0),
+        'guests_today', (select coalesce(sum(n), 0) from public.app_visits where kind = 'guest' and day = (now() at time zone 'UTC')::date),
         'active_30d', (select count(*) from auth.users where last_sign_in_at > now() - interval '30 days'),
         'never_signed_in', (select count(*) from auth.users where last_sign_in_at is null),
         'banned', (select count(*) from public.account_bans where until > now()),
@@ -3024,4 +3025,112 @@ create or replace function public.msa_image(p_id uuid)
 returns text language sql stable security definer set search_path = public as $$
     select image from public.msa_posts
     where id = p_id and (expires_at is null or expires_at > now()) and public.msa_can_see_all();
+$$;
+
+-- ════════════════════════════════════════════════════════════════════════
+--  3.0.5 — Analytics for admins, and an anonymous daily visit count
+--  Each device adds 1 to today's total the first time SalaamStreet opens
+--  that day (UTC): "guest" when signed out, "account" when signed in. Only
+--  the day, the kind and the total are stored: no id, no IP address, nothing
+--  about the device or the person, so a visit can't be tied to anyone.
+--  Devices that send Do Not Track or Global Privacy Control don't count.
+--  The Admin Panel's Analytics tab (admin_analytics) shows these totals with
+--  the numbers the app already had. Old days are dropped after 400 days.
+-- ════════════════════════════════════════════════════════════════════════
+create table if not exists public.app_visits (
+    day   date not null,
+    kind  text not null check (kind in ('guest', 'account')),
+    n     integer not null default 0 check (n >= 0),
+    primary key (day, kind)
+);
+alter table public.app_visits enable row level security;
+-- No policies on purpose: only visit_count() writes, only admins read (through admin_*).
+
+create or replace function public.visit_count(p_kind text)
+returns void language plpgsql volatile security definer set search_path = public as $$
+declare today date := (now() at time zone 'UTC')::date;
+begin
+    if p_kind is null or p_kind not in ('guest', 'account') then raise exception 'bad kind' using errcode = '22023'; end if;
+    insert into public.app_visits (day, kind, n) values (today, p_kind, 1)
+        on conflict (day, kind) do update set n = public.app_visits.n + 1;
+    -- The first visit of a day clears out days older than 400.
+    if not exists (select 1 from public.app_visits where day = today and kind = p_kind and n > 1) then
+        delete from public.app_visits where day < today - 400;
+    end if;
+end;
+$$;
+revoke all on function public.visit_count(text) from public;
+grant execute on function public.visit_count(text) to anon, authenticated;
+
+/** Everything on the Admin Panel's Analytics tab. Counts only — never anyone's data. */
+create or replace function public.admin_analytics(p_admin uuid)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare d0 timestamptz := date_trunc('day', now() at time zone 'UTC') at time zone 'UTC'; today date := (now() at time zone 'UTC')::date;
+begin
+    perform public.admin_require(p_admin);
+    return jsonb_build_object(
+        'visits', jsonb_build_object(
+            'guests_today', (select coalesce(sum(n), 0) from public.app_visits where kind = 'guest' and day = today),
+            'guests_yesterday', (select coalesce(sum(n), 0) from public.app_visits where kind = 'guest' and day = today - 1),
+            'guests_7d', (select coalesce(sum(n), 0) from public.app_visits where kind = 'guest' and day > today - 7),
+            'guests_30d', (select coalesce(sum(n), 0) from public.app_visits where kind = 'guest' and day > today - 30),
+            'accounts_today', (select coalesce(sum(n), 0) from public.app_visits where kind = 'account' and day = today),
+            'accounts_7d', (select coalesce(sum(n), 0) from public.app_visits where kind = 'account' and day > today - 7),
+            'since', (select min(day) from public.app_visits)),
+        'visits_30d', (select coalesce(jsonb_agg(jsonb_build_object('day', to_char(d, 'YYYY-MM-DD'),
+                'guest', coalesce((select n from public.app_visits v where v.day = d::date and v.kind = 'guest'), 0),
+                'account', coalesce((select n from public.app_visits v where v.day = d::date and v.kind = 'account'), 0)) order by d), '[]'::jsonb)
+            from generate_series(today - 29, today, interval '1 day') d),
+        'accounts', jsonb_build_object(
+            'total', (select count(*) from auth.users),
+            'new_today', (select count(*) from auth.users where created_at >= d0),
+            'new_7d', (select count(*) from auth.users where created_at > now() - interval '7 days'),
+            'new_30d', (select count(*) from auth.users where created_at > now() - interval '30 days'),
+            'active_today', (select count(*) from auth.users where last_sign_in_at >= d0),
+            'active_7d', (select count(*) from auth.users where last_sign_in_at > now() - interval '7 days'),
+            'active_30d', (select count(*) from auth.users where last_sign_in_at > now() - interval '30 days'),
+            'never_signed_in', (select count(*) from auth.users where last_sign_in_at is null),
+            'unconfirmed', (select count(*) from auth.users where email_confirmed_at is null and phone_confirmed_at is null)),
+        'signups_30d', (select coalesce(jsonb_agg(jsonb_build_object('day', to_char(d, 'YYYY-MM-DD'), 'n',
+                (select count(*) from auth.users where created_at >= d and created_at < d + interval '1 day')) order by d), '[]'::jsonb)
+            from generate_series(d0 - interval '29 days', d0, interval '1 day') d),
+        'by_provider', (select coalesce(jsonb_object_agg(p, n), '{}'::jsonb) from (
+            select coalesce(raw_app_meta_data->>'provider', 'other') as p, count(*) as n from auth.users group by 1) x),
+        'languages', (select coalesce(jsonb_object_agg(l, n), '{}'::jsonb) from (
+            select coalesce(nullif(locale, ''), 'en') as l, count(*) as n from public.profiles group by 1) x),
+        'reminders', jsonb_build_object(
+            'devices', (select count(*) from public.push_subscriptions),
+            'prayers', (select count(*) from public.push_subscriptions where prayers),
+            'kahf', (select count(*) from public.push_subscriptions where kahf),
+            'adhkar', (select count(*) from public.push_subscriptions where adhkar),
+            'quran', (select count(*) from public.push_subscriptions where quran_time is not null),
+            'languages', (select coalesce(jsonb_object_agg(lang, n), '{}'::jsonb) from (
+                select lang, count(*) as n from public.push_subscriptions group by 1) x),
+            'regions', (select coalesce(jsonb_agg(jsonb_build_object('tz', tz, 'n', n) order by n desc, tz), '[]'::jsonb) from (
+                select tz, count(*) as n from public.push_subscriptions group by 1 order by 2 desc, 1 limit 8) x)),
+        'features', jsonb_build_object(
+            'synced_items', (select count(*) from public.sync_records where not deleted),
+            'syncing_accounts', (select count(distinct user_id) from public.sync_records where not deleted),
+            'family_children', (select count(*) from public.family_children),
+            'kids_devices', (select count(*) from public.child_devices),
+            'msa_members', (select count(*) from public.msa_members where status = 'approved'),
+            'msa_pending', (select count(*) from public.msa_members where status in ('pending', 'flagged')),
+            'msa_posts', (select count(*) from public.msa_posts)),
+        'ai', public.ai_usage_summary(),
+        'moderation', jsonb_build_object(
+            'banned', (select count(*) from public.account_bans where until > now()),
+            'blocked_emails', (select count(*) from public.blocked_emails),
+            'warnings_7d', (select count(*) from public.account_warnings where created_at > now() - interval '7 days'),
+            'rules_accepted', (select count(*) from public.profiles where rules_version is not null),
+            'admins', (select count(*) from public.app_admins)),
+        'at', now());
+end;
+$$;
+revoke all on function public.admin_analytics(uuid) from public, anon, authenticated;
+do $$
+begin
+    if exists (select 1 from pg_roles where rolname = 'service_role') then
+        grant execute on function public.admin_analytics(uuid) to service_role;
+    end if;
+end;
 $$;
