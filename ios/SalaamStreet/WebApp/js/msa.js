@@ -3,8 +3,8 @@
    announcements, at #/msa, and the newest "show on Home" announcement as a
    slim card on everyone's Home.
 
-   • Reading needs no account: the feed comes from the msa_feed() database
-     function over plain fetch (guests never download the account client).
+   • Reading is for members (3.0.4): the feed comes from the msa_feed() database
+     function with the account; a guest's device doesn't ask at all (3.0.5).
      The last feed is kept on the device so the page works offline.
    • Posting is for the MSA's admins only — signed-in accounts whose email is
      on the admin list (2.11.8: one list, managed on #/msa/manage). The
@@ -40,21 +40,11 @@
 
   /* ── Data ─────────────────────────────────────────────────────── */
   function configured() { return !!(CFG.supabaseUrl && CFG.supabaseAnonKey); }
-  function call(fn, args) {
-    if (!configured()) return Promise.reject(new Error("not-configured"));
-    return fetch(CFG.supabaseUrl + "/rest/v1/rpc/" + fn, {
-      method: "POST",
-      headers: { apikey: CFG.supabaseAnonKey, "Content-Type": "application/json" },
-      body: JSON.stringify(args || {}),
-    }).then(function (r) {
-      if (!r.ok) throw new Error("http " + r.status);
-      return r.json();
-    });
-  }
   function signedIn() { return !!(SS.account && SS.account.signedIn()); }
   function who() { var u = signedIn() && SS.account.user(); return u ? u.id : ""; }
-  /** Reads go with the account when signed in (3.0.4: only members get announcements at all). */
-  function read(fn, args) { return signedIn() ? rpc(fn, args) : call(fn, args); }
+  /** Reads go with the account. Only members get announcements at all (3.0.4), so a guest's device
+      doesn't ask (3.0.5: those empty answers, mostly to crawlers, used up the free plan's allowance). */
+  function read(fn, args) { return signedIn() ? rpc(fn, args) : Promise.resolve(fn === "msa_feed" ? [] : null); }
   function cached() {
     var c = SS.store.get(FEED_KEY);
     return c && Array.isArray(c.posts) && (c.who || "") === who() ? c : null;

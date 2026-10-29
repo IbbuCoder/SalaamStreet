@@ -340,7 +340,7 @@
     guard: guard,
   };
   SS.standingBoot = function () {
-    if (!configured()) return;
+    if (!configured() || SS.isBot()) return; // 3.0.5: crawlers never call the server
     loadNotice(false);
     setTimeout(countVisit, 4000); // after a saved sign-in is restored, so it counts as an account
     var bar = $("ban-bar");

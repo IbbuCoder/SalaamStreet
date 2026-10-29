@@ -236,6 +236,10 @@
           { en: "Each day, the first time SalaamStreet opens, your device adds 1 to an anonymous count of visits — only the day and the total are kept", ar: "في كل يوم، أول مرة يُفتح فيها SalaamStreet، يضيف جهازك 1 إلى عدد مجهول للزيارات — ولا يُحفظ إلا اليوم والمجموع" },
           { en: "No identifier, IP address or device details are sent or kept, and devices with Do Not Track or Global Privacy Control aren't counted", ar: "لا يُرسَل ولا يُحفظ أي معرّف أو عنوان IP أو تفاصيل عن الجهاز، ولا تُعدّ الأجهزة التي فعّلت «عدم التتبع» أو «التحكم العام في الخصوصية»" },
         ] },
+        { en: "Lighter on the server", ar: "أخف على الخادم", items: [
+          { en: "Search engines and AI crawlers no longer make SalaamStreet call its server — they had used up the free plan's monthly data allowance", ar: "لم تعد محركات البحث وزواحف الذكاء الاصطناعي تجعل SalaamStreet يتصل بخادمه — فقد استنفدت حصة البيانات الشهرية للخطة المجانية" },
+          { en: "A guest's device no longer asks for MSA announcements, which only members can see", ar: "لم يعد جهاز الزائر يطلب إعلانات الرابطة التي لا يراها إلا الأعضاء" },
+        ] },
         { en: "Admin Panel", ar: "لوحة الإدارة", items: [
           { en: "A new Analytics tab, second in line: guests per day, sign-ups over 30 days, sign-in methods, languages, reminder devices by region, what people use, SalaamStreet AI and moderation", ar: "تبويب «الإحصاءات» الجديد في المرتبة الثانية: الزوار يوميًا، والتسجيلات خلال 30 يومًا، وطرق تسجيل الدخول، واللغات، وأجهزة التذكير حسب المنطقة، وما يستخدمه الناس، والمساعد الذكي، والإشراف" },
           { en: "A shorter Overview: what needs you, today's numbers (guests included), sign-ups, SalaamStreet AI and the newest accounts", ar: "نظرة عامة أقصر: ما يحتاج إليك، وأرقام اليوم (ومنها الزوار)، والتسجيلات، والمساعد الذكي، وأحدث الحسابات" },
