@@ -29,6 +29,25 @@
     pushPublicKey: "BFmjKhYmieuXb1eouDVi5JTsbe8FVIZO31MyaFjcjpD0on5GMoAFd83wFmkbrkdOIVJIooT1F4Ad7RVAZdfKFbk",
   };
 
+  /* TEMPORARY — the admin access code (November 2026).
+     While sign-in isn't working, the Admin Panel (#/admin) opens with an
+     access code instead of an account. The code is checked by the server
+     (CODE_ACCESS in backend/functions/admin/core.js), never here.
+     It switches itself off after this date. To turn it off sooner, set
+     ADMIN_CODE_UNTIL to "" — and switch it off on the server too (see
+     core.js). */
+  SS.ADMIN_CODE_UNTIL = "2026-11-07T08:00:00Z";
+  SS.adminCode = {
+    active: function () { var u = Date.parse(SS.ADMIN_CODE_UNTIL || ""); return !isNaN(u) && Date.now() < u; },
+    get: function () {
+      if (!SS.adminCode.active()) return "";
+      try { return localStorage.getItem("ss.adminCode") || ""; } catch (e) { return ""; }
+    },
+    set: function (code) {
+      try { if (code) localStorage.setItem("ss.adminCode", code); else localStorage.removeItem("ss.adminCode"); } catch (e) { /* private mode */ }
+    },
+  };
+
   /* Qur'an PDF (Offline Qur'an, 2.6.0). People can download this file, save it
      to their device and read it offline in SalaamStreet's own viewer. The file
      goes in files/ with exactly this name. While SS.QURAN_PDF is empty, or the

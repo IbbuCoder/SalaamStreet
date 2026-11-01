@@ -446,7 +446,9 @@
         '<div class="acct-methods mt-2">' + methods().map(function (m) { return methodButton(m, false); }).join("") + "</div>" +
         '<p class="acct-msg" id="acct-msg" role="alert" hidden></p>' +
         '<p class="tiny mt-2">' + esc(t("account.guestNote")) + "</p>" +
-        '<p class="tiny mt-1">' + esc(t("account.privacyNote")) + "</p>";
+        '<p class="tiny mt-1">' + esc(t("account.privacyNote")) + "</p>" +
+        // TEMPORARY (Nov 2026): while sign-in isn't working, admins open the Admin Panel with the access code (js/config.js).
+        (SS.adminCode && SS.adminCode.active() ? '<p class="tiny mt-1"><a href="#/admin" id="acct-admin-code">Admin? Open the Admin Panel with the access code</a></p>' : "");
     } else if (step === "password") {
       var signup = c.mode === "signup";
       h.textContent = t(signup ? "account.pwSignUpTitle" : "account.pwSignInTitle");
@@ -536,6 +538,7 @@
     }
     body.innerHTML = html;
     wireStep(step);
+    if ($("acct-admin-code")) $("acct-admin-code").onclick = function () { var d = $("acct-dialog"); if (d && d.open) d.close(); };
     var first = body.querySelector("input:not([type=checkbox]), .acct-method, .btn");
     if (first) setTimeout(function () { try { first.focus(); } catch (e) { /* noop */ } }, 40);
   }

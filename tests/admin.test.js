@@ -28,7 +28,8 @@ const users = {
   helper: { id: ID.helper, email: "helper@gmail.com", email_confirmed_at: "2026-10-01T00:00:00Z", app_metadata: google },
 };
 
-async function setup() {
+async function setup(opts) {
+  opts = opts || {};
   // An account that already existed before 3.0.1 is checked when the file runs.
   const pg = await adminDb((db) => db.query(`insert into auth.users (id, email, raw_app_meta_data, email_confirmed_at, created_at, last_sign_in_at)
     values ($1, $2, '{"provider":"email"}', now(), now() - interval '2 days', now())`, [ID.troll, users.troll.email]));
@@ -41,9 +42,9 @@ async function setup() {
   const store = adminStore(pg, (t) => users[t] || null);
   const { createHandler } = await load();
   const warnings = [];
-  const handle = createHandler({ env: () => undefined, store, log: { warn: (...a) => warnings.push(a.join(" ")) } });
-  async function call(token, body, origin) {
-    const headers = { "content-type": "application/json", origin: origin || ORIGIN };
+  const handle = createHandler({ env: (k) => (opts.env || {})[k], now: opts.now, store, log: { warn: (...a) => warnings.push(a.join(" ")) } });
+  async function call(token, body, origin, extra) {
+    const headers = Object.assign({ "content-type": "application/json", origin: origin || ORIGIN }, extra || {});
     if (token) headers.authorization = "Bearer " + token;
     const res = await handle(new Request("https://x.supabase.co/functions/v1/admin", { method: "POST", headers, body: JSON.stringify(body) }));
     const text = await res.text();
@@ -393,4 +394,43 @@ test("3.0.5: anonymous daily visit counts, and the Analytics tab's numbers", asy
   assert.ok(a.body.ai && typeof a.body.ai.week_requests === "number");
   assert.equal((await call("owner", { action: "overview" })).body.guests_today, 3, "the Overview shows guests today too");
   assert.equal((await call("user", { action: "analytics" })).status, 403, "admins only");
+});
+
+test("TEMPORARY (Nov 2026): the access code opens the Admin Panel as the owner, until it switches off", async () => {
+  const { CODE_ACCESS } = await load();
+  // A test code (the real one is never written down in the repo, only its hash in core.js).
+  const TEST = "test-code-123", HASH = require("crypto").createHash("sha256").update(TEST).digest("hex");
+  assert.match(CODE_ACCESS.sha256, /^[0-9a-f]{64}$/);
+  const before = Date.parse(CODE_ACCESS.until) - 86400000, after = Date.parse(CODE_ACCESS.until) + 1000;
+  const code = (c) => ({ "x-admin-code": c });
+
+  const on = await setup({ now: () => before, env: { ADMIN_CODE_SHA256: HASH } });
+  const me = await on.call(null, { action: "me" }, null, code(TEST));
+  assert.equal(me.status, 200, JSON.stringify(me.body));
+  assert.equal(me.body.admin, true);
+  assert.equal(me.body.email, users.owner.email.toLowerCase(), "acts as the owner's admin account");
+  assert.equal((await on.call(null, { action: "me" }, null, code(" " + TEST + " "))).status, 200, "spaces around it are fine");
+  const ban = await on.call(null, { action: "ban", id: ID.troll, days: 7, reason: "offensive_name" }, null, code(TEST));
+  assert.equal(ban.status, 200, JSON.stringify(ban.body));
+  assert.equal((await on.one("select admin_id from public.admin_audit where action = 'ban'")).admin_id, ID.owner, "logged under the owner");
+  const wrong = await on.call(null, { action: "overview" }, null, code(TEST + "x"));
+  assert.equal(wrong.status, 403);
+  assert.equal(wrong.body.error, "bad_code");
+  assert.equal((await on.call(null, { action: "overview" }, null, code(""))).body.error, "bad_code");
+  assert.equal((await on.call(null, { action: "me" })).status, 401, "no code and no sign-in: still refused");
+  const pre = await on.call(null, { action: "me" }, null, code(TEST));
+  assert.equal(pre.status, 200);
+
+  const expired = await setup({ now: () => after, env: { ADMIN_CODE_SHA256: HASH } });
+  const late = await expired.call(null, { action: "me" }, null, code(TEST));
+  assert.equal(late.status, 401);
+  assert.equal(late.body.error, "code_off");
+  assert.equal((await expired.call("owner", { action: "me" })).status, 200, "signing in still works after it's off");
+
+  const killed = await setup({ now: () => before, env: { ADMIN_CODE_SHA256: HASH, ADMIN_CODE_DISABLED: "1" } });
+  assert.equal((await killed.call(null, { action: "me" }, null, code(TEST))).body.error, "code_off", "the secret switches it off at once");
+
+  await on.pg.exec("set role authenticated;");
+  await assert.rejects(on.pg.query("select public.admin_code_user()"), /permission denied/, "only the server can ask who the code acts as");
+  await on.pg.exec("reset role;");
 });

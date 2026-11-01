@@ -262,6 +262,13 @@
   /** Asked per account (the admin function's "me") and remembered on the device: a yes for 5 minutes
       (it also brings the count of flags and appeals), a no for 6 hours. */
   function adminLink(force) {
+    // TEMPORARY (Nov 2026): with the admin access code saved on this device (js/config.js), the link shows
+    // without an account. The Admin Panel checks the code with the server when it opens.
+    if (configured() && SS.adminCode && SS.adminCode.get()) {
+      var cc = get(localStorage, ADMIN_KEY);
+      showAdmin(true, cc && cc.uid === "code" ? cc.count : 0);
+      return;
+    }
     var user = signedIn() && SS.account.user();
     if (!user || !configured()) { showAdmin(false); return; }
     var c = get(localStorage, ADMIN_KEY);
@@ -338,10 +345,12 @@
     restricted: restricted,
     /** Before a page opens (js/app.js): true when it needs the account and the account is banned. */
     guard: guard,
+    refreshAdminLink: function () { adminLink(false); }, // TEMPORARY: the admin access code (js/admin.js)
   };
   SS.standingBoot = function () {
     if (!configured() || SS.isBot()) return; // 3.0.5: crawlers never call the server
     loadNotice(false);
+    adminLink(false); // TEMPORARY: shows the link at once when the admin access code is saved here
     setTimeout(countVisit, 4000); // after a saved sign-in is restored, so it counts as an account
     var bar = $("ban-bar");
     if (bar) bar.onclick = function () { var b = ban(); if (b) showBan(b); };
@@ -352,7 +361,7 @@
         setTimeout(function () { check(true); }, 800);
         if (!restricted()) adminLink(true);
       } else {
-        showAdmin(false);
+        adminLink(false); // hidden, unless the admin access code is saved here (TEMPORARY)
         applyRestriction();
       }
     });
