@@ -70,13 +70,19 @@
     return SS.account.client().then(function (c) { return c.auth.getSession(); })
       .then(function (r) { return (r.data && r.data.session && r.data.session.access_token) || ""; }, function () { return ""; });
   }
+  /** TEMPORARY (Nov 2026): the admin access code saved on this device, while codes are on (js/config.js). */
+  function code() { return SS.adminCode ? SS.adminCode.get() : ""; }
   /** POST to the Edge Function. Always resolves to { ok, error?, message?, http }. */
   function api(action, extra) {
-    return accessToken().then(function (tok) {
-      if (!tok) return { ok: false, error: "signed_out", http: 401 };
+    var c = code();
+    return (c ? Promise.resolve("") : accessToken()).then(function (tok) {
+      if (!tok && !c) return { ok: false, error: "signed_out", http: 401 };
+      var headers = { apikey: CFG.supabaseAnonKey, "content-type": "application/json" };
+      if (c) headers["x-admin-code"] = c; // checked by the server (CODE_ACCESS in backend/functions/admin/core.js)
+      else headers.authorization = "Bearer " + tok;
       return fetch(fnUrl(), {
         method: "POST",
-        headers: { authorization: "Bearer " + tok, apikey: CFG.supabaseAnonKey, "content-type": "application/json" },
+        headers: headers,
         body: JSON.stringify(Object.assign({ action: action }, extra || {})),
       }).then(function (r) {
         return r.text().then(function (txt) {
@@ -156,7 +162,8 @@
     root.setAttribute("data-built", "1");
     root.innerHTML =
       '<header class="page-head lab-head"><span class="lab-logo" aria-hidden="true">' + icon("lock") + "</span>" +
-      '<div><h1 id="adm-h" tabindex="-1">Admin Panel</h1><p>Private · admins only. Every change is recorded in the Log.</p></div></header>' +
+      '<div><h1 id="adm-h" tabindex="-1">Admin Panel</h1><p>Private · admins only. Every change is recorded in the Log.</p></div>' +
+      '<button class="btn btn-outline btn-sm" id="adm-lock" type="button" style="margin-inline-start:auto" hidden>' + icon("lock") + "<span>Lock</span></button></header>" +
       '<div id="adm-gate" aria-live="polite"></div>' +
       '<div id="adm-app" class="stack" hidden>' +
         '<nav class="adm-tabs" aria-label="Admin sections">' + TABS.map(function (t) {
@@ -165,6 +172,7 @@
         '<p class="lab-err" id="adm-err" role="alert" hidden></p>' +
         '<div id="adm-panel" class="stack" aria-live="polite"></div>' +
       "</div>";
+    $("adm-lock").onclick = function () { forgetCode("Locked. Enter the access code to open the Admin Panel again."); };
     $("adm-panel").addEventListener("click", onPanelClick);
     $("adm-panel").addEventListener("submit", onPanelSubmit);
     $("adm-panel").addEventListener("change", onPanelChange);
@@ -177,8 +185,14 @@
   function gate(kind, msg) {
     var g = $("adm-gate");
     $("adm-app").hidden = kind !== "ok";
+    if ($("adm-lock")) $("adm-lock").hidden = kind !== "ok" || !code(); // TEMPORARY: the access code
     if (kind === "ok") { g.innerHTML = ""; return; }
     var html = '<div class="card lab-gate"><p>' + esc(msg) + "</p>";
+    if (kind === "code") {
+      html += '<form id="adm-code-form" class="stack mt-1" novalidate><div class="field"><label for="adm-code">Access code</label>' +
+        '<input class="input" id="adm-code" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="100" required /></div>' +
+        '<div><button class="btn" type="submit">' + icon("lock") + "<span>Open the Admin Panel</span></button></div></form>";
+    }
     if (kind === "signin") html += '<button class="btn" id="adm-signin" type="button">' + icon("google") + "<span>Sign in with Google</span></button>";
     if (kind === "denied") html += '<button class="btn btn-outline" id="adm-switch" type="button">' + icon("logout") + "<span>Use another account</span></button>";
     if (kind === "retry") html += '<button class="btn btn-outline" id="adm-retry" type="button">' + icon("refresh") + "<span>Try again</span></button>";
@@ -188,6 +202,26 @@
       Promise.resolve(SS.account.signOut()).then(function () { gate("signin", "Sign in with your admin Google account."); waitForSignIn(); });
     };
     if ($("adm-retry")) $("adm-retry").onclick = start;
+    if ($("adm-code-form")) {
+      $("adm-code-form").onsubmit = function (e) {
+        e.preventDefault();
+        var v = $("adm-code").value.trim();
+        if (!v) { $("adm-code").focus(); return; }
+        SS.adminCode.set(v);
+        start();
+      };
+      try { $("adm-code").focus({ preventScroll: true }); } catch (e) { /* noop */ }
+    }
+  }
+  /** TEMPORARY: forget the access code on this device (the Lock button, or a wrong or expired code). */
+  function forgetCode(msg) {
+    SS.adminCode.set("");
+    st.ready = false;
+    clearInterval(st.timer);
+    remember(false);
+    if (SS.standing && SS.standing.refreshAdminLink) SS.standing.refreshAdminLink();
+    if (SS.adminCode.active()) gate("code", msg || "Enter the access code to open the Admin Panel.");
+    else start();
   }
   var waitTimer = 0;
   function waitForSignIn() {
@@ -200,6 +234,7 @@
   function showErr(msg) { var e = $("adm-err"); if (!e) return; e.textContent = msg || ""; e.hidden = !msg; }
   /** A failed request: sign-in problems go back to the gate; anything else shows above the panel. */
   function failed(r) {
+    if (r.error === "bad_code" || r.error === "code_off") { forgetCode(r.message); return; }
     if (r.error === "signed_out" || r.error === "invalid_session") { st.ready = false; gate("signin", "Your sign-in has ended. Sign in again with your admin Google account."); waitForSignIn(); return; }
     if (r.error === "forbidden") { st.ready = false; gate("denied", r.message || "This account can't use the Admin Panel."); remember(false); return; }
     showErr(r.message || "Something went wrong. Try again.");
@@ -207,22 +242,29 @@
   /** Settings shows the Admin Panel link only to admins (js/app.js reads this). */
   function remember(isAdmin, count) {
     var u = SS.account && SS.account.user();
-    try { localStorage.setItem("ss.adminCheck", JSON.stringify({ uid: u ? u.id : "", admin: !!isAdmin, at: Date.now(), count: count || 0 })); } catch (e) { /* private mode */ }
+    try { localStorage.setItem("ss.adminCheck", JSON.stringify({ uid: code() ? "code" : u ? u.id : "", admin: !!isAdmin, at: Date.now(), count: count || 0 })); } catch (e) { /* private mode */ }
   }
   function start() {
     if (!CFG.supabaseUrl || !CFG.supabaseAnonKey) { gate("none", "Accounts aren't set up on this copy of SalaamStreet, so the Admin Panel can't be used here."); return; }
-    gate("retry", "Checking your account…");
+    // TEMPORARY (Nov 2026): while access codes are on, the panel asks for the code instead of a sign-in.
+    if (SS.adminCode && SS.adminCode.active() && !code()) {
+      gate("code", "Sign-in isn't working right now, so the Admin Panel opens with the access code instead.");
+      return;
+    }
+    gate("retry", code() ? "Checking the access code…" : "Checking your account…");
     var b = $("adm-gate").querySelector("button");
     if (b) b.hidden = true;
     api("me").then(function (r) {
       if (!r.ok) {
-        if (r.error === "signed_out" || r.error === "invalid_session") { gate("signin", "Sign in with your admin Google account to open the Admin Panel."); waitForSignIn(); }
+        if (r.error === "bad_code" || r.error === "code_off") forgetCode(r.message);
+        else if (r.error === "signed_out" || r.error === "invalid_session") { gate("signin", "Sign in with your admin Google account to open the Admin Panel."); waitForSignIn(); }
         else if (r.error === "forbidden") { gate("denied", r.message || "This account can't use the Admin Panel."); remember(false); }
         else gate("retry", r.message || "Couldn't open the Admin Panel.");
         return;
       }
       st.me = r; st.ready = true;
       remember(true, (r.open_flags || 0) + (r.open_appeals || 0));
+      if (SS.standing && SS.standing.refreshAdminLink) SS.standing.refreshAdminLink();
       gate("ok");
       counts({ flags: r.open_flags, appeals: r.open_appeals });
       draw();

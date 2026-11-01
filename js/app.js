@@ -514,7 +514,7 @@
      loads only when it opens; the server (backend/functions/admin) decides
      who may use it. */
   var adminLoading = null;
-  var ADMIN_REV = "2026-10-28c"; // change whenever js/admin.js changes
+  var ADMIN_REV = "2026-11-01"; // change whenever js/admin.js changes
   SS.views.admin = function (params) {
     var run = function () { if (currentView === "admin" && SS.adminPage) SS.adminPage(params); };
     if (SS.adminPage) return run();

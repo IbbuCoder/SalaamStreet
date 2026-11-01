@@ -3134,3 +3134,28 @@ begin
     end if;
 end;
 $$;
+
+-- ════════════════════════════════════════════════════════════════════════
+--  TEMPORARY (November 2026) — the admin access code
+--  While sign-in isn't working, the Admin Panel also opens with an access
+--  code (CODE_ACCESS in backend/functions/admin/core.js, off after Nov 6).
+--  The function then acts as the owner's admin account: the earliest-added
+--  admin who has an account. Only the service role can call this. Safe to
+--  leave in place after the code is switched off; drop it with
+--  "drop function if exists public.admin_code_user();" when tidying up.
+-- ════════════════════════════════════════════════════════════════════════
+create or replace function public.admin_code_user()
+returns uuid language sql stable security definer set search_path = public as $$
+    select u.id from public.app_admins a
+    join auth.users u on coalesce(u.email, '') <> '' and a.email_hash = sha256(convert_to(lower(btrim(u.email)), 'UTF8'))
+    order by a.added_at, u.id
+    limit 1;
+$$;
+revoke all on function public.admin_code_user() from public, anon, authenticated;
+do $$
+begin
+    if exists (select 1 from pg_roles where rolname = 'service_role') then
+        grant execute on function public.admin_code_user() to service_role;
+    end if;
+end;
+$$;

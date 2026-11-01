@@ -26,6 +26,31 @@ export const AI_LIMITS = Object.freeze({ user_daily_limit: [0, 1000], daily_limi
 export const BAN_REASONS = Object.freeze(["offensive_name", "ai_abuse", "ai_rules", "impersonation", "msa_post", "fake_accounts", "hacking", "other"]);
 const TONES = ["info", "warn", "celebrate"];
 
+/* ── TEMPORARY: the admin access code (November 2026) ──────────────────────
+   While sign-in isn't working, the Admin Panel also opens with an access code
+   instead of the admin's Google account. The app sends it in the
+   "x-admin-code" header; it's checked here, on the server, and the panel then
+   acts as the owner's admin account (public.admin_code_user()), so every
+   change is still in the Log under that account.
+   It switches itself OFF at `until` (the end of Nov 6, US time). To turn it
+   off sooner: set `enabled: false` here and redeploy the admin function
+   (Actions → Deploy Supabase), or set the Edge Function secret
+   ADMIN_CODE_DISABLED=1 (no redeploy). Once it's off for good, delete this
+   block, codeUser() and the "x-admin-code" part of authorize(), and
+   ADMIN_CODE_UNTIL in js/config.js.
+   Only the code's SHA-256 is kept here, never the code itself. To change the
+   code without a redeploy, set the secret ADMIN_CODE_SHA256 to the new
+   code's SHA-256 (hex). */
+export const CODE_ACCESS = Object.freeze({
+  enabled: true,
+  until: "2026-11-07T08:00:00Z",
+  sha256: "8d6568c42483931700414a72505cbd5248c5ed03ae3a541afa6277f02e154810",
+});
+async function sha256Hex(s) {
+  const d = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
+  return Array.from(new Uint8Array(d), (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 class AdminError extends Error {
   constructor(status, code, message) { super(message); this.status = status; this.code = code; }
 }
@@ -90,6 +115,7 @@ export function validateAiPatch(patch) {
  * deps.env(name) → string | undefined
  * deps.store     → { getUser(token), rpc(name, args) } — rpc rejects with { code, message } from Postgres
  * deps.log       → optional { warn(...) } (never given tokens or emails)
+ * deps.now       → optional () => ms since 1970 (tests; the access code's end date)
  */
 export function createHandler(deps) {
   const env = (k) => { const v = deps.env(k); return v === undefined || v === null ? "" : String(v); };
@@ -113,7 +139,7 @@ export function createHandler(deps) {
   }
   function cors(req) {
     const o = req.headers.get("origin") || "";
-    const h = { "access-control-allow-headers": "authorization, apikey, content-type, x-client-info",
+    const h = { "access-control-allow-headers": "authorization, apikey, content-type, x-client-info, x-admin-code",
       "access-control-allow-methods": "POST, OPTIONS", "access-control-max-age": "600", vary: "Origin" };
     if (o && origins().indexOf(o) > -1) h["access-control-allow-origin"] = o;
     return h;
@@ -122,8 +148,28 @@ export function createHandler(deps) {
     return new Response(JSON.stringify(body), { status, headers: Object.assign({ "content-type": "application/json", "cache-control": "no-store" }, cors(req)) });
   }
 
+  /** TEMPORARY (see CODE_ACCESS): the owner's admin account, for a request that brings the access code. */
+  function codeOn(now) {
+    if (!CODE_ACCESS.enabled || /^(1|true|yes|on)$/i.test(env("ADMIN_CODE_DISABLED").trim())) return false;
+    const until = Date.parse(CODE_ACCESS.until);
+    return !isNaN(until) && now < until;
+  }
+  async function codeUser(code, action) {
+    if (!codeOn(deps.now ? deps.now() : Date.now())) throw new AdminError(401, "code_off", "Access codes are switched off. Sign in with your admin Google account instead.");
+    const want = (env("ADMIN_CODE_SHA256") || CODE_ACCESS.sha256).trim().toLowerCase();
+    if (typeof code !== "string" || code.length > 100 || (await sha256Hex(code.trim())) !== want) {
+      if (action !== "me") log.warn("admin: wrong access code");
+      throw new AdminError(403, "bad_code", "That access code isn't right.");
+    }
+    const id = await rpc("admin_code_user", {});
+    if (!id) throw new AdminError(503, "no_admin_account", "There's no admin account to act as yet. Sign in with the admin Google account once first.");
+    return { id };
+  }
+
   /** The admin's own account, or an AdminError. */
   async function authorize(req, action) {
+    const code = req.headers.get("x-admin-code");
+    if (code !== null) return codeUser(code, action);
     const m = (req.headers.get("authorization") || "").match(/^Bearer\s+(\S+)$/i);
     if (!m) throw new AdminError(401, "signed_out", "Sign in to use the Admin Panel.");
     let user = null;
