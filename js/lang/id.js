@@ -565,7 +565,7 @@ SS.i18n.register("id", {
 "about.promiseShop": "Suatu hari, toko SalaamStreet mungkin kembali juga — sementara aplikasinya tetap gratis.",
 "about.principlesTitle": "Prinsip kami",
 "about.pr1": "Sumber yang sahih — setiap ayat, hadis, dan doa menunjukkan asalnya.",
-"about.pr2": "Privasi diutamakan — tanpa iklan, tanpa pelacakan, tanpa wajib akun. Data Anda tetap di perangkat kecuali Anda memilih masuk dan menyinkronkan.",
+"about.pr2": "Privasi diutamakan — tanpa iklan, tanpa wajib akun. Data Anda tetap di perangkat kecuali Anda memilih masuk dan menyinkronkan.",
 "about.pr3": "Menghormati perbedaan pendapat ulama — Anda yang memilih metode perhitungan dan mazhab.",
 "about.pr4": "Dibuat untuk semua — setiap ponsel, tablet, dan komputer, dalam 7 bahasa.",
 "about.duaTitle": "Sebuah permohonan kecil",
