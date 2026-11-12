@@ -565,7 +565,7 @@ SS.i18n.register("fr", {
 "about.promiseShop": "Un jour, la boutique SalaamStreet pourrait revenir aussi — tandis que l'application restera gratuite.",
 "about.principlesTitle": "Nos valeurs",
 "about.pr1": "Des sources authentiques — chaque verset, hadith et invocation indique sa provenance.",
-"about.pr2": "La vie privée d'abord — pas de publicité, pas de pistage, aucun compte requis. Vos données restent sur votre appareil, sauf si vous choisissez de vous connecter et de synchroniser.",
+"about.pr2": "La vie privée d'abord — pas de publicité, aucun compte requis. Vos données restent sur votre appareil, sauf si vous choisissez de vous connecter et de synchroniser.",
 "about.pr3": "Le respect des divergences savantes — vous choisissez la méthode de calcul et le madhhab.",
 "about.pr4": "Conçu pour tous — chaque téléphone, tablette et ordinateur, en 7 langues.",
 "about.duaTitle": "Une petite demande",

@@ -565,7 +565,7 @@ SS.i18n.register("tr", {
 "about.promiseShop": "Bir gün SalaamStreet mağazası da geri dönebilir — uygulamanın kendisi ücretsiz kalırken.",
 "about.principlesTitle": "Neyi savunuyoruz",
 "about.pr1": "Sahih kaynaklar — her ayet, hadis ve dua nereden geldiğini gösterir.",
-"about.pr2": "Önce gizlilik — reklam yok, takip yok, hesap gerekmez. Giriş yapıp eşitlemeyi seçmedikçe verileriniz cihazınızda kalır.",
+"about.pr2": "Önce gizlilik — reklam yok, hesap gerekmez. Giriş yapıp eşitlemeyi seçmedikçe verileriniz cihazınızda kalır.",
 "about.pr3": "Âlimlerin görüş farklılıklarına saygı — hesaplama yöntemini ve mezhebi siz seçersiniz.",
 "about.pr4": "Herkes için — her telefon, tablet ve bilgisayarda, 7 dilde.",
 "about.duaTitle": "Küçük bir rica",
