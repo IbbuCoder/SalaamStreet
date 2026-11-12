@@ -74,7 +74,7 @@ Reading views (Qur'an, duas, hadith, settings) cap at 800px for comfortable line
 - Location is only requested after the user picks an option in the in-app dialog.
 - Coordinates are rounded to 2 decimals (~1 km) and sent only to AlAdhan.
 - The Qibla bearing, magnetic declination (WMM2025) and distance are computed on the device.
-- Website analytics: Google Tag Manager (`GTM-M7XXKMBP`) in `index.html`, `404.html`
+- Website analytics: Google Tag Manager (`GTM-M7XXKMBP`) and Google Analytics (`G-PB7CPVMCC2`, loaded directly) in `index.html`, `404.html`
   and every page from `tools/build-pages.js`. It loads only on salaamstreet.com
   (not localhost, not the iPhone app) and never with Do Not Track / Global Privacy
   Control. Besides that, the app's own analytics (3.0.5) is an anonymous
